@@ -24,7 +24,7 @@ const OSC_PERIOD_MS = 1600;
 const OSC_FADE_MS = 5000;
 
 /** Ακέραιες μοίρες ως κλάσμα του π: 30 → «π/6», 135 → «3π/4». */
-function radText(deg: number): string {
+export function radText(deg: number): string {
   if (deg === 0) return '0';
   const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
   const g = gcd(deg, 180);
@@ -34,7 +34,7 @@ function radText(deg: number): string {
 
 const HL_ALPHA = 0.35;
 /** Το χρώμα του υπογραμμιστικού όπως φαίνεται πάνω στο φόντο `bg`, χωρίς διαφάνεια. null αν το χρώμα δεν είναι #rrggbb. */
-function hlFlat(color: string, bg: [number, number, number]): string | null {
+export function hlFlat(color: string, bg: [number, number, number]): string | null {
   const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(color);
   if (!m) return null;
   const ch = bg.map((b, i) => Math.round(b + (parseInt(m[i + 1], 16) - b) * HL_ALPHA));
@@ -53,7 +53,7 @@ interface MSide {
   len: number;
   pos: Pt;
 }
-function measureSides(s: Shape): MSide[] {
+export function measureSides(s: Shape): MSide[] {
   const out: MSide[] = [];
   /** Ετικέτα στο μέσο του τμήματος ab, από την πλευρά που δεν είναι το σημείο `away`. */
   const side = (i: number, a: Pt, b: Pt, away?: Pt): void => {
@@ -79,7 +79,7 @@ function measureSides(s: Shape): MSide[] {
 }
 
 /** Οι γωνίες ενός τριγώνου σε ακέραιες μοίρες με άθροισμα ακριβώς 180, και η θέση της ετικέτας καθεμιάς. */
-function measureAngles(s: Shape): { i: number; deg: number; pos: Pt }[] {
+export function measureAngles(s: Shape): { i: number; deg: number; pos: Pt }[] {
   if (s.shape !== 'triangle' || s.dash) return [];
   const t = trianglePts(s);
   const g: Pt = [(t[0][0] + t[1][0] + t[2][0]) / 3, (t[0][1] + t[1][1] + t[2][1]) / 3];
@@ -92,7 +92,8 @@ function measureAngles(s: Shape): { i: number; deg: number; pos: Pt }[] {
   // στρογγύλεμα «μεγαλύτερου υπολοίπου»: αλλιώς τρεις στρογγυλεμένες γωνίες μπορεί να δώσουν 179 ή 181
   const deg = raw.map(Math.floor);
   const order = [0, 1, 2].sort((a, b) => raw[b] - deg[b] - (raw[a] - deg[a]));
-  for (let k = 0; k < 180 - (deg[0] + deg[1] + deg[2]) && k < 3; k++) deg[order[k]]++;
+  const need = Math.min(3, 180 - (deg[0] + deg[1] + deg[2]));
+  for (let k = 0; k < need; k++) deg[order[k]]++;
   return t.map((p, i) => {
     const gl = Math.max(Math.hypot(g[0] - p[0], g[1] - p[1]), 1);
     const off = Math.min(42, gl * 0.45);
@@ -184,6 +185,8 @@ export class Board {
 
   /** Ζητά από το UI να ανοίξει editor κειμένου. */
   onTextRequest: (x: number, y: number, existing?: TextItem) => void = () => {};
+  /** Καλείται όταν αλλάζει η προβολή (zoom/μετακίνηση). */
+  onView: () => void = () => {};
   onChange: () => void = () => {};
   onUi: () => void = () => {};
   onPointerInfo: (e: PointerEvent, count: number) => void = () => {};
@@ -1866,6 +1869,7 @@ export class Board {
       if (it.kind === 'shape' && it.meas) this.drawMeasures(c, it);
     }
     this.renderLive();
+    this.onView();
   }
 
   renderLive(): void {
@@ -2198,18 +2202,38 @@ export class Board {
     return cv;
   }
 
+  /** Μικρογραφία της πρώτης σελίδας (JPEG data URL), για τη βιβλιοθήκη μαθημάτων. */
+  async thumb(maxW = 360): Promise<string> {
+    const cv = await this.pageCanvas(0, true);
+    const s = Math.min(1, maxW / cv.width, (maxW * 0.7) / cv.height);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(cv.width * s));
+    out.height = Math.max(1, Math.round(cv.height * s));
+    out.getContext('2d')!.drawImage(cv, 0, 0, out.width, out.height);
+    return out.toDataURL('image/jpeg', 0.7);
+  }
+
   async exportPng(): Promise<Blob> {
     const cv = await this.pageCanvas(this.cur, false);
     return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('PNG'))), 'image/png'));
   }
 
   /** Όλες οι σελίδες ως εικόνες JPEG, για το PDF. */
-  async exportJpegPages(onProgress: (done: number, total: number) => void): Promise<{ jpeg: Uint8Array; w: number; h: number }[]> {
+  async exportJpegPages(onProgress: (done: number, total: number) => void, mark?: HTMLImageElement): Promise<{ jpeg: Uint8Array; w: number; h: number }[]> {
     const out: { jpeg: Uint8Array; w: number; h: number }[] = [];
     const n = this.doc.pages.length;
     for (let i = 0; i < n; i++) {
       onProgress(i, n);
       const cv = await this.pageCanvas(i, true);
+      if (mark) {
+        // λογότυπο στην κάτω δεξιά γωνία, μικρό σε σχέση με τη σελίδα
+        const s = Math.max(40, Math.min(cv.width, cv.height) * 0.07);
+        const c = cv.getContext('2d')!;
+        c.setTransform(1, 0, 0, 1, 0, 0);
+        c.globalAlpha = 0.9;
+        c.drawImage(mark, cv.width - s * 1.25, cv.height - s * 1.25, s, s);
+        c.globalAlpha = 1;
+      }
       const blob = await new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('JPEG'))), 'image/jpeg', 0.9));
       out.push({ jpeg: new Uint8Array(await blob.arrayBuffer()), w: cv.width, h: cv.height });
     }
@@ -2562,6 +2586,24 @@ export class Board {
 
   get zoom(): number {
     return this.page.view.k;
+  }
+
+  /** Μεγέθυνση ή σμίκρυνση γύρω από το κέντρο της οθόνης. */
+  zoomBy(f: number): void {
+    const v = this.page.view;
+    const k = Math.min(8, Math.max(0.1, v.k * f));
+    const cx = this.W / 2, cy = (this.H - this.bottomInset) / 2;
+    v.x = cx - ((cx - v.x) / v.k) * k;
+    v.y = cy - ((cy - v.y) / v.k) * k;
+    v.k = k;
+    this.redraw();
+    this.onChange();
+  }
+
+  /** Αν στην επιλογή υπάρχει χειρόγραφη γραμμή. */
+  get selectionHasInk(): boolean {
+    const ids = this.selectedIds();
+    return this.page.items.some((it) => it.kind === 'stroke' && ids.has(it.id));
   }
 
   private move(e: PointerEvent): void {
