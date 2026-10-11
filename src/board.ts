@@ -1,7 +1,7 @@
 import {
-  AngleItem, AxesAn, AxesItem, AxesMode, Background, Doc, FnDef, Item, MeasOpts, Op, Page, Pic, Pt, Shape, ShapeKind, StampItem, Stroke, TextItem, Tool, TrigItem, View,
-  angleDegrees, angleEnds, axesRange, cloneItem, distToSeg, erasePartial, hitItem, inLasso, isDark, itemBounds, itemRot, newDoc, newPage, pointInPolygon, reboxShape,
-  recognizeShape, rotateItem, roundAngle, scaleItem, textFont, textLines, translateItem, trianglePts, uid, unrot,
+  AngleItem, AxesAn, AxesItem, AxesMode, Background, Doc, FnDef, Item, MeasOpts, Op, Page, Pic, Pt, Shape, ShapeKind, StampItem, Stroke, TableStyle, TextItem, Tool, TrigItem, View,
+  angleDegrees, angleEnds, axesRange, cloneItem, distToSeg, erasePartial, hitItem, inLasso, isDark, isPoly, itemBounds, itemRot, newDoc, newPage, pointInPolygon, reboxShape,
+  recognizeShape, rotateItem, roundAngle, scaleItem, tableLines, textFont, textLines, translateItem, trianglePts, uid, unrot,
 } from './model';
 import { Fn, Params, compileCached, keyPoints } from './expr';
 import { Asymptotes, asymptotes, integrate, lineEq, nf, oneSided, riemann, slope } from './analysis';
@@ -71,28 +71,30 @@ export function measureSides(s: Shape): MSide[] {
     const ctr: Pt = [(x0 + x1) / 2, (y0 + y1) / 2];
     side(0, [x0, y0], [x1, y0], ctr);
     side(1, [x0, y0], [x0, y1], ctr);
-  } else if (s.shape === 'triangle') {
+  } else if (isPoly(s.shape)) {
     const t = trianglePts(s);
-    for (let i = 0; i < 3; i++) side(i, t[i], t[(i + 1) % 3], t[(i + 2) % 3]);
+    const g: Pt = [t.reduce((a, p) => a + p[0], 0) / t.length, t.reduce((a, p) => a + p[1], 0) / t.length];
+    for (let i = 0; i < t.length; i++) side(i, t[i], t[(i + 1) % t.length], g);
   }
   return out;
 }
 
-/** Οι γωνίες ενός τριγώνου σε ακέραιες μοίρες με άθροισμα ακριβώς 180, και η θέση της ετικέτας καθεμιάς. */
+/** Οι γωνίες τριγώνου, ρόμβου ή παραλληλογράμμου σε ακέραιες μοίρες με άθροισμα ακριβώς 180 (ή 360), και η θέση της ετικέτας καθεμιάς. */
 export function measureAngles(s: Shape): { i: number; deg: number; pos: Pt }[] {
-  if (s.shape !== 'triangle' || s.dash) return [];
+  if (!isPoly(s.shape) || s.dash) return [];
   const t = trianglePts(s);
-  const g: Pt = [(t[0][0] + t[1][0] + t[2][0]) / 3, (t[0][1] + t[1][1] + t[2][1]) / 3];
+  const n = t.length;
+  const g: Pt = [t.reduce((a, p) => a + p[0], 0) / n, t.reduce((a, p) => a + p[1], 0) / n];
   const raw = t.map((p, i) => {
-    const q = t[(i + 1) % 3], o = t[(i + 2) % 3];
+    const q = t[(i + 1) % n], o = t[(i + n - 1) % n];
     let d = Math.abs(Math.atan2(q[1] - p[1], q[0] - p[0]) - Math.atan2(o[1] - p[1], o[0] - p[0])) % (2 * Math.PI);
     if (d > Math.PI) d = 2 * Math.PI - d;
     return (d * 180) / Math.PI;
   });
-  // στρογγύλεμα «μεγαλύτερου υπολοίπου»: αλλιώς τρεις στρογγυλεμένες γωνίες μπορεί να δώσουν 179 ή 181
+  // στρογγύλεμα «μεγαλύτερου υπολοίπου»: αλλιώς οι στρογγυλεμένες γωνίες μπορεί να δώσουν 179 ή 181
   const deg = raw.map(Math.floor);
-  const order = [0, 1, 2].sort((a, b) => raw[b] - deg[b] - (raw[a] - deg[a]));
-  const need = Math.min(3, 180 - (deg[0] + deg[1] + deg[2]));
+  const order = raw.map((_, i) => i).sort((a, b) => raw[b] - deg[b] - (raw[a] - deg[a]));
+  const need = Math.max(0, Math.min(n, (n - 2) * 180 - deg.reduce((a, v) => a + v, 0)));
   for (let k = 0; k < need; k++) deg[order[k]]++;
   return t.map((p, i) => {
     const gl = Math.max(Math.hypot(g[0] - p[0], g[1] - p[1]), 1);
@@ -100,6 +102,50 @@ export function measureAngles(s: Shape): { i: number; deg: number; pos: Pt }[] {
     return { i, deg: deg[i], pos: [p[0] + ((g[0] - p[0]) / gl) * off, p[1] + ((g[1] - p[1]) / gl) * off] as Pt };
   });
 }
+/**
+ * Η γόμα πάνω σε μετρήσεις: σβήνει όσες ετικέτες (μήκη, γωνίες, εμβαδόν/περίμετρος) ακουμπά ο κύκλος της.
+ * Επιστρέφει το στοιχείο χωρίς αυτές, ή null αν δεν ακούμπησε καμία. Το ίδιο το σχήμα μένει.
+ */
+export function eraseMeasures(it: Item, x: number, y: number, r: number): Item | null {
+  if ((it.kind !== 'shape' && it.kind !== 'angle') || !it.meas) return null;
+  const o = it.meas;
+  const [wx, wy] = it.kind === 'shape' ? unrot(it, x, y) : [x, y];
+  const near = (p: Pt, hw = 26, hh = 13): boolean => Math.abs(wx - p[0]) < hw + r && Math.abs(wy - p[1]) < hh + r;
+  const m: MeasOpts = { ...o };
+  if (it.kind === 'angle') {
+    if (o.len && angleSides(it).some((q) => near(q.pos))) m.len = false;
+  } else {
+    if (o.len && measureSides(it).some((q) => near(q.pos))) m.len = false;
+    const { x0, y0, x1, y1 } = it;
+    let ctr: Pt = [(x0 + x1) / 2, (y0 + y1) / 2];
+    if (o.ang && isPoly(it.shape) && measureAngles(it).some((q) => near(q.pos))) m.ang = false;
+    if (o.ang && it.shape === 'rect') {
+      const hit = ([[x0, y0], [x1, y0], [x1, y1], [x0, y1]] as Pt[]).some((p) => {
+        const gl = Math.max(Math.hypot(ctr[0] - p[0], ctr[1] - p[1]), 1);
+        const off = Math.min(42, gl * 0.45);
+        return near([p[0] + ((ctr[0] - p[0]) / gl) * off, p[1] + ((ctr[1] - p[1]) / gl) * off]);
+      });
+      if (hit) m.ang = false;
+    }
+    if (isPoly(it.shape)) {
+      const t = trianglePts(it);
+      ctr = [t.reduce((a, p) => a + p[0], 0) / t.length, t.reduce((a, p) => a + p[1], 0) / t.length];
+    }
+    // οι γραμμές στο κέντρο (r/a/b της έλλειψης, Ε, Π) με τη σειρά που ζωγραφίζονται
+    const mid: (keyof MeasOpts)[] = [];
+    if (it.shape === 'ellipse' && o.len) mid.push('len');
+    if (it.shape !== 'line' && it.shape !== 'arrow') {
+      if (o.area) mid.push('area');
+      if (o.per) mid.push('per');
+    }
+    mid.forEach((key, i) => {
+      if (near([ctr[0], ctr[1] + (i - (mid.length - 1) / 2) * 24], 60, 11)) m[key] = false;
+    });
+  }
+  if (m.len === o.len && m.ang === o.ang && m.area === o.area && m.per === o.per) return null;
+  return { ...it, meas: m };
+}
+
 /** Στις ετικέτες του σχήματος οι γωνίες έχουν αριθμό 10 + κορυφή (οι πλευρές 0, 1, 2). */
 const ANGLE_KEY = 10;
 
@@ -145,6 +191,8 @@ interface PState {
   start?: Pt;
   /** Περιστροφή: η γωνία της γραφίδας ως προς το κέντρο όταν ακούμπησε. */
   a0?: number;
+  /** Περιστροφή: μένει true όσο η γραφίδα δεν έχει συρθεί (απλό πάτημα της λαβής αλλάζει κέντρο). */
+  tap?: boolean;
   v0?: View;
 }
 
@@ -177,6 +225,8 @@ export class Board {
   paramPreview: Params | null = null;
   /** Πολλαπλή επιλογή (λάσο). Όταν έχει στοιχεία, το `selected` είναι null. */
   multi: string[] = [];
+  /** Κέντρο περιστροφής της επιλογής όταν δεν είναι το κέντρο της: ποια άκρη (i) και, για ομάδα, το σημείο. */
+  private pivot: { key: string; i: number; p: Pt } | null = null;
   /** Διαφανές φόντο (γράψιμο πάνω από άλλα προγράμματα). */
   transparent = false;
   palmThreshold = 40;
@@ -504,6 +554,16 @@ export class Board {
     this.addAndSelect({ kind: 'stamp', id: uid(), name, x: cx - d.w / 2, y: cy - d.h / 2, w: d.w, h: d.h, color: this.color, width: 3 });
   }
 
+  /** Κενός πίνακας (πλέγμα, ορίζουσα ή μήτρα) στο κέντρο της οθόνης· γράφεις μέσα στα κελιά με το στυλό. */
+  addTable(r: number, c: number, style: TableStyle): void {
+    const [cx, cy] = this.center();
+    const k = this.page.view.k;
+    // κελιά 2,4 × 1,8 cm, μικρότερα αν ο πίνακας δεν χωρά στην οθόνη
+    const f = Math.min(1, (this.W * 0.85) / k / (c * 96), (Math.max(this.H - this.bottomInset, 100) * 0.8) / k / (r * 72));
+    const w = c * 96 * f, h = r * 72 * f;
+    this.addAndSelect({ kind: 'shape', id: uid(), shape: 'table', x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2, color: this.color, width: 3, grid: { r, c, style } });
+  }
+
   addTrig(): void {
     const [cx, cy] = this.center();
     this.addAndSelect({ kind: 'trig', id: uid(), x: cx, y: cy, r: 4 * CM, a: Math.PI / 6, color: this.color });
@@ -561,7 +621,7 @@ export class Board {
         out.push([[it.x, it.y], p1], [[it.x, it.y], p2]);
       } else if (it.kind === 'shape') {
         if (it.shape === 'line' || it.shape === 'arrow') out.push([[it.x0, it.y0], [it.x1, it.y1]]);
-        else if (it.shape === 'triangle') ring(trianglePts(it));
+        else if (isPoly(it.shape)) ring(trianglePts(it));
         else if (it.shape === 'rect') {
           const mx = (it.x0 + it.x1) / 2, my = (it.y0 + it.y1) / 2, cs = Math.cos(it.rot ?? 0), sn = Math.sin(it.rot ?? 0);
           ring(([[it.x0, it.y0], [it.x1, it.y0], [it.x1, it.y1], [it.x0, it.y1]] as Pt[]).map(([x, y]) => [mx + (x - mx) * cs - (y - my) * sn, my + (x - mx) * sn + (y - my) * cs]));
@@ -577,27 +637,50 @@ export class Board {
    */
   private angleAround(wx: number, wy: number): AngleItem | null {
     const segs = this.segments().filter(([p, q]) => Math.hypot(q[0] - p[0], q[1] - p[1]) > 10);
-    const SNAP = 14;
+    // ανοχή: γραμμές τραβηγμένες με το χέρι σπάνια ακουμπάνε ακριβώς στην κορυφή
+    const SNAP = Math.max(26, 26 / this.page.view.k);
+    // υποψήφιες κορυφές: τα σημεία όπου δύο τμήματα συναντιούνται ή διασταυρώνονται (και λίγο έξω από τα άκρα τους)
+    const verts: Pt[] = [];
+    for (let i = 0; i < segs.length; i++) for (let j = i + 1; j < segs.length; j++) {
+      const [p, q] = segs[i], [r, t] = segs[j];
+      const d1x = q[0] - p[0], d1y = q[1] - p[1], d2x = t[0] - r[0], d2y = t[1] - r[1];
+      const l1 = Math.hypot(d1x, d1y), l2 = Math.hypot(d2x, d2y);
+      const cross = d1x * d2y - d1y * d2x;
+      if (Math.abs(cross) < 0.03 * l1 * l2) continue;
+      // δύο άκρα πολύ κοντά το ένα στο άλλο μετράνε ως κοινή κορυφή, ακόμα κι αν οι προεκτάσεις τέμνονται πιο μακριά
+      let joined = false;
+      for (const e1 of [p, q]) for (const e2 of [r, t]) {
+        if (!joined && Math.hypot(e1[0] - e2[0], e1[1] - e2[1]) < SNAP * 1.5) {
+          const mid: Pt = [(e1[0] + e2[0]) / 2, (e1[1] + e2[1]) / 2];
+          if (!verts.some((v) => Math.hypot(v[0] - mid[0], v[1] - mid[1]) < 3)) verts.push(mid);
+          joined = true;
+        }
+      }
+      if (joined) continue;
+      const u = ((r[0] - p[0]) * d2y - (r[1] - p[1]) * d2x) / cross;
+      const w = ((r[0] - p[0]) * d1y - (r[1] - p[1]) * d1x) / cross;
+      if (u * l1 < -SNAP || u * l1 > l1 + SNAP || w * l2 < -SNAP || w * l2 > l2 + SNAP) continue;
+      const x: Pt = [p[0] + d1x * u, p[1] + d1y * u];
+      if (!verts.some((v) => Math.hypot(v[0] - x[0], v[1] - x[1]) < 3)) verts.push(x);
+    }
     let best: { d: number; v: Pt; a1: number; a2: number; len: number } | null = null;
-    const seen: Pt[] = [];
-    for (const [e0, e1] of segs) for (const v of [e0, e1]) {
-      if (seen.some((s) => Math.hypot(s[0] - v[0], s[1] - v[1]) < SNAP)) continue;
-      seen.push(v);
+    for (const v of verts) {
       const d = Math.hypot(wx - v[0], wy - v[1]);
       if (d < 6 || (best && d >= best.d)) continue;
-      // ακτίνες που φεύγουν από την κορυφή v
+      // ακτίνες που φεύγουν από την κορυφή v: προς κάθε άκρο τμήματος που περνά από εκεί
       const rays: { a: number; len: number }[] = [];
       const add = (to: Pt): void => {
-        const a = Math.atan2(to[1] - v[1], to[0] - v[0]), len = Math.hypot(to[0] - v[0], to[1] - v[1]);
+        const len = Math.hypot(to[0] - v[0], to[1] - v[1]);
+        if (len < SNAP * 1.2) return;
+        const a = Math.atan2(to[1] - v[1], to[0] - v[0]);
         const same = rays.find((r) => Math.abs(Math.atan2(Math.sin(r.a - a), Math.cos(r.a - a))) < 0.03);
         if (same) same.len = Math.max(same.len, len);
         else rays.push({ a, len });
       };
       for (const [p, q] of segs) {
-        const dp = Math.hypot(p[0] - v[0], p[1] - v[1]), dq = Math.hypot(q[0] - v[0], q[1] - v[1]);
-        if (dp < SNAP) add(q);
-        else if (dq < SNAP) add(p);
-        else if (distToSeg(v[0], v[1], p, q) < 5) { add(p); add(q); }
+        if (distToSeg(v[0], v[1], p, q) > SNAP) continue;
+        add(p);
+        add(q);
       }
       if (rays.length < 2) continue;
       rays.sort((r, s) => r.a - s.a);
@@ -615,7 +698,14 @@ export class Board {
     // το μήκος ορίζει μόνο την ακτίνα του τόξου (βλ. drawAngleMark)
     // κάθε επόμενη γωνία στην ίδια κορυφή παίρνει μεγαλύτερο τόξο, για να μην πέφτουν οι μοίρες η μία πάνω στην άλλη
     const v = best.v;
-    const here = this.page.items.filter((x) => x.kind === 'angle' && Math.hypot(x.x - v[0], x.y - v[1]) < SNAP).length;
+    const mid = best.a1 + ((((best.a2 - best.a1) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) / 2;
+    const here = this.page.items.filter((x) => {
+      if (x.kind !== 'angle' || Math.hypot(x.x - v[0], x.y - v[1]) >= SNAP) return false;
+      // μόνο όσες γωνίες «πατάνε» στο ίδιο άνοιγμα (π.χ. η μεγάλη γωνία γύρω από μια μικρότερη)
+      const half = Math.abs(Math.atan2(Math.sin(x.a2 - x.a1), Math.cos(x.a2 - x.a1))) / 2;
+      const xm = x.a1 + Math.atan2(Math.sin(x.a2 - x.a1), Math.cos(x.a2 - x.a1)) / 2;
+      return Math.abs(Math.atan2(Math.sin(mid - xm), Math.cos(mid - xm))) < half + 0.02;
+    }).length;
     const len = (Math.max(18, Math.min(46, best.len * 0.4)) + 34 * here) / 0.4;
     return { kind: 'angle', id: uid(), x: best.v[0], y: best.v[1], a1: best.a1, a2: best.a2, len1: len, len2: len, color: this.color, width: 3, arc: true };
   }
@@ -632,12 +722,12 @@ export class Board {
         const [x, y] = this.toScreen((ab.x0 + ab.x1) / 2, ab.y0);
         return { id: it.id, shape: 'angle', meas: it.meas ?? {}, x, y };
       }
-      if (it.kind !== 'shape' || it.dash) continue;
+      if (it.kind !== 'shape' || it.dash || it.shape === 'table') continue;
       const [wx, wy] = unrot(it, px, py);
       const b = { x0: Math.min(it.x0, it.x1), y0: Math.min(it.y0, it.y1), x1: Math.max(it.x0, it.x1), y1: Math.max(it.y0, it.y1) };
       let hit = hitItem(it, px, py, r);
       if (!hit && it.shape === 'rect') hit = wx >= b.x0 && wx <= b.x1 && wy >= b.y0 && wy <= b.y1;
-      if (!hit && it.shape === 'triangle') hit = pointInPolygon(wx, wy, trianglePts(it));
+      if (!hit && isPoly(it.shape)) hit = pointInPolygon(wx, wy, trianglePts(it));
       if (!hit && it.shape === 'ellipse') {
         const a = Math.max((b.x1 - b.x0) / 2, 0.5), h = Math.max((b.y1 - b.y0) / 2, 0.5);
         hit = Math.hypot((wx - (b.x0 + b.x1) / 2) / a, (wy - (b.y0 + b.y1) / 2) / h) <= 1;
@@ -696,8 +786,25 @@ export class Board {
       // γωνία τριγώνου: η κορυφή και η μία πλευρά μένουν, η άλλη πλευρά στρέφεται γύρω από την κορυφή
       const i = sideIndex - ANGLE_KEY;
       const num = /^(\d+([.,]\d+)?)\s*°?$/.exec(v);
-      if (before.shape !== 'triangle') return;
-      if (num) {
+      if (!isPoly(before.shape)) return;
+      if (num && before.shape !== 'triangle') {
+        // ρόμβος ή παραλληλόγραμμο: οι πλευρές κρατούν το μήκος τους, αλλάζει η κλίση (και μαζί οι άλλες τρεις γωνίες)
+        const want = (parseFloat(num[1].replace(',', '.')) * Math.PI) / 180;
+        if (!(want > 0.02 && want < Math.PI - 0.02)) return;
+        const pts = trianglePts(before).map((q): Pt => [q[0], q[1]]);
+        const p = pts[i], q = pts[(i + 1) % 4], o = pts[(i + 3) % 4];
+        const aq = Math.atan2(q[1] - p[1], q[0] - p[0]);
+        let d = Math.atan2(o[1] - p[1], o[0] - p[0]) - aq;
+        while (d > Math.PI) d -= 2 * Math.PI;
+        while (d < -Math.PI) d += 2 * Math.PI;
+        const na = aq + (d < 0 ? -want : want);
+        const lo = Math.hypot(o[0] - p[0], o[1] - p[1]);
+        const no: Pt = [p[0] + lo * Math.cos(na), p[1] + lo * Math.sin(na)];
+        pts[(i + 3) % 4] = no;
+        pts[(i + 2) % 4] = [q[0] + no[0] - p[0], q[1] + no[1] - p[1]];
+        const xs = pts.map((c) => c[0]), ys = pts.map((c) => c[1]);
+        after = { ...after, pts, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+      } else if (num) {
         const want = (parseFloat(num[1].replace(',', '.')) * Math.PI) / 180;
         if (!(want > 0.02 && want < Math.PI - 0.02)) return;
         const pts = trianglePts(before).map((q): Pt => [q[0], q[1]]);
@@ -727,7 +834,19 @@ export class Board {
       const b: Pt = [m.a[0] + (m.b[0] - m.a[0]) * f, m.a[1] + (m.b[1] - m.a[1]) * f];
       if (before.shape === 'line' || before.shape === 'arrow') after = { ...after, x1: b[0], y1: b[1] };
       else if (before.shape === 'rect') after = sideIndex === 0 ? { ...after, x1: b[0] } : { ...after, y1: b[1] };
-      else {
+      else if (before.shape === 'rhombus') {
+        // ρόμβος: όλες οι πλευρές ίσες, άρα μεγαλώνει ολόκληρος γύρω από την κορυφή a
+        const pts = trianglePts(before).map((q): Pt => [m.a[0] + (q[0] - m.a[0]) * f, m.a[1] + (q[1] - m.a[1]) * f]);
+        const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+        after = { ...after, pts, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+      } else if (before.shape === 'para') {
+        // παραλληλόγραμμο: μαζί με την πλευρά αλλάζει και η απέναντί της
+        const pts = trianglePts(before).map((q): Pt => [q[0], q[1]]);
+        const dx = b[0] - m.b[0], dy = b[1] - m.b[1];
+        for (const k of [(sideIndex + 1) % 4, (sideIndex + 2) % 4]) pts[k] = [pts[k][0] + dx, pts[k][1] + dy];
+        const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
+        after = { ...after, pts, x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) };
+      } else {
         const pts = trianglePts(before).map((q): Pt => [q[0], q[1]]);
         pts[(sideIndex + 1) % 3] = b;
         const xs = pts.map((q) => q[0]), ys = pts.map((q) => q[1]);
@@ -1086,12 +1205,15 @@ export class Board {
     c.globalAlpha = s.hl ? 0.35 : 1;
     if (s.dash) c.setLineDash([10, 9]);
     c.beginPath();
-    if (s.shape === 'triangle') {
+    if (isPoly(s.shape)) {
       const t = trianglePts(s);
-      c.moveTo(t[0][0], t[0][1]);
-      c.lineTo(t[1][0], t[1][1]);
-      c.lineTo(t[2][0], t[2][1]);
+      t.forEach((q, i) => (i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])));
       c.closePath();
+    } else if (s.shape === 'table') {
+      for (const [p, q] of tableLines(s)) {
+        c.moveTo(p[0], p[1]);
+        c.lineTo(q[0], q[1]);
+      }
     } else if (s.shape === 'rect') {
       c.rect(Math.min(s.x0, s.x1), Math.min(s.y0, s.y1), Math.abs(s.x1 - s.x0), Math.abs(s.y1 - s.y0));
     } else if (s.shape === 'ellipse') {
@@ -1693,13 +1815,15 @@ export class Board {
       if (o.area) mid.push(`Ε = ${fmt((Math.PI * a * b) / CM / CM)}`);
       // περίμετρος έλλειψης: προσέγγιση του Ramanujan (ακριβής για κύκλο)
       if (o.per) mid.push(`Π = ${fmt((Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)))) / CM)}`);
-    } else if (s.shape === 'triangle') {
+    } else if (isPoly(s.shape)) {
       const t = trianglePts(s);
-      ctr = [(t[0][0] + t[1][0] + t[2][0]) / 3, (t[0][1] + t[1][1] + t[2][1]) / 3];
-      const area = Math.abs((t[1][0] - t[0][0]) * (t[2][1] - t[0][1]) - (t[2][0] - t[0][0]) * (t[1][1] - t[0][1])) / 2;
+      const n = t.length;
+      ctr = [t.reduce((a, p) => a + p[0], 0) / n, t.reduce((a, p) => a + p[1], 0) / n];
+      // εμβαδόν πολυγώνου από τις κορυφές του
+      const area = Math.abs(t.reduce((a, p, i) => a + p[0] * t[(i + 1) % n][1] - t[(i + 1) % n][0] * p[1], 0)) / 2;
       if (o.ang) for (const m of measureAngles(s)) c.fillText(s.labels?.[ANGLE_KEY + m.i] ?? `${m.deg}°`, m.pos[0], m.pos[1]);
       if (scaled && o.area) mid.push(`Ε = ${fmt(area / CM / CM)}`);
-      if (scaled && o.per) mid.push(`Π = ${fmt((len(t[0], t[1]) + len(t[1], t[2]) + len(t[2], t[0])) / CM)}`);
+      if (scaled && o.per) mid.push(`Π = ${fmt(t.reduce((a, p, i) => a + len(p, t[(i + 1) % n]), 0) / CM)}`);
     }
     mid.forEach((text, i) => c.fillText(text, ctr[0], ctr[1] + (i - (mid.length - 1) / 2) * 24));
     c.restore();
@@ -1934,7 +2058,10 @@ export class Board {
           c.stroke();
         }
       }
-      if (this.rotatable(selItem)) this.drawRotHandle(c, b);
+      if (this.rotatable(selItem)) {
+        this.drawRotHandle(c, b);
+        if (this.pivot?.key === this.pivotKey()) this.drawPivot(c, this.pivotPoint(b, selItem));
+      }
       c.restore();
     }
     if (this.multi.length && this.tool === 'select') {
@@ -1959,6 +2086,7 @@ export class Board {
         c.arc(b.x1, b.y1, 12 / k, 0, Math.PI * 2);
         c.fill();
         this.drawRotHandle(c, b);
+        if (this.pivot?.key === this.pivotKey()) this.drawPivot(c, this.pivotPoint(b));
       }
       c.restore();
     }
@@ -2002,6 +2130,56 @@ export class Board {
     return it.kind !== 'axes' && it.kind !== 'trig';
   }
 
+  /** Οι άκρες ενός στοιχείου που μπορούν να γίνουν κέντρο περιστροφής (άκρα γραμμής, κορυφές, γωνίες πλαισίου). */
+  private pivots(it: Item): Pt[] {
+    if (it.kind === 'stroke') return it.pts.length > 1 ? [[it.pts[0][0], it.pts[0][1]], [it.pts[it.pts.length - 1][0], it.pts[it.pts.length - 1][1]]] : [];
+    if (it.kind === 'angle') return [[it.x, it.y], ...angleEnds(it)];
+    if (it.kind === 'shape' && (it.shape === 'line' || it.shape === 'arrow')) return [[it.x0, it.y0], [it.x1, it.y1]];
+    if (it.kind === 'shape' && isPoly(it.shape)) return trianglePts(it);
+    const rot = itemRot(it);
+    const b = it.kind === 'shape' ? it : itemBounds(rot ? ({ ...it, rot: 0 } as Item) : it);
+    const mx = (b.x0 + b.x1) / 2, my = (b.y0 + b.y1) / 2, cs = Math.cos(rot), sn = Math.sin(rot);
+    return ([[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]] as Pt[]).map(([x, y]) => [mx + (x - mx) * cs - (y - my) * sn, my + (x - mx) * sn + (y - my) * cs]);
+  }
+
+  private pivotKey(): string {
+    return this.selected ?? this.multi.join(',');
+  }
+
+  /** Το σημείο γύρω από το οποίο στρέφεται η επιλογή: το κέντρο του πλαισίου, ή η άκρη που έχει διαλεχτεί. */
+  private pivotPoint(b: Box, it?: Item): Pt {
+    const ctr: Pt = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
+    const pv = this.pivot;
+    if (!pv || pv.key !== this.pivotKey()) return ctr;
+    return it ? this.pivots(it)[pv.i] ?? ctr : pv.p;
+  }
+
+  /** Πάτημα στη λαβή περιστροφής: κέντρο → κάθε άκρη με τη σειρά → πάλι κέντρο. */
+  private nextPivot(b: Box, it?: Item): void {
+    const key = this.pivotKey();
+    const list = it ? this.pivots(it) : ([[b.x0, b.y0], [b.x1, b.y0], [b.x1, b.y1], [b.x0, b.y1]] as Pt[]);
+    const i = this.pivot && this.pivot.key === key ? this.pivot.i + 1 : 0;
+    this.pivot = i < list.length ? { key, i, p: list[i] } : null;
+  }
+
+  private drawPivot(c: CanvasRenderingContext2D, p: Pt): void {
+    const k = this.page.view.k;
+    c.save();
+    c.setLineDash([]);
+    c.lineWidth = 2.5 / k;
+    c.strokeStyle = '#2563eb';
+    c.fillStyle = '#ffffff';
+    c.beginPath();
+    c.arc(p[0], p[1], 11 / k, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    c.fillStyle = '#2563eb';
+    c.beginPath();
+    c.arc(p[0], p[1], 4 / k, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+
   /** Η λαβή περιστροφής: πάνω από τη μέση του πλαισίου επιλογής. */
   private rotHandle(b: Box): Pt {
     return [(b.x0 + b.x1) / 2, b.y0 - 38 / this.page.view.k];
@@ -2033,6 +2211,13 @@ export class Board {
     c.lineTo(hx + 9.5 / k, hy - 8.5 / k);
     c.stroke();
     c.restore();
+  }
+
+  /** Αν η γραφίδα δεν έχει ακόμα συρθεί γύρω από το κέντρο (λιγότερο από 8 px στην οθόνη). */
+  private rotStill(ps: PState, wx: number, wy: number): boolean {
+    const [cx, cy] = ps.start!;
+    const d = Math.atan2(wy - cy, wx - cx) - ps.a0!;
+    return Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) * Math.hypot(wx - cx, wy - cy) * this.page.view.k < 8;
   }
 
   /** Γωνία περιστροφής από τη θέση της γραφίδας· κοντά σε πολλαπλάσια των 15° «κουμπώνει». */
@@ -2213,18 +2398,30 @@ export class Board {
     return out.toDataURL('image/jpeg', 0.7);
   }
 
+  /** Μικρογραφία της σελίδας pi, για την επιλογή σελίδων στην εξαγωγή. */
+  async pageThumb(pi: number, maxW: number): Promise<HTMLCanvasElement> {
+    const cv = await this.pageCanvas(pi, true);
+    const s = Math.min(1, maxW / cv.width);
+    const out = document.createElement('canvas');
+    out.width = Math.max(1, Math.round(cv.width * s));
+    out.height = Math.max(1, Math.round(cv.height * s));
+    out.getContext('2d')!.drawImage(cv, 0, 0, out.width, out.height);
+    return out;
+  }
+
   async exportPng(): Promise<Blob> {
     const cv = await this.pageCanvas(this.cur, false);
     return new Promise((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('PNG'))), 'image/png'));
   }
 
-  /** Όλες οι σελίδες ως εικόνες JPEG, για το PDF. */
-  async exportJpegPages(onProgress: (done: number, total: number) => void, mark?: HTMLImageElement): Promise<{ jpeg: Uint8Array; w: number; h: number }[]> {
+  /** Οι σελίδες (όλες, ή μόνο όσες δίνει η λίστα `only`) ως εικόνες JPEG, για το PDF. */
+  async exportJpegPages(onProgress: (done: number, total: number) => void, mark?: HTMLImageElement, only?: number[]): Promise<{ jpeg: Uint8Array; w: number; h: number }[]> {
     const out: { jpeg: Uint8Array; w: number; h: number }[] = [];
-    const n = this.doc.pages.length;
+    const list = only ?? this.doc.pages.map((_, i) => i);
+    const n = list.length;
     for (let i = 0; i < n; i++) {
       onProgress(i, n);
-      const cv = await this.pageCanvas(i, true);
+      const cv = await this.pageCanvas(list[i], true);
       if (mark) {
         // λογότυπο στην κάτω δεξιά γωνία, μικρό σε σχέση με τη σελίδα
         const s = Math.max(40, Math.min(cv.width, cv.height) * 0.07);
@@ -2257,8 +2454,16 @@ export class Board {
     let changed = false;
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i];
-      // εικόνες, άξονες, τριγωνομετρικός κύκλος και σχήματα φυσικής σβήνονται μόνο με τον κάδο
-      if (it.kind === 'image' || it.kind === 'axes' || it.kind === 'trig' || it.kind === 'stamp') continue;
+      // εικόνες, άξονες, τριγωνομετρικός κύκλος, σχήματα φυσικής και πίνακες σβήνονται μόνο με τον κάδο
+      // (ο πίνακας ειδικά για να σβήνεις ό,τι έγραψες στα κελιά χωρίς να χαλάς τις γραμμές του)
+      if (it.kind === 'image' || it.kind === 'axes' || it.kind === 'trig' || it.kind === 'stamp' || (it.kind === 'shape' && it.shape === 'table')) continue;
+      // πρώτα οι μετρήσεις: η γόμα πάνω σε ένα μήκος ή μια γωνία σβήνει την ένδειξη, όχι το σχήμα
+      const bare = eraseMeasures(it, x, y, r);
+      if (bare) {
+        items[i] = bare;
+        changed = true;
+        continue;
+      }
       if (this.eraserMode === 'partial') {
         const rest = erasePartial(it, x, y, r);
         if (!rest) continue;
@@ -2404,9 +2609,11 @@ export class Board {
         this.renderLive();
         break;
       case 'measure':
-        // σύρσιμο μέσα σε μια γωνία τη μετράει· το τόξο μένει στη σελίδα όταν σηκώσεις τη γραφίδα
+        // πάτημα ή σύρσιμο μέσα σε μια γωνία τη μετράει· το τόξο μένει στη σελίδα όταν σηκώσεις τη γραφίδα
         ps.mode = 'measure';
         ps.start = [e.clientX, e.clientY];
+        ps.live = this.angleAround(wx, wy) ?? undefined;
+        this.renderLive();
         break;
       case 'laser':
         ps.mode = 'laser';
@@ -2444,8 +2651,9 @@ export class Board {
             ps.mode = 'rotate';
             ps.orig = sel;
             ps.preview = sel;
-            ps.start = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
+            ps.start = this.pivotPoint(b, sel);
             ps.a0 = Math.atan2(wy - ps.start[1], wx - ps.start[0]);
+            ps.tap = true;
             this.redraw();
             return;
           }
@@ -2469,8 +2677,9 @@ export class Board {
               ps.mode = 'grotate';
               ps.before = items.slice();
               ps.ids = new Set(this.multi);
-              ps.start = [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2];
+              ps.start = this.pivotPoint(b);
               ps.a0 = Math.atan2(wy - ps.start[1], wx - ps.start[0]);
+              ps.tap = true;
               return;
             }
             if (corner || inside) {
@@ -2706,15 +2915,19 @@ export class Board {
         ps.laser!.pts.push([wx, wy]);
         break;
       case 'measure':
-        ps.live = Math.hypot(e.clientX - ps.start![0], e.clientY - ps.start![1]) > 10 ? this.angleAround(wx, wy) ?? undefined : undefined;
+        ps.live = this.angleAround(wx, wy) ?? undefined;
         break;
       case 'lasso':
         ps.lasso!.push([wx, wy]);
         break;
       case 'rotate':
+        if (ps.tap && this.rotStill(ps, wx, wy)) break;
+        ps.tap = false;
         ps.preview = rotateItem(ps.orig!, ps.start![0], ps.start![1], this.rotAngle(ps, wx, wy));
         break;
       case 'grotate': {
+        if (ps.tap && this.rotStill(ps, wx, wy)) break;
+        ps.tap = false;
         const ang = this.rotAngle(ps, wx, wy);
         const ids = ps.ids!;
         this.page.items = ps.before!.map((it) => (ids.has(it.id) ? rotateItem(it, ps.start![0], ps.start![1], ang) : it));
@@ -2882,6 +3095,15 @@ export class Board {
       case 'gmove':
       case 'gresize':
       case 'grotate':
+        if (ps.mode === 'grotate' && ps.tap) {
+          const gb = this.groupBounds();
+          if (gb) this.nextPivot(gb);
+        } else if (this.pivot && ps.changed && ps.mode !== 'grotate') {
+          // η ομάδα μετακινήθηκε: το κέντρο περιστροφής πάει μαζί της· αν άλλαξε μέγεθος, ξαναγίνεται το κέντρο της
+          const gb = this.groupBounds();
+          if (ps.mode === 'gmove' && gb && ps.gb) this.pivot = { ...this.pivot, p: [this.pivot.p[0] + gb.x0 - ps.gb.x0, this.pivot.p[1] + gb.y0 - ps.gb.y0] };
+          else this.pivot = null;
+        }
         if (ps.changed && ps.before) {
           this.push({ t: 'set', p: this.cur, before: ps.before, after: this.page.items.slice() });
         }
@@ -2904,6 +3126,7 @@ export class Board {
       case 'resize': {
         const before = ps.orig!;
         const after = ps.preview!;
+        if (ps.mode === 'rotate' && ps.tap) this.nextPivot(itemBounds(before), before);
         const i = this.page.items.findIndex((x) => x.id === before.id);
         if (i >= 0 && after !== before) {
           this.page.items[i] = after;
