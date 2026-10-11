@@ -2,6 +2,8 @@
 
 export type Provider = 'gemini' | 'claude';
 export type RecKind = 'text' | 'math';
+/** Τι ζητάμε από την υπηρεσία: μεταγραφή (κείμενο ή τύπος) ή λύση της άσκησης. */
+export type AiTask = RecKind | 'solve' | 'check';
 
 export interface AiSettings {
   provider: Provider;
@@ -37,7 +39,7 @@ export function saveAi(s: AiSettings): void {
   localStorage.setItem(KEY, JSON.stringify(s));
 }
 
-const PROMPT: Record<RecKind, string> = {
+const PROMPT: Record<AiTask, string> = {
   text:
     'The image shows handwriting from a classroom whiteboard, usually in Greek (sometimes English). ' +
     'Transcribe exactly what is written. Do not translate, correct, complete or comment. ' +
@@ -48,6 +50,31 @@ const PROMPT: Record<RecKind, string> = {
     'Transcribe exactly what is written as LaTeX. Do not solve, simplify, complete or correct it. ' +
     'For several lines use \\begin{aligned} ... \\end{aligned} with \\\\ between lines. Put any words inside \\text{}. ' +
     'Reply with the LaTeX only: no $ delimiters, no code fences, no explanation. If nothing is readable reply with an empty message.',
+  solve:
+    'The image shows a mathematics or physics exercise from a Greek secondary-school classroom whiteboard ' +
+    '(an equation, inequality, system, derivative, integral, limit, determinant, expression to compute or simplify, etc.). ' +
+    'Solve it the way a teacher would write it on the board: the main steps only, one per line, ending with the final answer. ' +
+    'Do not repeat the given exercise as the first line. At most 10 lines. ' +
+    'Reply as LaTeX inside \\begin{aligned} ... \\end{aligned} with \\\\ between lines and & before the main relation sign of each line. ' +
+    'Any words must be in Greek, very short, inside \\text{}. Use a decimal comma. ' +
+    'Reply with the LaTeX only: no $ delimiters, no code fences, no explanation. ' +
+    'Exception: if it is a multiple-choice, true/false or theory question rather than a calculation, do not use LaTeX. ' +
+    'Reply instead with a first line containing only the word TEXT, then at most three short lines of plain Greek text ' +
+    '(maths in Unicode): the correct option (its number or letter and its wording in brief) and a justification of at most 15 words. ' +
+    'If nothing is readable or there is nothing to solve reply with an empty message.',
+  check:
+    'The image shows a student\'s handwritten solution to a mathematics or physics exercise on a Greek secondary-school classroom whiteboard, ' +
+    'usually several lines, each following from the previous one. Check it line by line. ' +
+    'Reply in Greek, in plain text (no LaTeX, no Markdown), with maths in Unicode (x², √, ·, ≤, ≠). ' +
+    'If every step and the final answer are correct, reply with exactly one line starting with "✓ " and a very short confirmation. ' +
+    'Otherwise reply with at most three short lines: the first starts with "✗ " and says in which line (counting from the top) the first mistake is; ' +
+    'the second says in at most 12 words what went wrong; the third gives the correct form of that one line only. ' +
+    'Do not write out the rest of the solution and do not comment on handwriting or style. ' +
+    'If instead the image shows a multiple-choice or true/false question, printed or handwritten, where one option has been marked by hand ' +
+    '(circled, ticked, underlined or crossed), judge that marked option: reply "✓ " plus a very short confirmation if it is the correct one, ' +
+    'otherwise "✗ " plus which option was marked, then a second line with the correct option, then a third line with a reason of at most 15 words. ' +
+    'If no option is marked, reply with "✗ Δεν έχει σημειωθεί απάντηση" and on the second line the correct option. ' +
+    'If nothing is readable or there is nothing to check reply with an empty message.',
 };
 
 async function toBase64(blob: Blob): Promise<string> {
@@ -62,7 +89,7 @@ function clean(t: string): string {
 }
 
 /** Στέλνει την εικόνα (PNG) για αναγνώριση. Επιστρέφει κείμενο ή LaTeX· κενό αν δεν διαβάστηκε τίποτα. */
-export async function recognize(png: Blob, kind: RecKind, s: AiSettings): Promise<string> {
+export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise<string> {
   const key = s.keys[s.provider];
   if (!key) throw new Error('Δεν έχει οριστεί κλειδί');
   const data = await toBase64(png);
@@ -88,7 +115,7 @@ export async function recognize(png: Blob, kind: RecKind, s: AiSettings): Promis
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1024,
+        max_tokens: kind === 'solve' ? 3000 : kind === 'check' ? 2000 : 1024,
         messages: [{
           role: 'user',
           content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data } }, { type: 'text', text: PROMPT[kind] }],
@@ -105,7 +132,9 @@ export async function recognize(png: Blob, kind: RecKind, s: AiSettings): Promis
   }
   const json = await res.json();
   const parts: { text?: string }[] = s.provider === 'gemini' ? json.candidates?.[0]?.content?.parts ?? [] : json.content ?? [];
-  return clean(parts.map((p) => p.text ?? '').join(''));
+  const raw = parts.map((p) => p.text ?? '').join('');
+  // ο έλεγχος λύσης είναι σκέτο κείμενο: δεν έχει περιτύλιγμα LaTeX να καθαριστεί
+  return kind === 'check' ? raw.trim() : clean(raw);
 }
 
 // ---------- LaTeX → εικόνα ----------
