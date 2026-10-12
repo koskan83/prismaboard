@@ -68,7 +68,8 @@ const aiCalls = [];
 await ctx.route('https://generativelanguage.googleapis.com/**', (r) => {
   const body = r.request().postDataJSON();
   aiCalls.push({ image: body.contents[0].parts[0].inline_data?.data?.length ?? 0, prompt: body.contents[0].parts[1].text });
-  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text: '✓ Σωστή επιλογή: το 2' }] } }] }) });
+  const text = body.contents[0].parts[1].text.includes('will be plotted') ? 'F: 10-2x\nD: 0 ; 5\nX: t\nY: υ' : '✓ Σωστή επιλογή: το 2';
+  return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }) });
 });
 await ctx.route('https://www.googleapis.com/**', (r) => {
   const req = r.request();
@@ -144,6 +145,83 @@ test('Γραφή, αναίρεση, επανάληψη', async () => {
   assert((await items()).length === 2, 'η επανάληψη δεν την έφερε πίσω');
 });
 
+test('Γράφοντας, η μπάρα δεν ξεθωριάζει παρά μόνο όταν την πλησιάσει η γραφίδα', async () => {
+  await pen();
+  const faded = () => page.evaluate(() => ['toolbarWrap', 'lessonName', 'zoomCtl'].filter((id) => document.getElementById(id).classList.contains('under')));
+  await page.mouse.move(400, 300);
+  await page.mouse.down();
+  await page.mouse.move(520, 330, { steps: 6 });
+  assert((await faded()).length === 0, 'κάτι ξεθώριασε ενώ η γραφίδα ήταν μακριά');
+  const z = await page.evaluate(() => { const r = document.getElementById('zoomCtl').getBoundingClientRect(); return { x: r.left - 20, y: r.bottom + 20 }; });
+  await page.mouse.move(z.x, z.y, { steps: 6 });
+  assert((await faded()).join() === 'zoomCtl', 'έπρεπε να ξεθωριάσει μόνο το zoom');
+  await page.mouse.up();
+  assert((await faded()).length === 0, 'το zoom έμεινε ξεθωριασμένο μετά το σήκωμα');
+  await page.click('#undo');
+});
+
+test('Πλήρης οθόνη: εμφανίζεται κουμπί εξόδου δίπλα στο zoom', async () => {
+  assert(!(await visible('#fsExit')), 'το κουμπί εξόδου φαίνεται χωρίς πλήρη οθόνη');
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="full"]');
+  await page.waitForFunction(() => !!document.fullscreenElement);
+  await page.waitForSelector('#fsExit:not(.hidden)', { timeout: 3000 }).catch(() => {});
+  assert(await visible('#fsExit'), 'δεν εμφανίστηκε κουμπί εξόδου από την πλήρη οθόνη');
+  await page.click('#fsExit');
+  await page.waitForFunction(() => !document.fullscreenElement);
+  await page.waitForSelector('#fsExit.hidden', { state: 'attached', timeout: 3000 }).catch(() => {});
+  assert(!(await visible('#fsExit')), 'το κουμπί εξόδου έμεινε μετά την έξοδο');
+});
+
+test('Σκούρος πίνακας: το μαύρο από την παλέτα γράφει μαύρο (για λευκές σελίδες που μπήκαν από αρχείο)', async () => {
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="bg-dark"]');
+  await page.click('#menuBtn');
+  await pen();
+  await page.click('#colorBtn');
+  await page.click('#colorGrid [data-color="#111111"]');
+  await drag(300, 200, 520, 240);
+  const s = (await items()).filter((i) => i.kind === 'stroke').pop();
+  assert(s && s.color === '#000000', `το μαύρο της παλέτας γράφτηκε ως ${s && s.color}, που σε σκούρο πίνακα γίνεται λευκό`);
+  await page.click('#undo');
+  await page.click('#colors [data-color="#ffffff"]');
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="bg-white"]');
+  await page.click('#menuBtn');
+  assert(!(await visible('#menu')), 'το μενού έμεινε ανοιχτό');
+});
+
+test('Εκτύπωση από το μενού του browser: λευκό χαρτί, σκούρα χρώματα, χωρίς γραμμή εργαλείων', async () => {
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="bg-dark"]');
+  await page.click('#menuBtn');
+  await pen();
+  await page.click('#colors [data-color="#ffffff"]');
+  await drag(300, 200, 620, 200);
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')));
+  await page.waitForFunction(() => { const i = document.querySelector('#printView img'); return i && i.complete && i.naturalWidth > 0; });
+  const r = await page.evaluate(() => {
+    const img = document.querySelector('#printView img');
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+    const c = cv.getContext('2d');
+    c.drawImage(img, 0, 0);
+    const px = (x, y) => [...c.getImageData(Math.round(x), Math.round(y), 1, 1).data].slice(0, 3);
+    return { n: document.querySelectorAll('#printView img').length, app: getComputedStyle(document.getElementById('app')).display, corner: px(4, 4), darkest: Math.min(...Array.from({ length: cv.height }, (_, y) => Math.max(...px(cv.width / 2, y)))), lightInk: (() => { const d = c.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] < 60 && d[i + 1] < 60 && d[i + 2] < 60) n++; return n; })() };
+  });
+  await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+  await page.emulateMedia({ media: null });
+  await page.click('#undo');
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="bg-white"]');
+  await page.click('#menuBtn');
+  assert(r.n === 1, `έπρεπε να τυπωθεί 1 σελίδα, βγήκαν ${r.n}`);
+  assert(r.app === 'none', 'η γραμμή εργαλείων θα τυπωνόταν μαζί');
+  assert(r.corner.every((v) => v > 240), `το χαρτί δεν είναι λευκό: ${r.corner}`);
+  assert(r.lightInk > 50, `η λευκή γραφή δεν έγινε σκούρα στο χαρτί (σκούρα pixel: ${r.lightInk}, πιο σκούρο στη μέση: ${r.darkest})`);
+});
+
 test('Γόμα ολόκληρης γραμμής', async () => {
   await tool('eraser');
   await page.click('[data-eraser="stroke"]');
@@ -170,7 +248,7 @@ test('Σχήμα από τα Όργανα, επιλογή και διαγραφ�
 test('Λάσο σε χειρόγραφο: εμφανίζονται αναγνώριση, λύση και έλεγχος', async () => {
   await tool('select');
   await lasso(260, 250, 560, 350);
-  for (const k of ['text', 'math', 'solve', 'check']) assert(await visible(`#selOpts [data-rec="${k}"]`), `λείπει το κουμπί «${k}»`);
+  for (const k of ['text', 'math', 'solve', 'check', 'graph']) assert(await visible(`#selOpts [data-rec="${k}"]`), `λείπει το κουμπί «${k}»`);
   await page.mouse.click(1000, 600);
 });
 
@@ -181,6 +259,105 @@ test('Πίνακας 3 × 3 ως ορίζουσα', async () => {
   await page.click('#tblGrid [data-r="3"][data-c="3"]');
   const t = (await items()).find((i) => i.shape === 'table');
   assert(t && t.grid.r === 3 && t.grid.c === 3 && t.grid.style === 'det', 'δεν μπήκε ορίζουσα 3 × 3');
+});
+
+test('Άξονες χωρίς αριθμούς: το «123» τους σβήνει και οι επόμενοι άξονες το θυμούνται', async () => {
+  const inked = () => page.evaluate(() => {
+    const cv = document.getElementById('base');
+    const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0 && d[i - 1] + d[i - 2] + d[i - 3] < 600) n++;
+    return n;
+  });
+  const add = async () => {
+    await page.click('#gadgetBtn');
+    await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-axes="full"]');
+  };
+  await add();
+  const withNums = await inked();
+  await page.click('#axNums');
+  const without = await inked();
+  assert(without < withNums, 'οι αριθμοί δεν έφυγαν από τους άξονες');
+  assert((await items()).find((i) => i.kind === 'axes').nums === false, 'οι άξονες δεν αποθηκεύτηκαν χωρίς αριθμούς');
+  await page.click('#undo');
+  await page.click('#undo');
+  await add();
+  assert((await items()).find((i) => i.kind === 'axes').nums === false, 'οι νέοι άξονες δεν θυμήθηκαν «χωρίς αριθμούς»');
+  await page.click('#axNums');
+  assert((await items()).find((i) => i.kind === 'axes').nums !== false, 'οι αριθμοί δεν ξαναμπήκαν');
+  await page.click('#undo');
+  await page.click('#undo');
+  assert(!(await items()).some((i) => i.kind === 'axes'), 'έμειναν άξονες στη σελίδα');
+});
+
+test('Συνάρτηση που δεν χωράει (y = −200x): ο κατακόρυφος άξονας αλλάζει κλίμακα μόνος του', async () => {
+  const type = async (v) => {
+    if (!(await visible('#fnAdd'))) await page.click('#fnBtn');
+    await page.evaluate((v) => { const i = document.getElementById('fnInput'); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+    await page.click('#fnAdd');
+  };
+  const del = async () => {
+    if (!(await visible('#fnAdd'))) await page.click('#fnBtn');
+    await page.click('#fnList [data-fndel="0"]');
+  };
+  const axes = async () => (await items()).find((i) => i.kind === 'axes');
+  await page.click('#gadgetBtn');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-axes="full"]');
+  await type('x²');
+  assert((await axes()).sy === undefined, 'η x² δεν έπρεπε να αλλάξει την κλίμακα');
+  await del();
+  await type('-200x');
+  const sy = (await axes()).sy;
+  assert(sy === 200, `η κλίμακα για την y = −200x βγήκε ${sy} αντί για 200`);
+  await page.evaluate(() => document.getElementById('axScale').click());
+  const a2 = await axes();
+  assert(a2.sx === 2 && a2.sy === 500, `με 2 ανά γραμμή στον x περίμενα sx 2 και sy 500, βγήκαν ${a2.sx} και ${a2.sy}`);
+  await del();
+  assert((await axes()).sy === undefined, 'χωρίς συναρτήσεις η κλίμακα έπρεπε να γυρίσει στο 1');
+  await page.mouse.click(1200, 300);
+  for (let i = 0; i < 6 && (await axes()); i++) await page.click('#undo');
+  assert(!(await axes()), 'έμειναν άξονες στη σελίδα');
+});
+
+test('Δύο γραφικές παραστάσεις: σέρνεις τη μία πάνω στην άλλη και ενώνονται στους ίδιους άξονες', async () => {
+  const type = async (v) => {
+    if (!(await visible('#fnAdd'))) await page.click('#fnBtn');
+    await page.evaluate((v) => { const i = document.getElementById('fnInput'); i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); }, v);
+    await page.click('#fnAdd');
+  };
+  const allAxes = async () => (await items()).filter((i) => i.kind === 'axes');
+  const add = async (f) => {
+    await page.click('#gadgetBtn');
+    await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-axes="full"]');
+    await type(f);
+  };
+  await add('x²');
+  // οι πρώτοι άξονες πάνε αριστερά, για να μπουν οι δεύτεροι χωριστά
+  let a = await allAxes();
+  assert(a.length === 1, 'δεν μπήκαν οι πρώτοι άξονες');
+  await add('2x');
+  a = await allAxes();
+  assert(a.length === 2 && a[0].fns.length === 1 && a[1].fns.length === 1, 'δεν υπάρχουν δύο άξονες με μία συνάρτηση ο καθένας');
+  // οι δεύτεροι είναι επιλεγμένοι και ακριβώς πάνω στους πρώτους: ένα μικρό σύρσιμο τους «αφήνει» επάνω τους
+  await page.mouse.click(1250, 120);
+  await tool('select');
+  const box = await page.evaluate(() => ({ w: innerWidth, h: innerHeight }));
+  await drag(box.w / 2 + 60, box.h / 2 - 60, box.w / 2 + 90, box.h / 2 - 40);
+  a = await allAxes();
+  assert(a.length === 1, `μετά το σύρσιμο έμειναν ${a.length} άξονες αντί για 1`);
+  assert(a[0].fns.length === 2 && a[0].fns[0].expr === 'x²' && a[0].fns[1].expr === '2x', 'οι συναρτήσεις δεν ενώθηκαν');
+  assert(a[0].fns[0].color !== a[0].fns[1].color, 'η δεύτερη συνάρτηση δεν άλλαξε χρώμα');
+  // εμβαδόν ανάμεσα στις δύο καμπύλες: τα άκρα πάνε μόνα τους στα σημεία τομής (x² = 2x → 0 και 2)
+  await page.evaluate(() => document.querySelector('[data-an="int"]').click());
+  await page.evaluate(() => document.querySelector('[data-an="int"]').click());
+  a = await allAxes();
+  assert(a[0].an && a[0].an.int && a[0].an.int.between && a[0].an.int.a === 0 && a[0].an.int.b === 2, `τα άκρα του χωρίου δεν πήγαν στα σημεία τομής: ${JSON.stringify(a[0].an)}`);
+  await page.click('#undo');
+  await page.click('#undo');
+  await page.click('#undo');
+  assert((await allAxes()).length === 2, 'η αναίρεση δεν τις χώρισε ξανά');
+  for (let i = 0; i < 8 && (await allAxes()).length; i++) await page.click('#undo');
+  assert(!(await allAxes()).length, 'έμειναν άξονες στη σελίδα');
 });
 
 test('Άξονες, τριγωνομετρικός κύκλος και μετρήσεις σχεδιάζονται', async () => {
@@ -289,9 +466,23 @@ test('Λάσο πάνω σε σελίδα από PDF ή Word: το AI βλέπε
   assert(it.length === n0 + 1 && it.at(-1).kind === 'text' && it.at(-1).text.startsWith('✓'), 'η απάντηση δεν γράφτηκε κάτω από την περιοχή');
 });
 
-test('Μαθήματα: νέο μάθημα, τμήμα, και όλα μένουν μετά από κλείσιμο', async () => {
+test('Λάσο σε συνάρτηση → «Γραφική»: μπαίνουν άξονες που ταιριάζουν στο πεδίο ορισμού', async () => {
+  const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
+  await tool('select');
+  await lasso(420, 200, 640, 320);
+  await page.click('#selOpts [data-rec="graph"]');
+  await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Η γραφική παράσταση μπήκε'), null, { timeout: 10000 });
+  const ax = (await items(pi)).find((i) => i.kind === 'axes');
+  assert(ax, 'δεν μπήκαν άξονες');
+  assert(ax.mode === 'q1', `για υ = 10 − 2t με 0 ≤ t ≤ 5 περίμενα 1ο τεταρτημόριο, βγήκε ${ax.mode}`);
+  assert(ax.fns.length === 1 && ax.fns[0].expr === '10-2x' && ax.fns[0].dom[0] === 0 && ax.fns[0].dom[1] === 5, 'η συνάρτηση ή το πεδίο ορισμού δεν πέρασαν σωστά');
+  assert(ax.lx === 't' && ax.ly === 'υ', 'τα ονόματα των αξόνων δεν πέρασαν');
+  await page.mouse.click(1200, 300);
+});
+
+test('Μαθήματα: νέο μάθημα, τμήμα, μετονομασία από το όνομα, και όλα μένουν μετά από κλείσιμο', async () => {
   page.once('dialog', (d) => d.accept('Δοκιμή Β2'));
-  await page.click('#lessonName');
+  await page.click('#libOpen');
   await page.waitForSelector('#lib:not(.hidden)');
   await page.click('#lib [data-lib="new"]');
   await page.waitForFunction(() => document.getElementById('lessonName').textContent === 'Δοκιμή Β2');
@@ -299,7 +490,7 @@ test('Μαθήματα: νέο μάθημα, τμήμα, και όλα μένο�
   await drag(300, 300, 500, 340);
   const n0 = (await items()).length;
   assert(n0 === 1, `στο νέο μάθημα γράφτηκαν ${n0} στοιχεία αντί για 1`);
-  await page.click('#lessonName');
+  await page.click('#libOpen');
   await page.waitForSelector('#lib:not(.hidden)');
   assert((await page.locator('#libGrid .card').count()) === 2, 'η βιβλιοθήκη δεν έχει δύο μαθήματα');
   page.once('dialog', (d) => d.accept('Β2'));
@@ -314,16 +505,49 @@ test('Μαθήματα: νέο μάθημα, τμήμα, και όλα μένο�
   await page.waitForFunction(() => document.getElementById('lessonName').textContent === 'Δοκιμή Β2');
   const n1 = (await items()).length;
   assert(n1 === 1, `μετά το ξανάνοιγμα βρέθηκαν ${n1} στοιχεία αντί για 1`);
+  page.once('dialog', (d) => d.accept('Δοκιμή Β2 νέο'));
+  await page.click('#lessonName span');
+  await page.waitForFunction(() => document.getElementById('lessonName').textContent === 'Δοκιμή Β2 νέο');
+  await sleep(300);
+  await page.reload();
+  await page.waitForSelector('#toolbar');
+  await page.waitForFunction(() => document.getElementById('lessonName').textContent === 'Δοκιμή Β2 νέο');
 });
 
 test('Αντίγραφο μαθημάτων στο Drive', async () => {
   const before = drive.uploads;
-  await page.click('#lessonName');
+  await page.click('#libOpen');
   await page.waitForSelector('#lib:not(.hidden)');
   await page.click('#lib [data-lib="cloud"]');
   await page.waitForFunction(() => document.getElementById('libSafeMsg').textContent.startsWith('Όλα τα μαθήματα έχουν αντίγραφο'), null, { timeout: 20000 });
   assert(drive.uploads - before >= 1, 'δεν ανέβηκε αντίγραφο');
   await page.click('#lib [data-lib="close"]');
+});
+
+test('Δύο δάχτυλα: το σύρσιμο δεν αλλάζει το zoom, το άνοιγμα των δαχτύλων το αλλάζει', async () => {
+  const zoom = () => page.evaluate(() => document.getElementById('zoomFit').textContent);
+  // αγγίγματα μέσω του ίδιου του browser: δύο δάχτυλα σε απόσταση 200, που σέρνονται μαζί ενώ η απόστασή τους «παίζει» ±20
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], id) => ({ x, y, id, radiusX: 8, radiusY: 8, force: 1 })) });
+  const z0 = await zoom();
+  await touch('touchStart', [[500, 300], [700, 300]]);
+  for (let i = 1; i <= 20; i++) {
+    const wob = (i % 2 ? 1 : -1) * 10;
+    await touch('touchMove', [[500 + i * 12 - wob, 300 + i * 6], [700 + i * 12 + wob, 300 + i * 6]]);
+  }
+  await sleep(100);
+  const z1 = await zoom();
+  // τώρα ανοίγουν καθαρά: από 200 σε 420
+  for (let i = 1; i <= 11; i++) await touch('touchMove', [[740 - i * 10, 420], [940 + i * 10, 420]]);
+  await sleep(100);
+  const z2 = await zoom();
+  await touch('touchEnd', []);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await cdp.detach();
+  await page.click('#zoomFit');
+  assert(z1 === z0, `το σύρσιμο με δύο δάχτυλα άλλαξε το zoom από ${z0} σε ${z1}`);
+  assert(parseInt(z2) > parseInt(z1), `το άνοιγμα των δαχτύλων δεν μεγέθυνε (${z1} → ${z2})`);
 });
 
 await page.goto(URL_);

@@ -3,11 +3,11 @@
 import {
   AngleItem, AxesAn, AxesItem, Doc, FnDef, Item, Page, Pic, Pt, Shape, StampItem, Stroke, TextItem, TrigItem, angleDegrees, angleEnds, axesRange, isDark, isPoly, itemRot, tableLines, textFont, textLines, trianglePts, unrot,
 } from './model';
-import { Fn, Params, compileCached, keyPoints } from './expr';
-import { Asymptotes, asymptotes, integrate, lineEq, nf, oneSided, riemann, slope } from './analysis';
+import { Fn, Params, compileCached, domText, fnOf, keyPoints } from './expr';
+import { Asymptotes, asymptotes, integrate, lineEq, nf, oneSided, riemann, slope, crossings } from './analysis';
 import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
-import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, hlFlat, measureAngles, measureSides, radText, trigPoint } from './measure';
+import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -18,7 +18,7 @@ export interface RenderHost {
   paramPreview: Params | null;
   transparent: boolean;
   lctx: CanvasRenderingContext2D;
-  ink(color: string): string;
+  ink(color: string, hl?: boolean): string;
   getImg(p: Pic): HTMLImageElement | null;
   springState(s: StampItem): SpringState;
 }
@@ -56,7 +56,7 @@ export class Renderer {
   drawStroke(c: CanvasRenderingContext2D, s: Stroke): void {
     const pts = s.pts;
     c.save();
-    c.strokeStyle = c.fillStyle = this.b.ink(s.color);
+    c.strokeStyle = c.fillStyle = this.b.ink(s.color, s.hl);
     c.lineCap = 'round';
     c.lineJoin = 'round';
     const w = s.hl ? s.width * 4 : s.width;
@@ -64,7 +64,7 @@ export class Renderer {
       // Πάνω στη σελίδα το υπογραμμιστικό «βάφει» μόνο ό,τι είναι πιο ανοιχτό από το χρώμα του (πιο σκούρο, σε σκούρο φόντο):
       // δεύτερο πέρασμα στο ίδιο σημείο δεν το σκουραίνει και η γραφή από κάτω μένει καθαρή.
       const dark = isDark(this.b.doc.bg);
-      const flat = c !== this.b.lctx && !this.b.transparent ? hlFlat(this.b.ink(s.color), dark ? [20, 32, 27] : [255, 255, 255]) : null;
+      const flat = c !== this.b.lctx && !this.b.transparent ? hlFlat(this.b.ink(s.color, true), dark ? [20, 32, 27] : [255, 255, 255]) : null;
       if (flat) {
         c.strokeStyle = c.fillStyle = flat;
         c.globalCompositeOperation = dark ? 'lighten' : 'darken';
@@ -208,10 +208,14 @@ export class Renderer {
   }
 
   private drawAxes(c: CanvasRenderingContext2D, a: AxesItem): void {
-    const { xmin, xmax, ymin, ymax } = axesRange(a);
+    const lines = axesRange(a);
+    // κάθε άξονας μπορεί να έχει δική του κλίμακα: κάθε γραμμή αξίζει sx (οριζόντια) ή sy (κατακόρυφα)
+    const sx = a.sx ?? 1, sy = a.sy ?? 1;
+    const xmin = lines.xmin * sx, xmax = lines.xmax * sx;
+    const ymin = lines.ymin * sy, ymax = lines.ymax * sy;
     const u = a.unit;
-    const X = (v: number) => a.x + v * u;
-    const Y = (v: number) => a.y - v * u;
+    const X = (v: number) => a.x + (v / sx) * u;
+    const Y = (v: number) => a.y - (v / sy) * u;
     c.save();
     c.strokeStyle = c.fillStyle = this.b.ink(a.color);
     c.lineCap = 'round';
@@ -221,8 +225,8 @@ export class Renderer {
     c.globalAlpha = 0.16;
     c.lineWidth = 1;
     c.beginPath();
-    for (let i = xmin; i <= xmax; i++) { c.moveTo(X(i), Y(ymin)); c.lineTo(X(i), Y(ymax)); }
-    for (let j = ymin; j <= ymax; j++) { c.moveTo(X(xmin), Y(j)); c.lineTo(X(xmax), Y(j)); }
+    for (let i = lines.xmin; i <= lines.xmax; i++) { c.moveTo(X(i * sx), Y(ymin)); c.lineTo(X(i * sx), Y(ymax)); }
+    for (let j = lines.ymin; j <= lines.ymax; j++) { c.moveTo(X(xmin), Y(j * sy)); c.lineTo(X(xmax), Y(j * sy)); }
     c.stroke();
     c.globalAlpha = 1;
 
@@ -236,19 +240,19 @@ export class Renderer {
     if (fns.length) {
       c.save();
       c.beginPath();
-      c.rect(X(xmin), Y(ymax), (xmax - xmin) * u, (ymax - ymin) * u);
+      c.rect(X(xmin), Y(ymax), (lines.xmax - lines.xmin) * u, (lines.ymax - lines.ymin) * u);
       c.clip();
       c.lineWidth = 3;
-      const n = Math.max(80, Math.min(1500, Math.round(((xmax - xmin) * u) / 1.5)));
+      const n = Math.max(80, Math.min(1500, Math.round(((lines.xmax - lines.xmin) * u) / 1.5)));
       for (const f of fns) {
-        const fn = compileCached(f.expr);
+        const fn = fnOf(f);
         if (!fn) continue;
         c.strokeStyle = this.b.ink(f.color);
         c.beginPath();
         let pen = false, py = 0;
         for (let i = 0; i <= n; i++) {
           const xv = xmin + ((xmax - xmin) * i) / n;
-          const yv = Math.max(-1e5, Math.min(1e5, fn(xv, prm)));
+          const yv = Math.max(-1e5 * sy, Math.min(1e5 * sy, fn(xv, prm)));
           if (!Number.isFinite(yv)) {
             pen = false;
             continue;
@@ -269,10 +273,10 @@ export class Renderer {
       c.textBaseline = 'top';
       fns.forEach((f, i) => {
         c.fillStyle = this.b.ink(f.color);
-        c.fillText(compileCached(f.expr) ? f.expr : `${f.expr} ?`, X(xmax + 1.1), Y(ymax) + i * lf * 1.4);
+        c.fillText(compileCached(f.expr) ? (f.dom ? `${f.expr},  ${domText(f.dom, a.lx ?? 'x')}` : f.expr) : `${f.expr} ?`, X(xmax + 1.1 * sx), Y(ymax) + i * lf * 1.4);
       });
       if (a.points) {
-        const ok = fns.map((f) => compileCached(f.expr)).filter((f): f is Fn => !!f);
+        const ok = fns.map((f) => fnOf(f)).filter((f): f is Fn => !!f);
         const num = (v: number): string => String(+v.toFixed(2) || 0);
         c.font = `600 ${lf * 0.85}px system-ui, "Segoe UI", Roboto, sans-serif`;
         c.textBaseline = 'bottom';
@@ -289,32 +293,34 @@ export class Renderer {
       c.textBaseline = 'top';
       info.forEach(([text, col], i) => {
         c.fillStyle = col;
-        c.fillText(text, X(xmax + 1.1), Y(ymax) + (fns.length + 0.6 + i) * lf * 1.4);
+        c.fillText(text, X(xmax + 1.1 * sx), Y(ymax) + (fns.length + 0.6 + i) * lf * 1.4);
       });
       c.fillStyle = this.b.ink(a.color);
     }
 
     // άξονες με βέλη
     const ext = 0.6;
-    const xa = xmin < 0 ? xmin - ext : 0;
-    const ya = ymin < 0 ? ymin - ext : 0;
+    const ex = ext * sx;
+    const xa = xmin < 0 ? xmin - ex : 0;
+    const ey = ext * sy;
+    const ya = ymin < 0 ? ymin - ey : 0;
     const ah = Math.max(8, u * 0.22);
     c.lineWidth = 2.5;
     c.beginPath();
     c.moveTo(X(xa), a.y);
-    c.lineTo(X(xmax + ext), a.y);
-    c.moveTo(X(xmax + ext) - ah, a.y - ah * 0.55);
-    c.lineTo(X(xmax + ext), a.y);
-    c.lineTo(X(xmax + ext) - ah, a.y + ah * 0.55);
+    c.lineTo(X(xmax + ex), a.y);
+    c.moveTo(X(xmax + ex) - ah, a.y - ah * 0.55);
+    c.lineTo(X(xmax + ex), a.y);
+    c.lineTo(X(xmax + ex) - ah, a.y + ah * 0.55);
     c.moveTo(a.x, Y(ya));
-    c.lineTo(a.x, Y(ymax + ext));
-    c.moveTo(a.x - ah * 0.55, Y(ymax + ext) + ah);
-    c.lineTo(a.x, Y(ymax + ext));
-    c.lineTo(a.x + ah * 0.55, Y(ymax + ext) + ah);
+    c.lineTo(a.x, Y(ymax + ey));
+    c.moveTo(a.x - ah * 0.55, Y(ymax + ey) + ah);
+    c.lineTo(a.x, Y(ymax + ey));
+    c.lineTo(a.x + ah * 0.55, Y(ymax + ey) + ah);
     // υποδιαιρέσεις
     const t = Math.max(3, u * 0.1);
-    for (let i = xmin; i <= xmax; i++) if (i !== 0) { c.moveTo(X(i), a.y - t); c.lineTo(X(i), a.y + t); }
-    for (let j = ymin; j <= ymax; j++) if (j !== 0) { c.moveTo(a.x - t, Y(j)); c.lineTo(a.x + t, Y(j)); }
+    for (let i = lines.xmin; i <= lines.xmax; i++) if (i !== 0) { c.moveTo(X(i * sx), a.y - t); c.lineTo(X(i * sx), a.y + t); }
+    for (let j = lines.ymin; j <= lines.ymax; j++) if (j !== 0) { c.moveTo(a.x - t, Y(j * sy)); c.lineTo(a.x + t, Y(j * sy)); }
     c.stroke();
 
     // αριθμοί και ονόματα αξόνων
@@ -322,26 +328,27 @@ export class Renderer {
     c.font = `${fs}px system-ui, "Segoe UI", Roboto, sans-serif`;
     c.textAlign = 'center';
     c.textBaseline = 'top';
-    for (let i = xmin; i <= xmax; i++) if (i !== 0) c.fillText(String(i), X(i), a.y + t + 3);
+    const nums = a.nums !== false;
+    for (let i = lines.xmin; nums && i <= lines.xmax; i++) if (i !== 0) c.fillText(String(+(i * sx).toPrecision(10)), X(i * sx), a.y + t + 3);
     c.textAlign = 'right';
     c.textBaseline = 'middle';
-    for (let j = ymin; j <= ymax; j++) if (j !== 0) c.fillText(String(j), a.x - t - 4, Y(j));
+    for (let j = lines.ymin; nums && j <= lines.ymax; j++) if (j !== 0) c.fillText(String(+(j * sy).toPrecision(10)), a.x - t - 4, Y(j * sy));
     c.textBaseline = 'top';
     c.fillText('O', a.x - t - 3, a.y + t + 3);
     c.font = `italic 600 ${fs * 1.25}px system-ui, "Segoe UI", Roboto, sans-serif`;
     c.textAlign = 'center';
     c.textBaseline = 'top';
-    c.fillText(a.lx ?? 'x', X(xmax + ext), a.y + t + 4);
+    c.fillText(a.lx ?? 'x', X(xmax + ex), a.y + t + 4);
     c.textAlign = 'right';
     c.textBaseline = 'middle';
-    c.fillText(a.ly ?? 'y', a.x - t - 6, Y(ymax + ext) + 4);
+    c.fillText(a.ly ?? 'y', a.x - t - 6, Y(ymax + ey) + 4);
     c.restore();
   }
 
   /** Οι δύο πρώτες ορατές συναρτήσεις των αξόνων (σε αυτές δουλεύουν ολοκλήρωμα, όριο, εφαπτομένη) με τις παραμέτρους τους. */
   private axesFn(a: AxesItem): { f?: (x: number) => number; g?: (x: number) => number } {
     const prm: Params = { ...a.params, ...(a.id === this.b.selected ? this.b.paramPreview : null) };
-    const ok = (a.fns ?? []).filter((d) => !d.hidden).map((d) => compileCached(d.expr)).filter((d): d is Fn => !!d);
+    const ok = (a.fns ?? []).filter((d) => !d.hidden).map((d) => fnOf(d)).filter((d): d is Fn => !!d);
     return { f: ok[0] && ((x) => ok[0](x, prm)), g: ok[1] && ((x) => ok[1](x, prm)) };
   }
 
@@ -350,11 +357,13 @@ export class Renderer {
     const an = a.an;
     const { f } = this.axesFn(a);
     if (!an || !f) return [];
-    const { ymin, ymax } = axesRange(a);
-    const X = (v: number) => a.x + v * a.unit;
+    const lines = axesRange(a);
+    const sx = a.sx ?? 1, sy = a.sy ?? 1;
+    const ymin = lines.ymin * sy, ymax = lines.ymax * sy;
+    const X = (v: number) => a.x + (v / sx) * a.unit;
     const on = (x: number): Pt => {
       const y = f(x);
-      return [X(x), a.y - (Number.isFinite(y) ? Math.max(ymin, Math.min(ymax, y)) : 0) * a.unit];
+      return [X(x), a.y - ((Number.isFinite(y) ? Math.max(ymin, Math.min(ymax, y)) : 0) / sy) * a.unit];
     };
     const out: { k: string; p: Pt }[] = [];
     if (an.lim) out.push({ k: 'lim.x', p: on(an.lim.x) }, { k: 'lim.x0', p: [X(an.lim.x0), a.y] });
@@ -368,21 +377,29 @@ export class Renderer {
 
   /** Μετακίνηση μιας λαβής ανάλυσης στη θέση x (σε μονάδες των αξόνων). */
   moveAxesHandle(o: AxesItem, key: string, xw: number): AxesItem {
-    const { xmin, xmax } = axesRange(o);
+    const lines = axesRange(o);
+    const sx = o.sx ?? 1;
+    const xmin = lines.xmin * sx, xmax = lines.xmax * sx;
     const an: AxesAn = { ...o.an };
-    let x = Math.max(xmin, Math.min(xmax, xw));
+    let x = Math.max(xmin, Math.min(xmax, xw * sx));
     // βήμα 0,05 και «κούμπωμα» στους ακέραιους· το σημείο του ορίου κινείται πιο λεπτά, για να πλησιάζει το x0
-    const snap = (v: number): number => (Math.abs(v - Math.round(v)) < 0.08 ? Math.round(v) : Math.round(v * 20) / 20);
+    const snap = (v: number): number => { const l = v / sx; return +((Math.abs(l - Math.round(l)) < 0.08 ? Math.round(l) : Math.round(l * 20) / 20) * sx).toPrecision(10); };
     if (key === 'lim.x' && an.lim) {
-      x = Math.round(x * 100) / 100;
-      an.lim = { ...an.lim, x: Math.abs(x - an.lim.x0) < 0.012 ? an.lim.x0 : x };
+      x = +(Math.round((x / sx) * 100) / 100 * sx).toPrecision(10);
+      an.lim = { ...an.lim, x: Math.abs(x - an.lim.x0) < 0.012 * sx ? an.lim.x0 : x };
     } else if (key === 'lim.x0' && an.lim) an.lim = { ...an.lim, x0: snap(x) };
     else if (key === 'tan.x' && an.tan) an.tan = { ...an.tan, x: snap(x) };
     else if (key === 'tan.h' && an.tan) {
-      const h = Math.round((x - an.tan.x) * 20) / 20;
-      an.tan = { ...an.tan, h: Math.abs(h) < 0.05 ? (x < an.tan.x ? -0.05 : 0.05) : h };
-    } else if (key === 'int.a' && an.int) an.int = { ...an.int, a: snap(x) };
-    else if (key === 'int.b' && an.int) an.int = { ...an.int, b: snap(x) };
+      const h = +((Math.round(((x - an.tan.x) / sx) * 20) / 20) * sx).toPrecision(10);
+      an.tan = { ...an.tan, h: Math.abs(h) < 0.05 * sx ? (x < an.tan.x ? -0.05 : 0.05) * sx : h };
+    } else if ((key === 'int.a' || key === 'int.b') && an.int) {
+      // τα άκρα «κουμπώνουν» στα σημεία τομής των δύο καμπυλών (ή στις ρίζες, όταν το χωρίο είναι ως τον άξονα x)
+      const { f, g } = this.axesFn(o);
+      const xs = f ? crossings(f, an.int.between && g ? g : null, xmin, xmax) : [];
+      const hit = xs.find((c) => Math.abs(c - x) < 0.3 * sx);
+      const v = hit ?? snap(x);
+      an.int = key === 'int.a' ? { ...an.int, a: v } : { ...an.int, b: v };
+    }
     return { ...o, an };
   }
 
@@ -394,13 +411,16 @@ export class Renderer {
    */
   private drawAnalysis(c: CanvasRenderingContext2D, a: AxesItem, fns: FnDef[], prm: Params): [string, string][] {
     const an = a.an!;
-    const { xmin, xmax, ymin, ymax } = axesRange(a);
+    const lines = axesRange(a);
+    const sx = a.sx ?? 1, sy = a.sy ?? 1;
+    const xmin = lines.xmin * sx, xmax = lines.xmax * sx;
+    const ymin = lines.ymin * sy, ymax = lines.ymax * sy;
     const u = a.unit;
-    const X = (v: number) => a.x + v * u;
-    const Y = (v: number) => a.y - Math.max(-1e5, Math.min(1e5, v)) * u;
+    const X = (v: number) => a.x + (v / sx) * u;
+    const Y = (v: number) => a.y - Math.max(-1e5, Math.min(1e5, v / sy)) * u;
     const dark = isDark(this.b.doc.bg);
     const ink = this.b.ink(a.color);
-    const ok = fns.map((d) => ({ d, fn: compileCached(d.expr) })).filter((o): o is { d: FnDef; fn: Fn } => !!o.fn);
+    const ok = fns.map((d) => ({ d, fn: fnOf(d) })).filter((o): o is { d: FnDef; fn: Fn } => !!o.fn);
     const info: [string, string][] = [];
     if (!ok.length) return info;
     const f = (x: number): number => ok[0].fn(x, prm);
@@ -475,9 +495,9 @@ export class Renderer {
           const x = lo + i * w, h = fin(d(x)), b0 = fin(base(x));
           c.fillStyle = c.strokeStyle = h >= 0 ? fcol : neg;
           c.globalAlpha = 0.22;
-          c.fillRect(X(x), Y(b0 + h), w * u, Y(b0) - Y(b0 + h));
+          c.fillRect(X(x), Y(b0 + h), (w / sx) * u, Y(b0) - Y(b0 + h));
           c.globalAlpha = 0.9;
-          c.strokeRect(X(x), Y(b0 + h), w * u, Y(b0) - Y(b0 + h));
+          c.strokeRect(X(x), Y(b0 + h), (w / sx) * u, Y(b0) - Y(b0 + h));
         }
       } else {
         const n = 240;
@@ -506,6 +526,13 @@ export class Renderer {
         c.lineTo(X(x), Y(fin(f(x))));
       }
       c.stroke();
+      if (g) {
+        // τα σημεία τομής των δύο καμπυλών μέσα στο πλαίσιο, για να φαίνεται από πού ως πού είναι το χωρίο
+        for (const x of crossings(f, g, xmin, xmax)) {
+          const y = f(x);
+          if (Number.isFinite(y) && y >= ymin && y <= ymax) dot(x, y, ink, true);
+        }
+      }
       const what = g ? '(f − g)' : 'f(x)';
       const val = integrate(d, an.int.a, an.int.b);
       info.push([`∫ ${what}dx από ${nf(an.int.a)} έως ${nf(an.int.b)} = ${nf(val)}`, ink]);
@@ -678,7 +705,18 @@ export class Renderer {
     }
     const len = (a: Pt, b: Pt) => Math.hypot(b[0] - a[0], b[1] - a[1]);
     const sides = measureSides(s);
-    if (o.len) for (const m of sides) c.fillText(s.labels?.[m.i] ?? fmt(m.len / CM), m.pos[0], m.pos[1]);
+    // πάνω σε άξονες οι μετρήσεις είναι στις μονάδες τους (π.χ. s και m/s), όχι σε εκατοστά
+    const un = unitsFor(this.b.page.items, s);
+    const same = Math.abs(un.kx - un.ky) <= 1e-9 * Math.max(un.kx, un.ky);
+    const num = un.axes ? fmtU : fmt;
+    const isLine = s.shape === 'line' || s.shape === 'arrow';
+    if (o.len) for (const m of sides) {
+      const text = s.labels?.[m.i] ?? sideText(m, un, isLine);
+      // μακριά ετικέτα (π.χ. «λ = 20») πάει λίγο πιο μακριά από την πλευρά, για να μην πέφτει πάνω της
+      const far = text.length > 4 ? 1 + Math.min(1.6, (text.length - 4) * 0.22) : 1;
+      const mx = (m.a[0] + m.b[0]) / 2, my = (m.a[1] + m.b[1]) / 2;
+      c.fillText(text, mx + (m.pos[0] - mx) * far, my + (m.pos[1] - my) * far);
+    }
     // με δικές σου ετικέτες το σχήμα δεν είναι σε κλίμακα: εμβαδόν και περίμετρος δεν θα είχαν νόημα
     const scaled = !Object.keys(s.labels ?? {}).some((key) => +key < ANGLE_KEY);
     const { x0, y0, x1, y1 } = s;
@@ -696,28 +734,28 @@ export class Renderer {
     };
     if (s.shape === 'rect') {
       const w = Math.abs(x1 - x0), h = Math.abs(y1 - y0);
-      if (o.ang && w > 110 && h > 70) {
+      if (o.ang && same && w > 110 && h > 70) {
         const q: Pt[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
         for (let i = 0; i < 4; i++) corner(q[i], q[(i + 1) % 4], q[(i + 3) % 4], ctr);
       }
-      if (scaled && o.area) mid.push(`Ε = ${fmt((w * h) / CM / CM)}`);
-      if (scaled && o.per) mid.push(`Π = ${fmt((2 * (w + h)) / CM)}`);
+      if (scaled && o.area) mid.push(`Ε = ${num(w * un.kx * h * un.ky)}`);
+      if (scaled && o.per && same) mid.push(`Π = ${num(2 * (w + h) * un.kx)}`);
     } else if (s.shape === 'ellipse') {
       const a = Math.abs(x1 - x0) / 2, b = Math.abs(y1 - y0) / 2;
       const circle = Math.abs(a - b) < Math.max(a, b) * 0.03;
-      if (o.len) mid.push(circle ? `r = ${fmt(a / CM)}` : `a = ${fmt(a / CM)}  b = ${fmt(b / CM)}`);
-      if (o.area) mid.push(`Ε = ${fmt((Math.PI * a * b) / CM / CM)}`);
+      if (o.len) mid.push(circle && same ? `r = ${num(a * un.kx)}` : `a = ${num(a * un.kx)}  b = ${num(b * un.ky)}`);
+      if (o.area) mid.push(`Ε = ${num(Math.PI * a * un.kx * b * un.ky)}`);
       // περίμετρος έλλειψης: προσέγγιση του Ramanujan (ακριβής για κύκλο)
-      if (o.per) mid.push(`Π = ${fmt((Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)))) / CM)}`);
+      if (o.per && same) mid.push(`Π = ${num(Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b))) * un.kx)}`);
     } else if (isPoly(s.shape)) {
       const t = trianglePts(s);
       const n = t.length;
       ctr = [t.reduce((a, p) => a + p[0], 0) / n, t.reduce((a, p) => a + p[1], 0) / n];
       // εμβαδόν πολυγώνου από τις κορυφές του
       const area = Math.abs(t.reduce((a, p, i) => a + p[0] * t[(i + 1) % n][1] - t[(i + 1) % n][0] * p[1], 0)) / 2;
-      if (o.ang) for (const m of measureAngles(s)) c.fillText(s.labels?.[ANGLE_KEY + m.i] ?? `${m.deg}°`, m.pos[0], m.pos[1]);
-      if (scaled && o.area) mid.push(`Ε = ${fmt(area / CM / CM)}`);
-      if (scaled && o.per) mid.push(`Π = ${fmt(t.reduce((a, p, i) => a + len(p, t[(i + 1) % n]), 0) / CM)}`);
+      if (o.ang && same) for (const m of measureAngles(s)) c.fillText(s.labels?.[ANGLE_KEY + m.i] ?? `${m.deg}°`, m.pos[0], m.pos[1]);
+      if (scaled && o.area) mid.push(`Ε = ${num(area * un.kx * un.ky)}`);
+      if (scaled && o.per && same) mid.push(`Π = ${num(t.reduce((a, p, i) => a + len(p, t[(i + 1) % n]), 0) * un.kx)}`);
     }
     mid.forEach((text, i) => c.fillText(text, ctr[0], ctr[1] + (i - (mid.length - 1) / 2) * 24));
     c.restore();

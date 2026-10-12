@@ -24,6 +24,7 @@ const I = {
   screen: IC('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
   spark: P('M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'),
   full: P('M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5'),
+  fullExit: P('M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5'),
   target: IC('<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.5"/>'),
   check: P('M4 6.5l1.500 1.500 3-3M4 12.5l1.5 1.5 3-3M4 18.5l1.5 1.5 3-3M12 7h8M12 13h8M12 19h8'),
   tag: P('M4 5h16M7 5v7M17 5v7M4 16h16M4 20h10'),
@@ -108,6 +109,7 @@ export function mountUi(app: HTMLElement): void {
     <button id="zoomOut" title="Σμίκρυνση">${I.minus}</button>
     <button id="zoomFit" title="Προσαρμογή: όλη η σελίδα στην οθόνη">100%</button>
     <button id="zoomIn" title="Μεγέθυνση">${I.plus}</button>
+    <button id="fsExit" class="hidden" title="Έξοδος από πλήρη οθόνη">${I.fullExit}</button>
   </div>
   <div id="toolbarWrap">
   <div id="toolbar">
@@ -142,6 +144,8 @@ export function mountUi(app: HTMLElement): void {
       <div class="group" id="axesOpts">
         <button data-axis="x"><span>x</span>Όνομα οριζόντιου άξονα</button>
         <button data-axis="y"><span>y</span>Όνομα κατακόρυφου άξονα</button>
+        <button id="axScale"><span class="txt">×1</span>Κλίμακα οριζόντιου άξονα: κάθε πάτημα αλλάζει πόσο αξίζει μια γραμμή (1, 2, 5, 10, 20, 50, 100). Ο κατακόρυφος προσαρμόζεται μόνος του</button>
+        <button id="axNums"><span class="txt">123</span>Αριθμοί στους άξονες: σβήσε τους για να γράψεις δικές σου τιμές (π.χ. ανά 10 ή 20)</button>
         <button id="fnBtn"><span class="txt">f(x)</span>Γραφική παράσταση συνάρτησης</button>
         <button data-an="int"><span class="txt">∫</span>Ορισμένο ολοκλήρωμα ως εμβαδόν (δεύτερο πάτημα: χωρίο ανάμεσα σε δύο συναρτήσεις)</button>
         <button data-an="sum"><span class="txt">Σ</span>Αθροίσματα Riemann: κάθε πάτημα διπλασιάζει τα ορθογώνια (4, 8, 16, 32)</button>
@@ -217,6 +221,7 @@ export function mountUi(app: HTMLElement): void {
     <button data-rec="text" class="rec" title="Αναγνώριση της επιλογής ως κείμενο"><span class="txt">Aα</span><small>Σε κείμενο</small></button>
     <button data-rec="math" class="rec" title="Αναγνώριση της επιλογής ως τύπο"><span class="txt">√x</span><small>Σε τύπο</small></button>
     <button data-rec="solve" class="rec solve" title="Λύση της επιλεγμένης άσκησης (μπαίνει από κάτω)"><span class="txt">x=?</span><small>Λύση</small></button>
+    <button data-rec="graph" class="rec graph" title="Γραφική παράσταση της επιλεγμένης συνάρτησης, σε άξονες που ταιριάζουν στο πεδίο ορισμού της"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v17h17"/><path d="M6 17c3 0 4-11 7-11s3 7 7 7"/></svg></span><small>Γραφική</small></button>
     <button data-rec="check" class="rec check" title="Έλεγχος της λύσης ενός μαθητή: δείχνει σε ποια γραμμή είναι το πρώτο λάθος"><span class="txt">✓?</span><small>Έλεγχος</small></button>
   </div>
   <div id="gadgetMenu" class="popup hidden">

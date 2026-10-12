@@ -4,7 +4,7 @@ import {
 import { Params } from './expr';
 import { STAMPS, SpringState } from './stamps';
 import { CM, GadgetDrag, GadgetKind, Gadgets } from './gadgets';
-import { ANGLE_KEY, angleSides, eraseMeasures, fmt, measureAngles, measureSides, trigPoint } from './measure';
+import { ANGLE_KEY, angleSides, eraseMeasures, fmt, measureAngles, measureSides, trigPoint, sideLen, sideText, unitsFor } from './measure';
 import { Renderer } from './render';
 
 // οι δοκιμές και όποιος τα χρειάζεται τα βρίσκουν ακόμα εδώ
@@ -60,10 +60,28 @@ interface Gesture {
   c0: Pt;
   d0: number;
   v0: View;
+  /** Το zoom «ξεκλειδώνει» μόνο όταν τα δάχτυλα ανοίξουν ή κλείσουν αισθητά· ως τότε η κίνηση είναι καθαρή μετακίνηση. */
+  zoom: boolean;
 }
 
 export type SizedTool = 'pen' | 'highlighter' | 'eraser';
 export type EraserMode = 'stroke' | 'partial';
+
+/** Τα ανοιχτά χρώματα του σκούρου πίνακα και τα αντίστοιχά τους για λευκό χαρτί. */
+const PAPER_INK: Record<string, string> = {
+  '#ffffff': '#111111', '#fb7185': '#e11d48', '#7dd3fc': '#2563eb', '#86efac': '#16a34a',
+  '#34d399': '#059669', '#f87171': '#dc2626', '#5eead4': '#0f766e', '#d1d5db': '#6b7280', '#fde047': '#ca8a04', '#a3e635': '#65a30d',
+};
+
+/** Λογότυπο στην κάτω δεξιά γωνία, μικρό σε σχέση με τη σελίδα. */
+function stampMark(cv: HTMLCanvasElement, mark: HTMLImageElement): void {
+  const s = Math.max(40, Math.min(cv.width, cv.height) * 0.07);
+  const c = cv.getContext('2d')!;
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.globalAlpha = 0.9;
+  c.drawImage(mark, cv.width - s * 1.25, cv.height - s * 1.25, s, s);
+  c.globalAlpha = 1;
+}
 
 export class Board {
   /** Η σχεδίαση των στοιχείων στον καμβά ζει στο render.ts. */
@@ -89,6 +107,10 @@ export class Board {
   private pivot: { key: string; i: number; p: Pt } | null = null;
   /** Διαφανές φόντο (γράψιμο πάνω από άλλα προγράμματα). */
   transparent = false;
+  /** Αν οι νέοι άξονες μπαίνουν με αριθμούς (θυμάται την τελευταία επιλογή). */
+  axesNums = true;
+  /** Όσο ζωγραφίζεται σελίδα για το χαρτί: σκούρος πίνακας βγαίνει λευκός και τα ανοιχτά χρώματά του σκουραίνουν. */
+  private paper = false;
   palmThreshold = 40;
   /** Ύψος (px) που καλύπτει η γραμμή εργαλείων στο κάτω μέρος. */
   bottomInset = 110;
@@ -99,6 +121,8 @@ export class Board {
   onView: () => void = () => {};
   onChange: () => void = () => {};
   onUi: () => void = () => {};
+  /** Όταν άξονες με συναρτήσεις αφεθούν πάνω σε άλλους: επιστρέφει τους ενωμένους άξονες, ή null για απλή μετακίνηση. */
+  onMergeAxes: (target: AxesItem, dropped: AxesItem) => AxesItem | null = () => null;
   onPointerInfo: (e: PointerEvent, count: number) => void = () => {};
   /** Καλείται όταν ολοκληρωθεί μια γραμμή του στυλό (για την αυτόματη αναγνώριση). */
   onStroke: (s: Stroke) => void = () => {};
@@ -138,7 +162,8 @@ export class Board {
   }
 
   /** Το χρώμα όπως φαίνεται στο τρέχον φόντο: το μαύρο γίνεται λευκό σε σκούρο πίνακα και αντίστροφα. */
-  ink(color: string): string {
+  ink(color: string, hl = false): string {
+    if (this.paper) return hl ? color : PAPER_INK[color] ?? color;
     const dark = isDark(this.doc.bg);
     if (dark && color === '#111111') return '#ffffff';
     if (!dark && color === '#ffffff') return '#111111';
@@ -344,8 +369,8 @@ export class Board {
   }
 
   /** Εισαγωγή καρτεσιανών αξόνων στο κέντρο της οθόνης. */
-  addAxes(mode: AxesMode): void {
-    const axes: AxesItem = { kind: 'axes', id: uid(), x: 0, y: 0, unit: CM, mode, nx: 10, ny: 10, color: this.color };
+  addAxes(mode: AxesMode, extra?: Partial<AxesItem>): void {
+    const axes: AxesItem = { kind: 'axes', id: uid(), x: 0, y: 0, unit: CM, mode, nx: 10, ny: 10, color: this.color, ...(this.axesNums ? {} : { nums: false }), ...extra };
     // μικραίνουμε τη μονάδα ώστε να χωράνε ολόκληροι στην οθόνη
     const full = itemBounds(axes);
     const k = this.page.view.k;
@@ -368,6 +393,30 @@ export class Board {
   }
 
   /** Οι επιλεγμένοι άξονες, αν η επιλογή είναι άξονες. */
+  /**
+   * Άξονες με συναρτήσεις που αφήνονται πάνω σε άλλους άξονες ενώνονται μαζί τους: οι συναρτήσεις περνούν στους πρώτους
+   * και οι δεύτεροι φεύγουν. Μία αναίρεση τα χωρίζει ξανά.
+   */
+  private mergeAxes(before: AxesItem, after: AxesItem): boolean {
+    if (!after.fns?.length) return false;
+    const b = itemBounds(after);
+    const cx = (b.x0 + b.x1) / 2, cy = (b.y0 + b.y1) / 2;
+    // «πάνω στους άλλους»: το κέντρο αυτών που σέρνεις πέφτει μέσα στο πλαίσιο των άλλων
+    const target = [...this.page.items].reverse().find((x): x is AxesItem => {
+      if (x.kind !== 'axes' || x.id === before.id) return false;
+      const t = itemBounds(x);
+      return cx > t.x0 && cx < t.x1 && cy > t.y0 && cy < t.y1;
+    });
+    const merged = target && this.onMergeAxes(target, after);
+    if (!target || !merged) return false;
+    const old = [...this.page.items];
+    this.page.items = old.filter((x) => x.id !== before.id).map((x) => (x.id === target.id ? merged : x));
+    this.push({ t: 'set', p: this.cur, before: old, after: [...this.page.items] });
+    this.selected = merged.id;
+    this.multi = [];
+    return true;
+  }
+
   get selectedAxes(): AxesItem | null {
     const it = this.selected ? this.page.items.find((x) => x.id === this.selected) : undefined;
     return it && it.kind === 'axes' ? it : null;
@@ -470,7 +519,7 @@ export class Board {
       const [wx, wy] = unrot(it, px, py);
       const near = (p: Pt): boolean => Math.abs(wx - p[0]) < Math.max(34, 26 / k) && Math.abs(wy - p[1]) < Math.max(18, 20 / k);
       if (it.meas.len) for (const m of measureSides(it)) {
-        if (near(m.pos)) return { id: it.id, side: m.i, text: it.labels?.[m.i] ?? fmt(m.len / CM), x: sx, y: sy };
+        if (near(m.pos)) return { id: it.id, side: m.i, text: it.labels?.[m.i] ?? sideText(m, unitsFor(items, it), it.shape === 'line' || it.shape === 'arrow').split('   ')[0], x: sx, y: sy };
       }
       if (it.meas.ang) for (const m of measureAngles(it)) {
         if (near(m.pos)) return { id: it.id, side: ANGLE_KEY + m.i, text: it.labels?.[ANGLE_KEY + m.i] ?? String(m.deg), x: sx, y: sy };
@@ -696,7 +745,10 @@ export class Board {
     const m = measureSides(before).find((x) => x.i === sideIndex);
     if (!m) return;
     if (/^\d+([.,]\d+)?$/.test(v)) {
-      const f = (parseFloat(v.replace(',', '.')) * CM) / m.len;
+      // πάνω σε άξονες ο αριθμός είναι στις μονάδες τους· πλάγια πλευρά σε άξονες με άλλη κλίμακα ο καθένας δεν έχει μήκος να οριστεί
+      const cur = sideLen(m, unitsFor(this.page.items, before));
+      if (cur === null) return;
+      const f = parseFloat(v.replace(',', '.')) / cur;
       if (!(f > 0) || !Number.isFinite(f)) return;
       // το άκρο a μένει στη θέση του, το b μετακινείται πάνω στην ίδια ευθεία
       const b: Pt = [m.a[0] + (m.b[0] - m.a[0]) * f, m.a[1] + (m.b[1] - m.a[1]) * f];
@@ -1535,6 +1587,24 @@ export class Board {
 
   /** Ζωγραφίζει ολόκληρη μια σελίδα (όλα τα στοιχεία της με περιθώριο) σε νέο καμβά. */
   private async pageCanvas(pi: number, opaque: boolean): Promise<HTMLCanvasElement> {
+    await this.loadImages(pi);
+    return this.drawPage(pi, opaque, false);
+  }
+
+  /** Περιμένει να φορτωθούν οι εικόνες μιας σελίδας (ή όλων, χωρίς όρισμα). */
+  async loadImages(pi?: number): Promise<void> {
+    const pages = pi === undefined ? this.doc.pages : [this.doc.pages[pi]];
+    await Promise.all(
+      pages.flatMap((pg) => pg.items).filter((i): i is Pic => i.kind === 'image').map((p) => {
+        this.getImg(p);
+        const img = this.imgs.get(p.id)!;
+        return img.complete ? Promise.resolve() : new Promise<void>((r) => { img.addEventListener('load', () => r()); img.addEventListener('error', () => r()); });
+      })
+    );
+  }
+
+  /** Σύγχρονη σχεδίαση σελίδας με όσες εικόνες έχουν ήδη φορτωθεί. `paper`: για εκτύπωση, πάντα σε λευκό φόντο. */
+  private drawPage(pi: number, opaque: boolean, paper: boolean): HTMLCanvasElement {
     const items = this.doc.pages[pi].items;
     let x0 = 0, y0 = 0, x1 = this.W, y1 = this.H;
     if (items.length > 0) {
@@ -1553,16 +1623,16 @@ export class Board {
     cv.width = Math.max(1, Math.round(bw * s));
     cv.height = Math.max(1, Math.round(bh * s));
     const c = cv.getContext('2d')!;
-    await Promise.all(
-      items.filter((i): i is Pic => i.kind === 'image').map((p) => {
-        this.getImg(p);
-        const img = this.imgs.get(p.id)!;
-        return img.complete ? Promise.resolve() : new Promise<void>((r) => { img.onload = () => r(); img.onerror = () => r(); });
-      })
-    );
-    // η σχεδίαση διαβάζει την τρέχουσα σελίδα· την αλλάζουμε προσωρινά (σύγχρονα)
+    // η σχεδίαση διαβάζει την τρέχουσα σελίδα και το φόντο· τα αλλάζουμε προσωρινά (σύγχρονα)
     const keep = this.cur;
+    const bg = this.doc.bg;
+    const clear = this.transparent;
     this.cur = pi;
+    if (paper) {
+      this.paper = isDark(bg);
+      this.doc.bg = bg.replace(/^dark-?/, '') as Background || 'white';
+      this.transparent = false;
+    }
     try {
       if (opaque && this.transparent) {
         c.fillStyle = '#ffffff';
@@ -1576,8 +1646,23 @@ export class Board {
       }
     } finally {
       this.cur = keep;
+      this.doc.bg = bg;
+      this.transparent = clear;
+      this.paper = false;
     }
     return cv;
+  }
+
+  /**
+   * Οι σελίδες για τον εκτυπωτή (JPEG data URL), πάντα σε λευκό φόντο. Σύγχρονη, γιατί ο browser δεν περιμένει όταν πατηθεί «Εκτύπωση»·
+   * οι εικόνες πρέπει να έχουν φορτωθεί από πριν με loadImages().
+   */
+  printPages(mark?: HTMLImageElement | null): string[] {
+    return this.doc.pages.map((_, pi) => {
+      const cv = this.drawPage(pi, true, true);
+      if (mark) stampMark(cv, mark);
+      return cv.toDataURL('image/jpeg', 0.9);
+    });
   }
 
   /** Μικρογραφία της πρώτης σελίδας (JPEG data URL), για τη βιβλιοθήκη μαθημάτων. */
@@ -1615,15 +1700,7 @@ export class Board {
     for (let i = 0; i < n; i++) {
       onProgress(i, n);
       const cv = await this.pageCanvas(list[i], true);
-      if (mark) {
-        // λογότυπο στην κάτω δεξιά γωνία, μικρό σε σχέση με τη σελίδα
-        const s = Math.max(40, Math.min(cv.width, cv.height) * 0.07);
-        const c = cv.getContext('2d')!;
-        c.setTransform(1, 0, 0, 1, 0, 0);
-        c.globalAlpha = 0.9;
-        c.drawImage(mark, cv.width - s * 1.25, cv.height - s * 1.25, s, s);
-        c.globalAlpha = 1;
-      }
+      if (mark) stampMark(cv, mark);
       const blob = await new Promise<Blob>((res, rej) => cv.toBlob((b) => (b ? res(b) : rej(new Error('JPEG'))), 'image/jpeg', 0.9));
       out.push({ jpeg: new Uint8Array(await blob.arrayBuffer()), w: cv.width, h: cv.height });
     }
@@ -1920,6 +1997,7 @@ export class Board {
       a: a.id, b: b.id, c0,
       d0: Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1),
       v0: { ...this.page.view },
+      zoom: false,
     };
     this.redraw();
   }
@@ -2046,7 +2124,20 @@ export class Board {
       const cx = (a.x + b.x) / 2;
       const cy = (a.y + b.y) / 2;
       const d = Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
-      const k = Math.min(8, Math.max(0.1, g.v0.k * (d / g.d0)));
+      if (!g.zoom) {
+        // δύο δάχτυλα που σέρνονται μαζί δεν κρατούν ποτέ ακριβώς την ίδια απόσταση: μικρές αλλαγές δεν είναι zoom.
+        // Αν η σελίδα έχει ήδη μετακινηθεί αρκετά, είναι φανερά μετακίνηση και το zoom θέλει ακόμα πιο καθαρό άνοιγμα.
+        const moved = Math.hypot(cx - g.c0[0], cy - g.c0[1]);
+        const need = moved > 60 ? Math.max(90, g.d0 * 0.3) : Math.max(36, g.d0 * 0.14);
+        if (Math.abs(d - g.d0) > need) {
+          g.zoom = true;
+          // το zoom ξεκινά από εδώ, χωρίς πήδημα
+          g.d0 = d;
+          g.c0 = [cx, cy];
+          g.v0 = { ...this.page.view };
+        }
+      }
+      const k = g.zoom ? Math.min(8, Math.max(0.1, g.v0.k * (d / g.d0))) : g.v0.k;
       const wx = (g.c0[0] - g.v0.x) / g.v0.k;
       const wy = (g.c0[1] - g.v0.y) / g.v0.k;
       const v = this.page.view;
@@ -2332,6 +2423,13 @@ export class Board {
         const after = ps.preview!;
         if (ps.mode === 'rotate' && ps.tap) this.nextPivot(itemBounds(before), before);
         const i = this.page.items.findIndex((x) => x.id === before.id);
+        if (i >= 0 && ps.mode === 'move' && after.kind === 'axes' && after !== before && this.mergeAxes(before as AxesItem, after)) {
+          ps.orig = undefined;
+          ps.preview = undefined;
+          this.redraw();
+          this.onUi();
+          return;
+        }
         if (i >= 0 && after !== before) {
           this.page.items[i] = after;
           this.push({ t: 'mod', p: this.cur, before, after });

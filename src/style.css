@@ -43,7 +43,7 @@ button:disabled { opacity: .35; cursor: default; }
   display: flex; justify-content: center; pointer-events: none; transition: opacity .15s;
 }
 #toolbarWrap.moved { right: auto; bottom: auto; }
-body.inking #toolbarWrap { opacity: .25; }
+#toolbarWrap.under { opacity: .25; }
 body.inking #toolbar { pointer-events: none; }
 
 #toolbar {
@@ -296,9 +296,12 @@ body.dark #toolbar, body.dark #subbar, body.dark .popup, body.dark .fab { box-sh
 .popup button.sq.lim { font-size: 15px; font-weight: 600; }
 
 /* ---------- βιβλιοθήκη μαθημάτων ---------- */
-#lessonName { left: 80px; width: auto; max-width: 38vw; padding: 0 18px; font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .85; }
-#lessonName:empty { display: none; }
-body.inking #lessonName { opacity: .25; }
+#lessonName { left: 80px; width: auto; max-width: 38vw; padding: 0 18px 0 0; font-size: 17px; font-weight: 600; white-space: nowrap; opacity: .85; display: flex; align-items: center; }
+#lessonName span { overflow: hidden; text-overflow: ellipsis; }
+#libOpen { flex: none; align-self: stretch; width: 52px; margin-right: 12px; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(128,128,128,.35); }
+#libOpen svg { width: 22px; height: 22px; }
+#lessonName.under { opacity: .25; }
+body.inking #lessonName { pointer-events: none; }
 #lib { position: fixed; inset: 0; z-index: 40; background: var(--bar); color: var(--fg); display: flex; flex-direction: column; }
 #libHead { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--bar-2); flex-wrap: wrap; }
 #libHead b { font-size: 24px; margin-right: 10px; }
@@ -341,7 +344,8 @@ body.inking #lessonName { opacity: .25; }
 #zoomCtl button svg { width: 22px; height: 22px; }
 #zoomCtl #zoomFit { width: 58px; font-size: 14px; font-weight: 600; }
 #zoomCtl button:hover { background: var(--bar-2); }
-body.inking #zoomCtl { opacity: .25; pointer-events: none; }
+#zoomCtl.under { opacity: .25; }
+body.inking #zoomCtl { pointer-events: none; }
 
 /* ---------- ονόματα κάτω από τα εικονίδια της μπάρας ---------- */
 #toolbar.labels > .group > button[data-l] { width: 52px; height: 54px; flex-direction: column; gap: 2px; }
@@ -449,3 +453,14 @@ body.dark #wHead .onLight { display: block; }
 #libGroups button.on { background: var(--accent); color: #fff; font-weight: 600; }
 #libGroups button small { opacity: .7; font-size: 13px; }
 #libGrid .nm .grp { display: inline-block; margin-right: 6px; padding: 1px 8px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 13px; vertical-align: 2px; }
+
+/* ---------- εκτύπωση: μόνο οι σελίδες του μαθήματος, σε λευκό ---------- */
+#printView { display: none; }
+@page { margin: 8mm; }
+@media print {
+  html, body { height: auto; overflow: visible; background: #fff !important; }
+  body > *:not(#printView) { display: none !important; }
+  #printView { display: block; }
+  #printView img { display: block; margin: 0 auto; max-width: 100%; max-height: 97vh; object-fit: contain; break-after: page; break-inside: avoid; }
+  #printView img:last-child { break-after: auto; }
+}

@@ -1,6 +1,6 @@
 import './style.css';
 import { Board, EraserMode, SizedTool } from './board';
-import { AxesAn, AxesMode, Background, Doc, Item, MeasOpts, ShapeKind, TableStyle, TextItem, Tool, isDark, isPoly, newDoc } from './model';
+import { AxesAn, AxesItem, AxesMode, Background, Doc, FnDef, Item, MeasOpts, ShapeKind, TableStyle, TextItem, Tool, isDark, isPoly, newDoc } from './model';
 import { blobToPic, captureScreen, clipboardImage, openDocx, openPdf } from './importers';
 import { kvGet, kvSet } from './storage';
 import { Lessons } from './lessons';
@@ -11,9 +11,10 @@ import { GadgetKind } from './gadgets';
 import { closeOverlay, isNative, isOverlay, nativeSave, nativeScreenshot, openOverlay } from './native';
 import { Curtain, Spotlight } from './overlays';
 import { STAMPS } from './stamps';
-import { compile, paramsOf } from './expr';
+import { Params, compile, fnOf, paramsOf } from './expr';
+import { crossings, enclosing, fitScaleX, fitScaleY, pickAxesMode } from './analysis';
 import { buildPdf } from './pdf';
-import { AiTask, MODELS, Provider, RecKind, loadAi, recognize, saveAi, texToImage } from './ai';
+import { AiTask, MODELS, Provider, RecKind, loadAi, recognize, saveAi, texToImage, parseGraphReply } from './ai';
 import { axesRange, itemBounds, uid, wrapText } from './model';
 import { PEN_ICON, PenKind, mountUi } from './ui';
 
@@ -198,12 +199,13 @@ try {
   }
   if (p.eraserMode === 'stroke' || p.eraserMode === 'partial') board.eraserMode = p.eraserMode;
   if (typeof p.customColor === 'string') customColor = p.customColor;
+  if (p.axesNums === false) board.axesNums = false;
 } catch {
   /* χωρίς αποθηκευμένες προτιμήσεις */
 }
 function savePrefs(): void {
   try {
-    localStorage.setItem(PREFS_KEY, JSON.stringify({ sizes: board.sizes, eraserMode: board.eraserMode, customColor }));
+    localStorage.setItem(PREFS_KEY, JSON.stringify({ sizes: board.sizes, eraserMode: board.eraserMode, customColor, axesNums: board.axesNums }));
   } catch {
     /* δεν πειράζει */
   }
@@ -247,6 +249,18 @@ const sizedTool = (): SizedTool => (board.tool === 'eraser' || board.tool === 'h
 let penKind: PenKind = 'pen';
 const isPenKind = (t: Tool): t is PenKind => t === 'pen' || t === 'laser';
 
+/**
+ * Το μαύρο και το λευκό της γραμμής ακολουθούν το φόντο (βλ. Board.ink). Όταν όμως διαλέγεις από την παλέτα το «αντίθετο» του φόντου,
+ * το θέλεις όπως το βλέπεις: π.χ. μαύρο για να γράψεις πάνω σε λευκή σελίδα που έβαλες σε σκούρο πίνακα.
+ */
+function literal(c: string): string {
+  const dark = isDark(board.doc.bg);
+  const v = c.toLowerCase();
+  if (dark && v === '#111111') return '#000000';
+  if (!dark && v === '#ffffff') return '#fefefe';
+  return c;
+}
+
 function pickColor(c: string): void {
   board.color = c;
   if (board.tool !== 'highlighter' && !palette().includes(c)) customColor = c;
@@ -287,11 +301,11 @@ $('colorGrid').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-color]');
   if (!b) return;
   closePopups();
-  pickColor(b.dataset.color!);
+  pickColor(literal(b.dataset.color!));
 });
 ($('colorInput') as HTMLInputElement).onchange = (e) => {
   closePopups();
-  pickColor((e.target as HTMLInputElement).value.toLowerCase());
+  pickColor(literal((e.target as HTMLInputElement).value.toLowerCase()));
 };
 widthsEl.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-width]');
@@ -336,6 +350,32 @@ $('axesOpts').addEventListener('click', (e) => {
     renderFns();
     return;
   }
+  if (t.closest('#axScale')) {
+    const ax = board.selectedAxes;
+    if (!ax) return;
+    const steps = [1, 2, 5, 10, 20, 50, 100];
+    const old = ax.sx ?? 1;
+    const sx = steps[(steps.indexOf(old) + 1) % steps.length];
+    // οι λαβές της ανάλυσης μένουν στις ίδιες γραμμές του άξονα
+    const f = sx / old;
+    const an: AxesAn | undefined = ax.an && {
+      ...ax.an,
+      ...(ax.an.int ? { int: { ...ax.an.int, a: ax.an.int.a * f, b: ax.an.int.b * f } } : {}),
+      ...(ax.an.lim ? { lim: { x0: ax.an.lim.x0 * f, x: ax.an.lim.x * f } } : {}),
+      ...(ax.an.tan ? { tan: { ...ax.an.tan, x: ax.an.tan.x * f, ...(ax.an.tan.h ? { h: ax.an.tan.h * f } : {}) } } : {}),
+    };
+    const next: AxesItem = { ...ax, sx: sx === 1 ? undefined : sx };
+    board.updateAxes({ sx: next.sx, sy: fitY(next, ax.fns ?? [], ax.params), ...(an ? { an } : {}) });
+    return;
+  }
+  if (t.closest('#axNums')) {
+    const ax = board.selectedAxes;
+    if (!ax) return;
+    board.axesNums = ax.nums === false;
+    board.updateAxes({ nums: board.axesNums });
+    savePrefs();
+    return;
+  }
   const anKey = t.closest<HTMLElement>('[data-an]')?.dataset.an;
   if (anKey) {
     toggleAnalysis(anKey);
@@ -361,12 +401,23 @@ function toggleAnalysis(key: string): void {
     return;
   }
   const r = axesRange(ax);
-  const inX = (v: number): number => Math.max(r.xmin, Math.min(r.xmax, v));
+  const sx = ax.sx ?? 1;
+  // οι αρχικές θέσεις μετριούνται σε γραμμές του άξονα, όποια κι αν είναι η κλίμακά του
+  const inX = (v: number): number => Math.max(r.xmin, Math.min(r.xmax, v)) * sx;
   const an: AxesAn = { ...ax.an };
   const newInt = { a: inX(1), b: inX(3) };
   if (key === 'int') {
     if (!an.int) an.int = newInt;
-    else if (!an.int.between && shown >= 2) an.int = { ...an.int, between: true };
+    else if (!an.int.between && shown >= 2) {
+      an.int = { ...an.int, between: true };
+      // το χωρίο ανάμεσα στις δύο καμπύλες ορίζεται από τα σημεία τομής τους: τα άκρα πάνε μόνα τους εκεί
+      const two = (ax.fns ?? []).filter((d) => !d.hidden).map((d) => fnOf(d)).filter((d) => !!d).map((d) => (x: number) => d!(x, ax.params ?? {}));
+      const pair = two.length >= 2 ? enclosing(crossings(two[0], two[1], r.xmin * sx, r.xmax * sx), (an.int.a + an.int.b) / 2) : null;
+      if (pair) {
+        an.int = { ...an.int, a: pair[0], b: pair[1] };
+        toast('Τα άκρα μπήκαν στα σημεία τομής των δύο καμπυλών. Σύρε τα για άλλο χωρίο.', 4500);
+      } else toast('Οι δύο καμπύλες δεν τέμνονται δύο φορές μέσα στους άξονες. Όρισε τα άκρα σέρνοντάς τα.', 4500);
+    }
     else delete an.int;
   } else if (key === 'sum') {
     const n = an.int?.n;
@@ -377,7 +428,7 @@ function toggleAnalysis(key: string): void {
     else an.lim = { x0: inX(0), x: inX(1.5) };
   } else if (key === 'tan') {
     if (!an.tan) an.tan = { x: inX(1) };
-    else if (!an.tan.h) an.tan = { ...an.tan, h: 1 };
+    else if (!an.tan.h) an.tan = { ...an.tan, h: sx };
     else delete an.tan;
   } else if (key === 'asym') an.asym = !an.asym;
   board.updateAxes({ an });
@@ -501,8 +552,16 @@ function addFn(): void {
   board.paramPreview = null;
   fnEdit = null;
   fnInput.value = '';
-  board.updateAxes({ fns: next, params });
+  board.updateAxes({ fns: next, params, sy: fitY(ax, next, params) });
   renderFns();
+}
+/** Η κλίμακα του κατακόρυφου άξονα που ταιριάζει στις ορατές συναρτήσεις (undefined = 1 ανά γραμμή). */
+function fitY(ax: AxesItem, fns: FnDef[], params: Params | undefined): number | undefined {
+  const r = axesRange(ax);
+  const ok = fns.filter((f) => !f.hidden).map((f) => fnOf(f)).filter((f) => !!f).map((f) => (x: number) => f!(x, params ?? {}));
+  const sx = ax.sx ?? 1;
+  const sy = fitScaleY(ok, r.xmin * sx, r.xmax * sx, r.ymax, -r.ymin);
+  return sy === 1 ? undefined : sy;
 }
 $('fnAdd').onclick = addFn;
 $('spMarks').onclick = () => board.updateSpring({ marks: !board.selectedSpring?.marks });
@@ -549,9 +608,11 @@ $('fnList').addEventListener('click', (e) => {
   const del = idx('fndel'), vis = idx('fnvis'), ed = idx('fnedit');
   if (del !== null) {
     resetFnDraft();
-    board.updateAxes({ fns: fns.filter((_, i) => i !== del) });
+    const left = fns.filter((_, i) => i !== del);
+    board.updateAxes({ fns: left, sy: fitY(ax, left, ax.params) });
   } else if (vis !== null) {
-    board.updateAxes({ fns: fns.map((f, i) => (i === vis ? { ...f, hidden: !f.hidden } : f)) });
+    const seen = fns.map((f, i) => (i === vis ? { ...f, hidden: !f.hidden } : f));
+    board.updateAxes({ fns: seen, sy: fitY(ax, seen, ax.params) });
   } else if (ed !== null) {
     fnEdit = fnEdit === ed ? null : ed;
     fnInput.value = fnEdit === null ? '' : fns[ed].expr;
@@ -572,7 +633,7 @@ $('fnParams').addEventListener('change', () => {
   if (!ax || !board.paramPreview) return;
   const params = { ...ax.params, ...board.paramPreview };
   board.paramPreview = null;
-  board.updateAxes({ params });
+  board.updateAxes({ params, sy: fitY(ax, ax.fns ?? [], params) });
 });
 $('fnPts').onclick = () => {
   const ax = board.selectedAxes;
@@ -751,6 +812,36 @@ function aiNote(box: { x0: number; y0: number; x1: number; y1: number }, text: s
 
 let aiBusy = 0;
 /** Στέλνει τα στοιχεία για αναγνώριση και τα αντικαθιστά με κείμενο ή τυπωμένο τύπο. */
+/** Βάζει άξονες με τις συναρτήσεις που διάβασε το AI· οι άξονες και η κλίμακα διαλέγονται από το πεδίο ορισμού και τις τιμές τους. */
+function plotReply(out: string): void {
+  const r = parseGraphReply(out);
+  const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
+  const fns: FnDef[] = [];
+  const params: Params = {};
+  for (const f of r.fns) {
+    try {
+      compile(f.expr);
+    } catch {
+      continue;
+    }
+    for (const n of paramsOf(f.expr)) params[n] ??= 1;
+    // οι κλάδοι της ίδιας συνάρτησης (ίδια απάντηση) παίρνουν το ίδιο χρώμα
+    fns.push({ expr: f.expr, color: pal[0], ...(f.dom ? { dom: f.dom } : {}) });
+  }
+  if (!fns.length) {
+    toast(r.fns.length ? `Δεν μπόρεσα να σχεδιάσω το «${r.fns[0].expr}». Γράψε το με το f(x).` : 'Δεν βρήκα συνάρτηση για γραφική παράσταση', 6000);
+    return;
+  }
+  const NX = 10;
+  const gs = fns.map((f) => fnOf(f)!).map((f) => (x: number) => f(x, params));
+  // ο οριζόντιος άξονας απλώνεται ή μαζεύεται ώστε να χωράει ακριβώς το πεδίο ορισμού (π.χ. 0 ≤ t ≤ 50 → 5 ανά γραμμή)
+  const sx = fitScaleX(fns.map((f) => f.dom), NX);
+  const mode = pickAxesMode(gs, NX * sx);
+  const sy = fitScaleY(gs, mode === 'full' ? -NX * sx : 0, NX * sx, 10, mode === 'q1' ? 0 : 10);
+  board.addAxes(mode, { fns, ...(Object.keys(params).length ? { params } : {}), ...(sx === 1 ? {} : { sx }), ...(sy === 1 ? {} : { sy }), ...(r.lx ? { lx: r.lx } : {}), ...(r.ly ? { ly: r.ly } : {}) });
+  toast('Η γραφική παράσταση μπήκε. Έλεγξε ότι ο τύπος διαβάστηκε σωστά.', 5000);
+}
+
 async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   if (!ai.keys[ai.provider]) {
     openAi();
@@ -759,12 +850,17 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   }
   const page = board.cur;
   // λύση και έλεγχος βλέπουν ό,τι υπάρχει στην κυκλωμένη περιοχή (και κομμάτι εικόνας από Word ή PDF)· η αναγνώριση μόνο τα επιλεγμένα χειρόγραφα
-  const img = (kind === 'solve' || kind === 'check') && board.hasRegion ? await board.regionImage() : await board.inkImage(ids);
+  const img = kind !== 'text' && kind !== 'math' && board.hasRegion ? await board.regionImage() : await board.inkImage(ids);
   if (!img) return;
   aiBusy++;
-  toast(kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
+  toast(kind === 'graph' ? '✨ Γραφική παράσταση…' : kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
   try {
     const out = await recognize(img.blob, kind, ai);
+    if (kind === 'graph') {
+      if (board.cur !== page) toast('Άλλαξες σελίδα· η γραφική παράσταση δεν μπήκε');
+      else plotReply(out);
+      return;
+    }
     if (!out) {
       toast(kind === 'solve' ? 'Δεν βρήκα κάτι να λύσω' : kind === 'check' ? 'Δεν βρήκα λύση να ελέγξω' : 'Δεν μπόρεσα να το διαβάσω');
       return;
@@ -908,7 +1004,7 @@ function refreshUi(): void {
   // η αναγνώριση έχει νόημα μόνο όταν στην επιλογή υπάρχει χειρόγραφο
   const ink = board.selectionHasInk;
   const writing = board.selectionHasWriting;
-  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.rec === 'solve' || b.dataset.rec === 'check' ? !(writing || region) : !ink));
+  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.rec === 'text' || b.dataset.rec === 'math' ? !ink : !(writing || region)));
   $('selOpts').querySelector('.recSep')!.classList.toggle('hidden', !(writing || region) || !board.hasSelection);
   show('sumBtn', !!board.resultantSource);
   show('axesOpts', !!ax);
@@ -922,6 +1018,9 @@ function refreshUi(): void {
   const anOn: Record<string, boolean> = { int: !!ax?.an?.int, sum: !!ax?.an?.int?.n, lim: !!ax?.an?.lim, tan: !!ax?.an?.tan, asym: !!ax?.an?.asym };
   document.querySelectorAll<HTMLElement>('[data-an]').forEach((b) => b.classList.toggle('on', anOn[b.dataset.an!]));
   $('axesOpts').querySelector('[data-an=sum] span')!.textContent = ax?.an?.int?.n ? `Σ${ax.an.int.n}` : 'Σ';
+  $('axNums').classList.toggle('on', ax?.nums !== false);
+  $('axScale').querySelector('span')!.textContent = `×${String(ax?.sx ?? 1).replace('.', ',')}`;
+  $('axScale').classList.toggle('on', (ax?.sx ?? 1) !== 1);
   $('axesOpts').querySelector('[data-axis=x] span')!.textContent = ax?.lx ?? 'x';
   $('axesOpts').querySelector('[data-axis=y] span')!.textContent = ax?.ly ?? 'y';
   if (!ax && !fnMenu.classList.contains('hidden')) {
@@ -965,6 +1064,28 @@ function placeSelBar(): void {
   el.style.top = `${y}px`;
 }
 board.onUi = refreshUi;
+board.onMergeAxes = (target, dropped) => {
+  const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
+  const fns = [...(target.fns ?? [])];
+  // κάθε συνάρτηση που έρχεται παίρνει χρώμα που δεν υπάρχει ήδη· οι κλάδοι της ίδιας (ίδιο χρώμα πριν) μένουν ομόχρωμοι
+  const recolor = new Map<string, string>();
+  for (const f of dropped.fns ?? []) {
+    let c = recolor.get(f.color);
+    if (!c) {
+      const used = new Set([...fns.map((g) => g.color), ...recolor.values()]);
+      c = pal.find((p) => !used.has(p)) ?? pal[(fns.length + recolor.size) % pal.length];
+      recolor.set(f.color, c);
+    }
+    fns.push({ ...f, color: c });
+  }
+  const params = { ...dropped.params, ...target.params };
+  // οι άξονες ανοίγουν όσο χρειάζεται για να χωρέσουν και τα δύο σχήματα
+  const mode: AxesMode = target.mode === 'full' || dropped.mode === 'full' ? 'full' : target.mode === 'q14' || dropped.mode === 'q14' ? 'q14' : 'q1';
+  const sx = Math.max(target.sx ?? 1, dropped.sx ?? 1);
+  const next: AxesItem = { ...target, fns, mode, ...(Object.keys(params).length ? { params } : {}), sx: sx === 1 ? undefined : sx };
+  toast('Οι δύο γραφικές παραστάσεις ενώθηκαν στους ίδιους άξονες. Με αναίρεση χωρίζουν ξανά.', 5000);
+  return { ...next, sy: fitY(next, fns, params) };
+};
 curtain.onChange = curtainTop.onChange = refreshUi;
 curtain.ink = curtainTop.ink = () => ({ tool: board.tool, color: board.color, width: board.width, eraser: board.sizes.eraser });
 spot.onChange = refreshUi;
@@ -1125,13 +1246,30 @@ function initToolbar(): void {
   window.addEventListener('resize', apply);
   new MutationObserver(apply).observe($('subbar'), { attributes: true, attributeFilter: ['class'] });
 
-  // όσο γράφεις, η γραμμή ξεθωριάζει και δεν εμποδίζει τη γραφίδα
+  // όσο γράφεις, η γραμμή δεν πιάνει αγγίγματα· ξεθωριάζει μόνο ό,τι πλησιάζει η γραφίδα, ώστε να μην αναβοσβήνει σε κάθε γράμμα
   const inking = new Set<number>();
   const live = $('live');
-  live.addEventListener('pointerdown', (e) => { inking.add(e.pointerId); document.body.classList.add('inking'); });
+  const NEAR = 48;
+  const chrome: [fade: HTMLElement, hit: HTMLElement][] = [[$('toolbarWrap'), $('toolbar')], [$('lessonName'), $('lessonName')], [$('zoomCtl'), $('zoomCtl')]];
+  let rects: DOMRect[] = [];
+  const near = (e: PointerEvent): void => {
+    if (!inking.has(e.pointerId)) return;
+    rects.forEach((r, i) => {
+      if (e.clientX > r.left - NEAR && e.clientX < r.right + NEAR && e.clientY > r.top - NEAR && e.clientY < r.bottom + NEAR) chrome[i][0].classList.add('under');
+    });
+  };
+  live.addEventListener('pointerdown', (e) => {
+    if (inking.size === 0) rects = chrome.map(([, hit]) => hit.getBoundingClientRect());
+    inking.add(e.pointerId);
+    document.body.classList.add('inking');
+    near(e);
+  });
+  live.addEventListener('pointermove', near);
   const lift = (e: PointerEvent): void => {
     inking.delete(e.pointerId);
-    if (inking.size === 0) document.body.classList.remove('inking');
+    if (inking.size > 0) return;
+    document.body.classList.remove('inking');
+    for (const [fade] of chrome) fade.classList.remove('under');
   };
   live.addEventListener('pointerup', lift);
   live.addEventListener('pointercancel', lift);
@@ -1636,7 +1774,35 @@ function loadLogo(): Promise<HTMLImageElement | null> {
   return logoImg;
 }
 
-/** Το PDF του μαθήματος· με πάνω από μία σελίδα ρωτά ποιες θα μπουν. null αν ο χρήστης ακύρωσε. */
+// ---------- εκτύπωση από το μενού του browser (δεξί πλήκτρο ή παρατεταμένο πάτημα) ----------
+// Στο χαρτί πάνε μόνο οι σελίδες του μαθήματος, πάντα σε λευκό φόντο, χωρίς γραμμή εργαλείων.
+const printView = document.createElement('div');
+printView.id = 'printView';
+document.body.append(printView);
+let printMark: HTMLImageElement | null = null;
+/** Ο browser δεν περιμένει όταν πατηθεί «Εκτύπωση»: εικόνες και λογότυπο φορτώνονται από τη στιγμή που ανοίγει το μενού. */
+async function printReady(): Promise<void> {
+  [printMark] = await Promise.all([loadLogo(), board.loadImages()]);
+}
+document.addEventListener('contextmenu', () => void printReady(), true);
+window.addEventListener('beforeprint', () => {
+  void loadLogo().then((m) => { printMark = m; });
+  printView.innerHTML = '';
+  for (const src of board.printPages(pdfLogo ? printMark : null)) {
+    const img = new Image();
+    img.src = src;
+    printView.append(img);
+  }
+});
+window.addEventListener('afterprint', () => { printView.innerHTML = ''; });
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+    e.preventDefault();
+    void printReady().then(() => window.print());
+  }
+});
+void loadLogo().then((m) => { printMark = m; });
+
 /** Το PDF του μαθήματος. `all`: όλες οι σελίδες, χωρίς ερώτηση. */
 async function lessonPdf(all = false): Promise<Blob | null> {
   const total = board.doc.pages.length;
@@ -1851,6 +2017,14 @@ $('welcome').addEventListener('pointerdown', (e) => {
 $('zoomOut').onclick = () => board.zoomBy(1 / 1.25);
 $('zoomIn').onclick = () => board.zoomBy(1.25);
 $('zoomFit').onclick = () => board.fitView();
+// σε πλήρη οθόνη ο browser λέει «πάτα Esc»· ο πίνακας δεν έχει πλήκτρα, άρα η έξοδος θέλει δικό της κουμπί
+$('fsExit').onclick = () => void document.exitFullscreen().catch(() => {});
+document.addEventListener('fullscreenchange', () => {
+  const on = !!document.fullscreenElement;
+  $('fsExit').classList.toggle('hidden', !on);
+  const label = document.querySelector('#menu [data-act="full"]')?.lastChild;
+  if (label) label.textContent = on ? 'Έξοδος από πλήρη οθόνη' : 'Πλήρης οθόνη';
+});
 board.onView = () => {
   placeSelBar();
   const t = `${Math.round(board.zoom * 100)}%`;
