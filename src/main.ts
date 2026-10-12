@@ -17,6 +17,9 @@ import { buildPdf } from './pdf';
 import { AiTask, MODELS, Provider, RecKind, loadAi, recognize, saveAi, texToImage, parseGraphReply } from './ai';
 import { axesRange, itemBounds, uid, wrapText } from './model';
 import { PEN_ICON, PenKind, mountUi } from './ui';
+import { ask, confirmBox, notice } from './dialog';
+import { NEWS, VERSION, newsPending } from './news';
+import { BUILTIN, type Template } from './pages';
 
 /** Βασικά χρώματα ανά φόντο· ίδια θέση = αντίστοιχο χρώμα στο άλλο φόντο. */
 const PALETTE = {
@@ -229,7 +232,7 @@ function renderColors(): void {
   colorsKey = key;
   colorsEl.innerHTML =
     list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${c}"></button>`).join('') +
-    '<button id="colorBtn" title="Περισσότερα χρώματα" aria-label="Περισσότερα χρώματα"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>';
+    '<button id="colorBtn" title="Περισσότερα χρώματα" aria-label="Περισσότερα χρώματα"><span data-em="🎨"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>';
 }
 $('colorGrid').innerHTML = MORE_COLORS.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${c}"></button>`).join('');
 
@@ -433,11 +436,12 @@ function toggleAnalysis(key: string): void {
   } else if (key === 'asym') an.asym = !an.asym;
   board.updateAxes({ an });
 }
-$('labelMenu').addEventListener('click', (e) => {
+$('labelMenu').addEventListener('click', async (e) => {
   const t = e.target as HTMLElement;
   let label = t.closest<HTMLElement>('[data-label]')?.dataset.label;
-  if (t.closest('#labelOther')) label = prompt('Όνομα άξονα:')?.trim().slice(0, 12) || undefined;
+  const other = !!t.closest('#labelOther');
   closePopups();
+  if (other) label = (await ask('Όνομα άξονα', { max: 12 }))?.trim() || undefined;
   if (label) board.setAxisLabel(labelAxis, label);
 });
 
@@ -842,6 +846,53 @@ function plotReply(out: string): void {
   toast('Η γραφική παράσταση μπήκε. Έλεγξε ότι ο τύπος διαβάστηκε σωστά.', 5000);
 }
 
+/** Διαβάζει φωναχτά το επιλεγμένο κείμενο με τη φωνή του browser· το χειρόγραφο το αναγνωρίζει πρώτα το AI. */
+async function speakSelection(): Promise<void> {
+  const synth = window.speechSynthesis;
+  if (!synth) {
+    toast('Αυτός ο browser δεν μπορεί να διαβάσει φωναχτά');
+    return;
+  }
+  if (synth.speaking) {
+    synth.cancel();
+    return;
+  }
+  const ids = new Set(board.selectionIds);
+  const picked = board.page.items.filter((it) => ids.has(it.id));
+  let words = picked.filter((it): it is TextItem => it.kind === 'text').map((t) => t.text).join('. ');
+  if (!words) {
+    // χειρόγραφο ή κομμάτι εικόνας: χρειάζεται πρώτα αναγνώριση
+    if (!ai.keys[ai.provider]) {
+      toast('Για χειρόγραφο χρειάζεται το κλειδί της αναγνώρισης. Κείμενο γραμμένο με το «Κείμενο» διαβάζεται χωρίς κλειδί.', 6000);
+      return;
+    }
+    const img = board.hasRegion ? await board.regionImage() : await board.inkImage(board.selectionIds);
+    if (!img) return;
+    aiBusy++;
+    toast('✨ Το διαβάζω…', 0);
+    try {
+      words = await recognize(img.blob, 'text', ai);
+    } catch (err) {
+      toast(`Η ανάγνωση απέτυχε: ${(err as Error).message}`, 6000);
+      return;
+    } finally {
+      aiBusy--;
+    }
+    $('toast').classList.add('hidden');
+  }
+  if (!words.trim()) {
+    toast('Δεν βρήκα κάτι να διαβάσω');
+    return;
+  }
+  const u = new SpeechSynthesisUtterance(words);
+  u.lang = 'el-GR';
+  u.rate = 0.85;
+  const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith('el'));
+  if (voice) u.voice = voice;
+  else if (synth.getVoices().length) toast('Δεν βρέθηκε ελληνική φωνή σε αυτή τη συσκευή· η ανάγνωση μπορεί να μην ακούγεται σωστά.', 6000);
+  synth.speak(u);
+}
+
 async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   if (!ai.keys[ai.provider]) {
     openAi();
@@ -853,7 +904,7 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   const img = kind !== 'text' && kind !== 'math' && board.hasRegion ? await board.regionImage() : await board.inkImage(ids);
   if (!img) return;
   aiBusy++;
-  toast(kind === 'graph' ? '✨ Γραφική παράσταση…' : kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
+  toast(kind === 'spell' ? '✨ Ορθογραφία…' : kind === 'graph' ? '✨ Γραφική παράσταση…' : kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
   try {
     const out = await recognize(img.blob, kind, ai);
     if (kind === 'graph') {
@@ -871,11 +922,11 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
     }
     const { box, color } = img;
     const bh = box.y1 - box.y0;
-    if (kind === 'check') {
+    if (kind === 'check' || kind === 'spell') {
       // η κρίση μπαίνει κάτω από τη λύση του μαθητή: πράσινη αν είναι σωστή, κόκκινη αν έχει λάθος
       const ok = out.startsWith('✓');
       aiNote(box, out, ok ? 'ok' : 'bad');
-      toast(ok ? 'Δεν βρέθηκε λάθος. Ρίξε κι εσύ μια ματιά.' : 'Βρέθηκε πιθανό λάθος. Έλεγξέ το πριν το πεις στον μαθητή.', 5000);
+      toast(ok ? 'Δεν βρέθηκε λάθος. Ρίξε κι εσύ μια ματιά.' : kind === 'spell' ? 'Βρέθηκαν λέξεις για διόρθωση. Ρίξε κι εσύ μια ματιά.' : 'Βρέθηκε πιθανό λάθος. Έλεγξέ το πριν το πεις στον μαθητή.', 5000);
       return;
     }
     if (kind === 'solve') {
@@ -915,6 +966,7 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
 $('selOpts').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rec]');
   if (b) void runRecognition(board.selectionIds, b.dataset.rec as AiTask);
+  else if ((e.target as HTMLElement).closest('[data-speak]')) void speakSelection();
 });
 
 // αυτόματη αναγνώριση: ό,τι γράφεται στέλνεται μόλις η γραφίδα μείνει σηκωμένη για λίγο
@@ -983,6 +1035,7 @@ function refreshUi(): void {
   $('penBtn').classList.toggle('on', isPenKind(tool));
   $('gadgetBtn').classList.toggle('on', tool === 'shape');
   $('penBtn').querySelector('span')!.innerHTML = PEN_ICON[penKind];
+  $('penBtn').querySelector('span')!.dataset.em = penKind === 'laser' ? '🔦' : '✏️';
   document.querySelectorAll<HTMLElement>('[data-pen]').forEach((b) => b.classList.toggle('on', b.dataset.pen === tool));
   document.querySelectorAll<HTMLElement>('[data-auto]').forEach((b) => b.classList.toggle('on', b.dataset.auto === autoKind));
   renderColors();
@@ -1004,7 +1057,7 @@ function refreshUi(): void {
   // η αναγνώριση έχει νόημα μόνο όταν στην επιλογή υπάρχει χειρόγραφο
   const ink = board.selectionHasInk;
   const writing = board.selectionHasWriting;
-  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.rec === 'text' || b.dataset.rec === 'math' ? !ink : !(writing || region)));
+  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.speak ? !(writing || region) : b.dataset.rec === 'text' || b.dataset.rec === 'math' ? !ink : !(writing || region)));
   $('selOpts').querySelector('.recSep')!.classList.toggle('hidden', !(writing || region) || !board.hasSelection);
   show('sumBtn', !!board.resultantSource);
   show('axesOpts', !!ax);
@@ -1064,6 +1117,7 @@ function placeSelBar(): void {
   el.style.top = `${y}px`;
 }
 board.onUi = refreshUi;
+board.onAsk = (q) => ask(q.title, { hint: q.hint, secret: q.secret, max: 24 });
 board.onMergeAxes = (target, dropped) => {
   const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
   const fns = [...(target.fns ?? [])];
@@ -1323,7 +1377,7 @@ function togglePopup(popup: HTMLElement, anchor: HTMLElement): void {
 }
 // ό,τι χρησιμοποιήθηκε τελευταία από τα Όργανα μένει πρώτο στη λίστα
 const RECENT = 'grafida.recent';
-const TILE_ATTRS = ['shape', 'axes', 'ins', 'anq', 'gadget', 'view'];
+const TILE_ATTRS = ['shape', 'axes', 'ins', 'anq', 'gadget', 'view', 'kid'];
 const tileKey = (b: HTMLElement): string => {
   const a = TILE_ATTRS.find((k) => b.dataset[k] !== undefined);
   return a ? `${a}=${b.dataset[a]}` : '';
@@ -1381,6 +1435,13 @@ gadgetMenu.addEventListener('click', (e) => {
       renderFns();
       toast('Γράψε πρώτα τη συνάρτηση. Μετά, τα ∫, Σ, lim, f′ είναι στη σειρά πάνω από τη μπάρα.', 6000);
     }
+    return;
+  }
+  const kidTool = t.closest<HTMLElement>('[data-kid]')?.dataset.kid;
+  if (kidTool) {
+    closePopups();
+    board.addStamp(kidTool);
+    refreshUi();
     return;
   }
   const shape = t.closest<HTMLElement>('[data-shape]')?.dataset.shape;
@@ -1450,6 +1511,7 @@ impMenu.addEventListener('click', (e) => {
 // ---------- σχήματα φυσικής ----------
 
 for (const [name, d] of Object.entries(STAMPS)) {
+  if (d.kid) continue;
   const b = document.createElement('button');
   b.dataset.stamp = name;
   b.title = d.label;
@@ -1516,29 +1578,14 @@ stampMenu.addEventListener('click', (e) => {
 
 // ---------- πρότυπα σελίδων ----------
 
-interface Template { name: string; items: Item[] }
-const text = (x: number, y: number, t: string, size = 34): Item => ({ kind: 'text', id: '', x, y, text: t, size, color: '#111111' });
-const rule = (x0: number, y0: number, x1: number, y1: number): Item =>
-  ({ kind: 'shape', id: '', shape: 'line', x0, y0, x1, y1, color: '#111111', width: 2 });
-const BUILTIN: Template[] = [
-  {
-    name: 'Δεδομένα – Ζητούμενα – Λύση',
-    items: [text(60, 90, 'Δεδομένα'), rule(60, 140, 420, 140), text(60, 380, 'Ζητούμενα'), rule(60, 430, 420, 430),
-      rule(470, 80, 470, 660), text(520, 90, 'Λύση'), rule(520, 140, 1180, 140)],
-  },
-  {
-    name: 'Δύο στήλες',
-    items: [rule(640, 80, 640, 660)],
-  },
-];
 let templates: Template[] = [];
 void kvGet<Template[]>('templates').then((t) => { templates = t ?? []; });
 function renderTemplates(): void {
   $('tplList').innerHTML =
-    BUILTIN.map((t, i) => `<div class="tplItem"><button data-tpl="b${i}">📄 ${esc(t.name)}</button></div>`).join('') +
+    BUILTIN.map((t, i) => `<div class="tplItem"${t.lv ? ` data-lv="${t.lv}"` : ''}><button data-tpl="b${i}">📄 ${esc(t.name)}</button></div>`).join('') +
     templates.map((t, i) => `<div class="tplItem"><button data-tpl="u${i}">📄 ${esc(t.name)}</button><button data-tpldel="${i}" title="Διαγραφή προτύπου">✕</button></div>`).join('');
 }
-tplMenu.addEventListener('click', (e) => {
+tplMenu.addEventListener('click', async (e) => {
   const t = e.target as HTMLElement;
   const del = t.closest<HTMLElement>('[data-tpldel]');
   if (del) {
@@ -1552,7 +1599,7 @@ tplMenu.addEventListener('click', (e) => {
       toast('Η σελίδα είναι κενή');
       return;
     }
-    const name = prompt('Όνομα προτύπου:', `Πρότυπο ${templates.length + 1}`)?.trim();
+    const name = (await ask('Όνομα προτύπου', { value: `Πρότυπο ${templates.length + 1}` }))?.trim();
     if (!name) return;
     templates.push({ name, items: JSON.parse(JSON.stringify(board.page.items)) as Item[] });
     void kvSet('templates', templates);
@@ -1580,6 +1627,9 @@ const onMenu = async (e: Event): Promise<void> => {
     setPdfLogo(!pdfLogo);
   } else if (act === 'labels') {
     setLabels(!$('toolbar').classList.contains('labels'));
+  } else if (act === 'level') {
+    setLevel(!primary);
+    toast(primary ? 'Δημοτικό: απλή γραμμή εργαλείων. Τα εργαλεία του είναι στα Όργανα.' : 'Γυμνάσιο – Λύκειο: όλα τα εργαλεία.', 4000);
   } else if (act === 'lib') {
     void lessons?.open();
   } else if (act === 'help') {
@@ -1613,7 +1663,7 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'clear') {
     board.clearPage();
   } else if (act === 'delpage') {
-    if (confirm('Να διαγραφεί η σελίδα;')) board.deletePage();
+    void confirmBox('Να διαγραφεί η σελίδα;', 'Διαγραφή', true).then((y) => y && board.deletePage());
   } else if (act === 'full') {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await document.documentElement.requestFullscreen().catch(() => {});
@@ -1625,6 +1675,8 @@ const onMenu = async (e: Event): Promise<void> => {
     $('diag').classList.toggle('hidden');
   } else if (act === 'end') {
     void endLesson();
+  } else if (act === 'news') {
+    void showNews();
   } else if (act === 'more') {
     const m = $('setMenu');
     m.classList.remove('hidden');
@@ -1997,6 +2049,39 @@ $('qrBig').onclick = () => $('qrBig').classList.add('hidden');
 
 // ---------- οθόνη πρώτης χρήσης ----------
 
+// ---------- Δημοτικό ή Γυμνάσιο–Λύκειο: ποια εργαλεία φαίνονται ----------
+const LEVEL = 'grafida.level';
+let primary = false;
+function setLevel(pri: boolean, save = true): void {
+  primary = pri;
+  document.body.classList.toggle('primary', pri);
+  // εργαλείο που δεν υπάρχει στο Δημοτικό δεν μένει ενεργό
+  if (pri && board.tool === 'measure') board.setTool('select');
+  const label = document.querySelector('#menu [data-act="level"]')?.lastChild;
+  if (label) label.textContent = pri ? 'Αλλαγή σε Γυμνάσιο – Λύκειο' : 'Αλλαγή σε Δημοτικό';
+  document.querySelectorAll<HTMLElement>('#wLevel [data-level]').forEach((b) => b.classList.toggle('on', (b.dataset.level === 'primary') === pri));
+  if (save) { try { localStorage.setItem(LEVEL, pri ? 'primary' : 'secondary'); } catch { /* χωρίς αποθήκευση */ } }
+  renderColors();
+  refreshUi();
+}
+setLevel((() => { try { return localStorage.getItem(LEVEL) === 'primary'; } catch { return false; } })(), false);
+$('wLevel').addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-level]');
+  if (b) setLevel(b.dataset.level === 'primary');
+});
+
+// στο Δημοτικό τα εικονίδια της γραμμής εργαλείων γίνονται emoji (το CSS τα δείχνει αντί για τα γραμμικά)
+const EMOJI: Record<string, string> = {
+  '#tools [data-tool="select"]': '👆', '#penBtn': '✏️', '#tools [data-tool="highlighter"]': '🖍️', '#tools [data-tool="text"]': '🔤',
+  '#tools [data-tool="eraser"]': '🧽', '#tools [data-tool="hand"]': '✋', '#undo': '↩️', '#redo': '↪️', '#importBtn': '🖼️',
+  '#gadgetBtn': '🧰', '#prev': '◀️', '#next': '▶️', '#addPage': '📄',
+  '#penKinds [data-pen="pen"]': '✏️', '#penKinds [data-pen="laser"]': '🔦',
+};
+for (const [sel, em] of Object.entries(EMOJI)) {
+  const span = document.querySelector<HTMLElement>(`${sel} > span`);
+  if (span) span.dataset.em = em;
+}
+
 const WELCOME = 'grafida.welcome';
 function openWelcome(): void {
   closePopups();
@@ -2007,6 +2092,8 @@ function closeWelcome(): void {
   try { localStorage.setItem(WELCOME, '1'); } catch { /* χωρίς αποθήκευση */ }
 }
 $('wGo').onclick = closeWelcome;
+const showNews = (): Promise<void> => notice('Τι νέο στο PrismaBoard', NEWS, `Έκδοση ${VERSION}`);
+$('verLine').textContent = `Έκδοση ${VERSION}`;
 $('wHelp').onclick = () => window.open('./odigies.pdf', '_blank');
 $('welcome').addEventListener('pointerdown', (e) => {
   if (e.target === $('welcome')) closeWelcome();
@@ -2057,6 +2144,8 @@ void (async () => {
   let seen = true;
   try { seen = localStorage.getItem(WELCOME) === '1'; } catch { /* χωρίς αποθήκευση: δεν ενοχλούμε */ }
   if (!seen && !isOverlay) openWelcome();
+  // μετά από ενημέρωση, μία φορά σε κάθε συσκευή: τι άλλαξε
+  if (newsPending(seen) && !isOverlay) void showNews();
 })();
 
 if (import.meta.env.PROD && !isNative && 'serviceWorker' in navigator) {
