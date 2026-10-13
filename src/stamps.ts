@@ -49,7 +49,7 @@ export interface StampDef {
   init?: number[];
   drawKid?(c: C, w: number, h: number, v: number[], env: KidEnv): void;
   /** Πάτημα στο σημείο (x, y) του κουτιού: η νέα κατάσταση, ή null αν δεν έπεσε πουθενά. */
-  tap?(v: number[], x: number, y: number, w: number, h: number): number[] | null;
+  tap?(v: number[], x: number, y: number, w: number, h: number, env?: { names?: string[] }): number[] | null;
   /** Πάτημα που χρειάζεται κείμενο από τον χρήστη (π.χ. λέξη της κρεμάλας): τι να ρωτηθεί και πώς γίνεται κατάσταση. */
   ask?(v: number[], x: number, y: number, w: number, h: number): KidAsk | null;
   /**
@@ -57,6 +57,14 @@ export interface StampDef {
    * το σύρσιμο μετακινεί το εργαλείο ως συνήθως. `st`: πρόχειρη μνήμη για όσο κρατά η κίνηση.
    */
   paint?(v: number[], x: number, y: number, w: number, h: number, st: Record<string, number>, first: boolean): number[] | null;
+  /** Το σύρσιμο τελείωσε με κατάσταση v: αν αυτό σημαίνει κάτι (π.χ. οι δείκτες έμειναν στην ώρα της άσκησης), η τελική κατάσταση και τι έγινε. */
+  drop?(v: number[]): { v: number[]; ev: string } | null;
+  /** Τι «έγινε» όταν η κατάσταση άλλαξε από prev σε next (π.χ. 'win', 'tok'), για ήχο και πανηγυρισμό· αν λείπει, απλό 'click'. */
+  fx?(prev: number[], next: number[]): string | null;
+  /** Επιβράβευση (αστέρι, μπράβο): μπαίνει στον πίνακα με αναπήδημα και κομφετί. */
+  cheer?: boolean;
+  /** true αν το σημείο είναι το κουμπί «όλη η οθόνη» του εργαλείου (ή η πόρτα επιστροφής, όταν είναι ήδη σε όλη την οθόνη). */
+  fullAt?(x: number, y: number, w: number, h: number): boolean;
 }
 
 function path(c: C, pts: number[][], close = false): void {

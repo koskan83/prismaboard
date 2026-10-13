@@ -68,7 +68,10 @@ const aiCalls = [];
 await ctx.route('https://generativelanguage.googleapis.com/**', (r) => {
   const body = r.request().postDataJSON();
   aiCalls.push({ image: body.contents[0].parts[0].inline_data?.data?.length ?? 0, prompt: body.contents[0].parts[1].text });
-  const text = body.contents[0].parts[1].text.includes('will be plotted') ? 'F: 10-2x\nD: 0 ; 5\nX: t\nY: υ' : '✓ Σωστή επιλογή: το 2';
+  const ask = body.contents[0].parts[1].text;
+  const text = ask.includes('will be plotted') ? 'F: 10-2x\nD: 0 ; 5\nX: t\nY: υ'
+    : ask.includes('will draw the figure') ? 'L 5 50 95 50\nR 35 34 59 50\nT 47 42 m = 2 kg\nA 59 42 85 42 red\nT 74 36 F = 10 N\nP 10 50 40 20 40 50 10 50'
+    : '✓ Σωστή επιλογή: το 2';
   return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }) });
 });
 await ctx.route('https://www.googleapis.com/**', (r) => {
@@ -315,13 +318,24 @@ test('Συνάρτηση που δεν χωράει (y = −200x): ο κατακ
   await type('-200x');
   const sy = (await axes()).sy;
   assert(sy === 200, `η κλίμακα για την y = −200x βγήκε ${sy} αντί για 200`);
-  await page.evaluate(() => document.getElementById('axScale').click());
+  const scale = async (sx) => {
+    await page.evaluate(() => document.getElementById('axScale').click());
+    assert(await visible('#scaleMenu'), 'το πάτημα στην Κλίμακα δεν άνοιξε τη μπάρα με τις επιλογές');
+    await page.click(`#scaleMenu [data-sx="${sx}"]`);
+    assert(!(await visible('#scaleMenu')), 'η μπάρα της κλίμακας έμεινε ανοιχτή μετά την επιλογή');
+  };
+  await scale(2);
   const a2 = await axes();
   assert(a2.sx === 2 && a2.sy === 500, `με 2 ανά γραμμή στον x περίμενα sx 2 και sy 500, βγήκαν ${a2.sx} και ${a2.sy}`);
+  await scale(0.1);
+  const a3 = await axes();
+  assert(a3.sx === 0.1 && a3.sy === 20, `με υποδιαίρεση ÷10 περίμενα sx 0,1 και sy 20, βγήκαν ${a3.sx} και ${a3.sy}`);
+  const lbl = await page.evaluate(() => document.querySelector('#axScale span').textContent);
+  assert(lbl === '÷10', `το κουμπί της κλίμακας γράφει «${lbl}» αντί για «÷10»`);
   await del();
   assert((await axes()).sy === undefined, 'χωρίς συναρτήσεις η κλίμακα έπρεπε να γυρίσει στο 1');
   await page.mouse.click(1200, 300);
-  for (let i = 0; i < 6 && (await axes()); i++) await page.click('#undo');
+  for (let i = 0; i < 8 && (await axes()); i++) await page.click('#undo');
   assert(!(await axes()), 'έμειναν άξονες στη σελίδα');
 });
 
@@ -408,6 +422,23 @@ test('Νέα σελίδα και μετακίνηση ανάμεσα στις σ
 });
 
 let pdfPath = '';
+test('Διαγραφή σελίδας με «Αναίρεση»· το Esc κλείνει τα μενού', async () => {
+  const before = await doc();
+  const label = await page.textContent('#pageLabel');
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="delpage"]');
+  const fewer = (await doc()).pages.length;
+  await page.click('#toast button');
+  const after = await doc();
+  await page.click('#gadgetBtn');
+  const opened = await visible('#gadgetMenu');
+  await page.keyboard.press('Escape');
+  assert(fewer === before.pages.length - 1, 'η σελίδα δεν διαγράφηκε');
+  assert(JSON.stringify(after.pages) === JSON.stringify(before.pages), 'η «Αναίρεση» δεν έφερε τη σελίδα πίσω όπως ήταν');
+  assert((await page.textContent('#pageLabel')) === label, 'μετά την αναίρεση δεν είμαστε στην ίδια σελίδα');
+  assert(opened && !(await visible('#gadgetMenu')), 'το Esc δεν έκλεισε τα Όργανα');
+});
+
 test('Εξαγωγή σε PDF με επιλογή σελίδων', async () => {
   pdfPath = await download(async () => {
     await page.click('#menuBtn');
@@ -486,6 +517,23 @@ test('Λάσο σε συνάρτηση → «Γραφική»: μπαίνουν 
   await page.mouse.click(1200, 300);
 });
 
+test('Λάσο σε εκφώνηση → «Σχήμα»: το σχήμα μπαίνει από κάτω ως σχήματα, βέλη και ετικέτες, και φεύγει με μία αναίρεση', async () => {
+  const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
+  await tool('select');
+  const n0 = (await items(pi)).length;
+  await lasso(420, 200, 640, 320);
+  await page.click('#selOpts [data-rec="figure"]');
+  await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Το σχήμα μπήκε'), null, { timeout: 10000 });
+  const added = (await items(pi)).slice(n0);
+  const kinds = added.map((i) => (i.kind === 'shape' ? i.shape : i.kind)).join(' ');
+  assert(kinds === 'line rect text arrow text line line line', `το σχήμα βγήκε «${kinds}»`);
+  assert(added[2].text === 'm = 2 kg' && added[3].color !== added[0].color, 'η ετικέτα ή το χρώμα της δύναμης δεν πέρασαν');
+  assert(added[1].y1 === added[0].y0, 'το σώμα δεν πατάει στο έδαφος');
+  await page.click('#undo');
+  assert((await items(pi)).length === n0, 'η αναίρεση δεν πήρε όλο το σχήμα μαζί');
+  await page.mouse.click(1200, 300);
+});
+
 test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεία που αλλάζουν με πάτημα, και επιστροφή σε Γυμνάσιο – Λύκειο', async () => {
   const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
   const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
@@ -495,6 +543,9 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   await page.click('#gadgetBtn');
   assert(await visible('#gadgetMenu [data-kid="balance"]'), 'δεν φαίνονται τα εργαλεία του Δημοτικού');
   assert(!(await visible('#gadgetMenu .tiles:not(#recentTiles) [data-axes="full"]')), 'οι άξονες έπρεπε να κρυφτούν στο Δημοτικό');
+  assert(!(await visible('#gadgetMenu .tiles:not(#recentTiles) [data-kid="fracbar"]')), 'τα κλάσματα φαίνονται έξω από την καρτέλα τους');
+  const menuFits = await page.evaluate(() => { const m = document.getElementById('gadgetMenu'); return m.scrollHeight <= m.clientHeight + 1; });
+  await page.click('#gTabs [data-gtab="frac"]');
   await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="fracbar"]');
   let it = (await items(pi)).find((i) => i.kind === 'stamp' && i.name === 'fracbar');
   assert(it && it.v[0] === 4 && it.v[1] === 0, 'δεν μπήκε η μπάρα κλασμάτων');
@@ -515,9 +566,39 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   await page.click('#undo');
   await page.click('#undo');
   await page.click('#undo');
+  // επιβράβευση: το αστέρι μπαίνει με κομφετί· το ζάρι «κυλάει» και καταλήγει σε αριθμό· ο ήχος κλείνει από το μενού
+  await page.click('#gadgetBtn');
+  assert(await visible('#gadgetMenu .tiles:not(#recentTiles) [data-kid="fracbar"]'), 'τα Όργανα δεν θυμήθηκαν την τελευταία καρτέλα');
+  await page.click('#gTabs [data-gtab="play"]');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="star"]');
+  const party = (await page.locator('.confetti').count()) === 1;
+  await page.click('#undo');
+  await page.click('#gadgetBtn');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="dice"]');
+  await page.mouse.click(mid.x, mid.y - 60);
+  await sleep(900);
+  const die = (await items(pi)).find((i) => i.kind === 'stamp' && i.name === 'dice');
+  const rolled = die && die.v[0] >= 1 && die.v[0] <= 6 && die.v[0] !== 5;
+  await page.click('#undo');
+  await page.click('#undo');
+  await page.click('#menuBtn');
+  const soundLabel = await page.textContent('#menu [data-act="fxsound"]');
+  await page.click('#menu [data-act="fxsound"]');
+  await page.click('#menuBtn');
+  const soundOff = await page.textContent('#menu [data-act="fxsound"]');
+  await page.click('#menu [data-act="fxsound"]');
   // κυβάκια: όσο κρατάς πατημένο για να χτίσεις, το εργαλείο πρέπει να μένει στην οθόνη
   await page.click('#gadgetBtn');
   await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="build"]');
+  // τα κυβάκια ανοίγουν σε όλη την οθόνη: χωρίς γραμμή εργαλείων, με πόρτα επιστροφής στο τέλος των υλικών
+  const fullOpen = await visible('#buildView');
+  const barHidden = await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight - 30).closest('#buildView') !== null);
+  await drag(400, 300, 520, 300);
+  const fg = await page.evaluate(() => { const bar = Math.max(64, Math.min(120, innerHeight * 0.12)); const s = Math.min(innerWidth / 24, (innerHeight - bar) / 14); return { x: (innerWidth + s * 24) / 2 - 10, y: (s * 14 + innerHeight) / 2 }; });
+  await page.mouse.click(fg.x, fg.y);
+  const fullClosed = !(await visible('#buildView'));
+  const fullBuilt = (await items(pi)).find((i) => i.kind === 'stamp' && i.name === 'build');
+  const fullBlocks = fullBuilt ? fullBuilt.v.slice(1).filter((n) => n > 0).length : 0;
   const sky = () => page.evaluate(([x, y]) => {
     const cv = document.getElementById('base');
     const f = cv.width / cv.clientWidth;
@@ -533,8 +614,17 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   const blocks = built ? built.v.slice(1).filter((n) => n > 0).length : 0;
   await page.click('#undo');
   await page.click('#undo');
+  await page.click('#undo');
   await page.reload();
   await page.waitForSelector('#toolbar');
+  assert(menuFits, 'τα Όργανα του Δημοτικού θέλουν κύλιση για να φανούν');
+  assert(party, 'το αστέρι δεν έφερε κομφετί');
+  assert(rolled, 'το ζάρι δεν έδειξε νέο αριθμό μετά το πάτημα');
+  assert(soundLabel.includes('ναι') && soundOff.includes('όχι'), `ο διακόπτης «Ήχοι» δεν άλλαξε (${soundLabel} → ${soundOff})`);
+  assert(fullOpen && barHidden, 'τα κυβάκια δεν άνοιξαν σε όλη την οθόνη ή φαίνεται ακόμα η γραμμή εργαλείων');
+  assert(fullBlocks >= 2, `σε όλη την οθόνη το σύρσιμο έχτισε ${fullBlocks} κυβάκια αντί για τουλάχιστον 2`);
+  assert(fullClosed, 'η πόρτα δεν γύρισε πίσω στον πίνακα');
+  assert(blocks > fullBlocks, 'μετά την επιστροφή, το χτίσιμο πάνω στη σελίδα δεν πρόσθεσε κυβάκια');
   assert(skyBefore === '224,242,254', `τα κυβάκια δεν ζωγραφίστηκαν εκεί που περίμενα (χρώμα ${skyBefore})`);
   assert(skyDuring === skyBefore, `όσο χτίζεις, το εργαλείο εξαφανίζεται από την οθόνη (χρώμα ${skyDuring})`);
   assert(blocks >= 2, `το σύρσιμο έχτισε ${blocks} κυβάκια αντί για τουλάχιστον 2`);
@@ -557,6 +647,52 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   await page.click('#ask .go');
   assert(penTap, 'με το στυλό, το πάτημα σε κουμπί εργαλείου του Δημοτικού δεν δούλεψε ή άφησε σημάδι');
   assert(!barAfterTap, 'μετά από πάτημα σε κουμπί του εργαλείου εμφανίστηκε η μπάρα «Διαγραφή / ×2»');
+});
+
+test('Οι εικόνες του PDF σώζονται χωριστά από το μάθημα και γυρίζουν ίδιες μετά από κλείσιμο', async () => {
+  const pics = (d) => d.pages.flatMap((p) => p.items).filter((i) => i.kind === 'image' && i.src.length > 8192).map((i) => i.src);
+  // οι σχεδόν άδειες σελίδες του PDF μπορεί να βγουν πολύ μικρές εικόνες (μένουν μέσα στο μάθημα): βάζουμε και μια φωτογραφία με «θόρυβο», σίγουρα μεγάλη
+  const noise = await page.evaluate(() => {
+    const cv = document.createElement('canvas');
+    cv.width = 320;
+    cv.height = 240;
+    const c = cv.getContext('2d');
+    const im = c.createImageData(320, 240);
+    for (let i = 0; i < im.data.length; i++) im.data[i] = i % 4 === 3 ? 255 : (i * 2654435761) % 251;
+    c.putImageData(im, 0, 0);
+    return cv.toDataURL('image/png').split(',')[1];
+  });
+  const nImg = async () => (await doc()).pages.flatMap((p) => p.items).filter((i) => i.kind === 'image').length;
+  const n0 = await nImg();
+  await page.setInputFiles('#fileImport', { name: 'foto.png', mimeType: 'image/png', buffer: Buffer.from(noise, 'base64') });
+  for (let i = 0; i < 20 && (await nImg()) === n0; i++) await sleep(300);
+  // μια γραμμή ακόμα: η αποθήκευση που ακολουθεί δεν πρέπει να πειράξει τις εικόνες
+  await pen();
+  await drag(200, 200, 260, 220);
+  await sleep(2000);
+  const before = pics(await doc());
+  const stored = await page.evaluate(() => new Promise((res) => {
+    const r = indexedDB.open('grafida');
+    r.onsuccess = () => {
+      const st = r.result.transaction('kv').objectStore('kv');
+      const keys = st.getAllKeys();
+      keys.onsuccess = () => {
+        const cur = st.get('lesson.current');
+        cur.onsuccess = () => {
+          const id = JSON.parse(cur.result);
+          const d = st.get(`lesson:${id}`);
+          d.onsuccess = () => res({ imgs: keys.result.filter((k) => String(k).startsWith(`img:${id}:`)).length, inline: /data:image\/[^"]{8192}/.test(d.result) });
+        };
+      };
+    };
+  }));
+  await page.reload();
+  await page.waitForSelector('#toolbar');
+  const after = pics(await doc());
+  assert(before.length >= 1, 'το μάθημα δεν έχει τη μεγάλη εικόνα που μπήκε');
+  assert(!stored.inline, 'οι εικόνες γράφτηκαν ξανά μέσα στο μάθημα');
+  assert(stored.imgs === new Set(before).size, `στη συσκευή υπάρχουν ${stored.imgs} εικόνες αντί για ${new Set(before).size}`);
+  assert(after.length === before.length && after.every((s, i) => s === before[i]), 'μετά το ξανάνοιγμα οι εικόνες δεν είναι ίδιες');
 });
 
 test('Μαθήματα: νέο μάθημα, τμήμα, μετονομασία από το όνομα, και όλα μένουν μετά από κλείσιμο', async () => {
@@ -591,6 +727,106 @@ test('Μαθήματα: νέο μάθημα, τμήμα, μετονομασία 
   await page.reload();
   await page.waitForSelector('#toolbar');
   await page.waitForFunction(() => document.getElementById('lessonName').textContent === 'Δοκιμή Β2 νέο');
+});
+
+test('Τμήμα με ονόματα: η Κλήρωση βγάζει μαθητές χωρίς επανάληψη', async () => {
+  await page.click('#libOpen');
+  await page.waitForSelector('#lib:not(.hidden)');
+  await page.click('#libGroups [data-group="Β2"]');
+  await page.click('#libGroups [data-lib="roster"]');
+  await page.waitForSelector('#ask textarea');
+  await page.fill('#ask textarea', 'Άννα\nΒασίλης\n\nΓιώργος\nΆννα');
+  await page.click('#ask .go');
+  await page.waitForFunction(() => /3\s*$/.test(document.querySelector('#libGroups [data-lib="roster"]')?.textContent ?? ''));
+  await page.click('#lib [data-lib="close"]');
+  await page.click('#gadgetBtn');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="lottery"][data-lv="sec"]');
+  const lot = async () => (await items()).find((i) => i.kind === 'stamp' && i.name === 'lottery');
+  const box = await lot();
+  const picks = [];
+  for (let k = 0; k < 4; k++) {
+    await page.mouse.click(box.x + box.w / 2, box.y + box.h * 0.3);
+    await sleep(120);
+    picks.push((await lot()).v);
+  }
+  await page.mouse.click(box.x + box.w * 0.16, box.y + box.h * 0.87);
+  const reset = (await lot()).v;
+  assert(new Set(picks.slice(0, 3).map((v) => v[0])).size === 3 && picks[2][2] === 7, `στους 3 μαθητές δεν βγήκαν και οι 3 (${picks.map((v) => v[0])})`);
+  assert(picks[3][0] !== picks[2][0] && [1, 2, 4].includes(picks[3][2]), 'ο νέος γύρος δεν άρχισε σωστά');
+  assert(reset[0] === 0 && !reset[2], 'το ⟳ δεν ξεκίνησε νέο γύρο');
+});
+
+test('Άσκηση με το 🎯: το ρολόι ζητά ώρα και το σωστό μετράει όταν αφήσεις τους δείκτες εκεί· το κλάσμα ζητά κομμάτια', async () => {
+  const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
+  const kid = async (name) => (await items()).find((i) => i.kind === 'stamp' && i.name === name);
+  await level();
+  await page.click('#gadgetBtn');
+  await page.click('#gTabs [data-gtab="time"]');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="clock"]');
+  const box = await kid('clock');
+  const cx = box.x + box.w / 2, cy = box.y + box.w / 2, r = box.w * 0.47;
+  const at = (turn, q) => [cx + r * q * Math.sin(turn * 2 * Math.PI), cy - r * q * Math.cos(turn * 2 * Math.PI)];
+  await page.mouse.click(box.x + box.w * 0.92, box.y + box.w * 0.08);
+  const asked = (await kid('clock')).v;
+  const goal = asked[2] - 1;
+  // πρώτα ο ωροδείκτης (πιο μέσα), μετά ο λεπτοδείκτης (κοντά στους αριθμούς)
+  await drag(...at(0, 0.3), ...at((Math.floor(goal / 60) + (asked[0] % 60) / 60) / 12, 0.3));
+  const half = (await kid('clock')).v;
+  await drag(...at(0.5, 0.8), ...at((goal % 60) / 60, 0.8));
+  const found = (await kid('clock')).v;
+  await page.mouse.click(cx, box.y + box.w + 20);
+  const closed = (await kid('clock')).v;
+  await page.click('#undo');
+  await page.click('#undo');
+  await page.click('#undo');
+  await page.click('#undo');
+  await page.click('#undo');
+  // κλάσμα σε μπάρα: χρωματίζεις από αριστερά όσα κομμάτια ζητούνται
+  await page.click('#gadgetBtn');
+  await page.click('#gTabs [data-gtab="frac"]');
+  await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="fracbar"]');
+  const bar = await kid('fracbar');
+  await page.mouse.click(bar.x + bar.w * 0.32, bar.y + bar.h * 0.75);
+  const task = (await kid('fracbar')).v;
+  for (let i = 0; i < task[3]; i++) await page.mouse.click(bar.x + (bar.w * (i + 0.5)) / task[0], bar.y + bar.h * 0.2);
+  // αμέσως μετά το τελευταίο πάτημα: το κομφετί φεύγει μόνο του μετά από λίγο
+  const party = await page.locator('.confetti').count();
+  const solved = (await kid('fracbar')).v;
+  for (let i = 0; i < task[3] + 2; i++) await page.click('#undo');
+  await level();
+  assert(asked[1] === 0 && goal % 5 === 0 && goal !== asked[0], `το 🎯 του ρολογιού δεν έβαλε άσκηση (${asked})`);
+  assert(half[2] === asked[2], 'ο στόχος χάθηκε όταν κουνήθηκε ο ωροδείκτης');
+  assert(found[0] === goal && found[3] === 1, `οι δείκτες έμειναν στο ${found[0]} αντί για ${goal}, ή δεν μέτρησε ως σωστό`);
+  assert(closed.length === 2 && closed[1] === 1, 'το πλαίσιο της ώρας δεν τελείωσε την άσκηση');
+  assert(task[1] === 0 && task[3] >= 1 && task[3] < task[0], `το 🎯 του κλάσματος δεν έβαλε άσκηση (${task})`);
+  assert(solved[3] === task[3] && solved[1] === (1 << task[3]) - 1, `δεν χρωματίστηκαν τα κομμάτια της άσκησης (${solved})`);
+  assert(party >= 1, 'το σωστό κλάσμα δεν έφερε πανηγυρισμό');
+});
+
+test('Πρώτο άνοιγμα της μέρας: «Τι κάνουμε σήμερα;» με νέο μάθημα για το τμήμα', async () => {
+  await sleep(2000);
+  // τα μαθήματα «γίνονται» προχθεσινά
+  await page.evaluate(() => new Promise((res) => {
+    const r = indexedDB.open('grafida');
+    r.onsuccess = () => {
+      const tx = r.result.transaction('kv', 'readwrite');
+      const st = tx.objectStore('kv');
+      const g = st.get('lessons');
+      g.onsuccess = () => st.put(JSON.stringify(JSON.parse(g.result).map((m) => ({ ...m, updated: m.updated - 2 * 86400000 }))), 'lessons');
+      tx.oncomplete = () => res();
+    };
+  }));
+  await page.reload();
+  await page.waitForSelector('#start:not(.hidden)');
+  assert((await page.textContent('#stCont')).includes('Δοκιμή Β2 νέο'), 'δεν προτείνει να συνεχίσεις το τελευταίο μάθημα');
+  await page.click('#stGroups [data-st="new"][data-g="Β2"]');
+  await page.waitForFunction(() => document.getElementById('lessonName').textContent.startsWith('Β2 '));
+  assert(!(await visible('#start')), 'η οθόνη έναρξης δεν έκλεισε');
+  assert((await items()).length === 0, 'το νέο μάθημα δεν είναι άδειο');
+  await page.reload();
+  await page.waitForSelector('#toolbar');
+  await sleep(400);
+  assert(!(await visible('#start')), 'η οθόνη έναρξης ξαναβγήκε την ίδια μέρα');
 });
 
 test('Αντίγραφο μαθημάτων στο Drive', async () => {
@@ -644,6 +880,44 @@ test('Δύο δάχτυλα: το σύρσιμο δεν αλλάζει το zoom
   assert(parseInt(z2) > parseInt(z1), `το άνοιγμα των δαχτύλων δεν μεγέθυνε (${z1} → ${z2})`);
 });
 
+test('Όλο το χέρι (5 δάχτυλα) πάνω στον πίνακα: το στρίψιμο περιστρέφει το επιλεγμένο', async () => {
+  const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
+  await pen();
+  await drag(540, 380, 740, 380);
+  await page.click('#tools [data-tool="select"]');
+  await page.mouse.click(640, 380);
+  const size = async () => {
+    const st = (await items(pi)).at(-1);
+    const xs = st.pts.map((p) => p[0]), ys = st.pts.map((p) => p[1]);
+    return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+  };
+  const s0 = await size();
+  const z0 = await page.textContent('#zoomFit');
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  // πέντε δάχτυλα σε κύκλο ακτίνας 120 γύρω από ένα σημείο μακριά από τη γραμμή, που στρίβουν 90°
+  const hand = (deg) => [0, 72, 144, 216, 288].map((a, id) => {
+    const r = ((a + deg) * Math.PI) / 180;
+    return { x: 640 + 120 * Math.cos(r), y: 300 + 120 * Math.sin(r), id, radiusX: 8, radiusY: 8, force: 1 };
+  });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: hand(0) });
+  for (let d = 5; d <= 90; d += 5) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: hand(d) });
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await cdp.detach();
+  await sleep(100);
+  const s1 = await size();
+  const z1 = await page.textContent('#zoomFit');
+  await page.click('#undo');
+  const s2 = await size();
+  await page.click('#undo');
+  const flat = (q) => q.w > 5 * Math.max(q.h, 1), tall = (q) => q.h > 5 * Math.max(q.w, 1);
+  assert(flat(s0), 'η γραμμή της δοκιμής δεν γράφτηκε οριζόντια');
+  assert(tall(s1), `το στρίψιμο του χεριού κατά 90° δεν έκανε τη γραμμή κατακόρυφη (${Math.round(s1.w)} × ${Math.round(s1.h)})`);
+  assert(z1 === z0, 'το στρίψιμο του χεριού άλλαξε το zoom');
+  assert(flat(s2), 'η αναίρεση δεν γύρισε τη γραμμή όπως ήταν');
+});
+
 await page.goto(URL_);
 await page.waitForSelector('#toolbar');
 await sleep(600);
@@ -654,7 +928,9 @@ for (const t of tests) {
     console.log(`  ✓ ${t.name}`);
   } catch (err) {
     failed++;
-    console.log(`  ✗ ${t.name}\n      ${String(err.message ?? err).split('\n')[0]}`);
+    console.log(`  ✗ ${t.name}\n      ${String(err.message ?? err).split("\n").slice(0, 4).join(" | ")}`);
+    // στο GitHub: φαίνεται στη σελίδα της εκτέλεσης, χωρίς να ανοίξεις τα logs
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=e2e: ${t.name}::${String(err.message ?? err).split('\n')[0]}`);
     // καθαρή κατάσταση για το επόμενο σενάριο
     await page.keyboard.press('Escape').catch(() => {});
     await page.evaluate(() => document.querySelectorAll('.popup, #pagePick, #lib, #qrBig, #welcome').forEach((e) => e.classList.add('hidden'))).catch(() => {});
@@ -662,6 +938,7 @@ for (const t of tests) {
 }
 if (errors.length) {
   failed++;
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=e2e: σφάλματα JavaScript::${[...new Set(errors)].slice(0, 3).join(' | ')}`);
   console.log(`  ✗ Σφάλματα JavaScript στη σελίδα:\n      ${[...new Set(errors)].slice(0, 5).join('\n      ')}`);
 }
 console.log(`\n${tests.length - Math.min(failed, tests.length)} από ${tests.length} σενάρια πέρασαν`);

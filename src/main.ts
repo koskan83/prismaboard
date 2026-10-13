@@ -7,11 +7,13 @@ import { GadgetKind } from './gadgets';
 import { isNative, isOverlay, nativeScreenshot, openOverlay } from './native';
 import { STAMPS } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
-import { ask, confirmBox, notice } from './dialog';
+import { ask, notice } from './dialog';
+import { openBuildView } from './build-view';
+import { confetti, loadFx, playFx, saveFx } from './fx';
 import { NEWS, VERSION, newsPending } from './news';
 import { BUILTIN, type Template } from './pages';
 import { $, HL_PALETTE, MORE_COLORS, PALETTE, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, fileName, layoutBar, spot, stamp, timer, toast } from './app';
-import { esc, fitY, renderFns, resetFnDraft, resetFnMoved, toggleAnalysis } from './axes-ui';
+import { esc, fitY, renderFns, resetFnDraft, resetFnMoved, scaleText, toggleAnalysis } from './axes-ui';
 import { clearMeasShape } from './measure-ui';
 import { ai, autoKind, openAi } from './recognize-ui';
 import { endLesson, lessonPdf, openSend, pdfLogo, pickPages, setPdfLogo } from './send-ui';
@@ -322,8 +324,9 @@ export function refreshUi(): void {
   document.querySelectorAll<HTMLElement>('[data-an]').forEach((b) => b.classList.toggle('on', anOn[b.dataset.an!]));
   $('axesOpts').querySelector('[data-an=sum] span')!.textContent = ax?.an?.int?.n ? `Σ${ax.an.int.n}` : 'Σ';
   $('axNums').classList.toggle('on', ax?.nums !== false);
-  $('axScale').querySelector('span')!.textContent = `×${String(ax?.sx ?? 1).replace('.', ',')}`;
+  $('axScale').querySelector('span')!.textContent = scaleText(ax?.sx ?? 1);
   $('axScale').classList.toggle('on', (ax?.sx ?? 1) !== 1);
+  if (!ax) $('scaleMenu').classList.add('hidden');
   $('axesOpts').querySelector('[data-axis=x] span')!.textContent = ax?.lx ?? 'x';
   $('axesOpts').querySelector('[data-axis=y] span')!.textContent = ax?.ly ?? 'y';
   if (!ax && !fnMenu.classList.contains('hidden')) {
@@ -367,6 +370,7 @@ function placeSelBar(): void {
   el.style.top = `${y}px`;
 }
 board.onUi = refreshUi;
+board.onKidFull = (it) => openBuildView(board, it.id, (ev) => kidFx(ev));
 board.onAsk = (q) => ask(q.title, { hint: q.hint, secret: q.secret, max: 24 });
 board.onMergeAxes = (target, dropped) => {
   const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
@@ -455,10 +459,13 @@ const tileKey = (b: HTMLElement): string => {
 let recent: string[] = (() => { try { return JSON.parse(localStorage.getItem(RECENT) ?? '[]') as string[]; } catch { return []; } })();
 function renderRecent(): void {
   const box = $('recentTiles');
+  const lv = document.body.classList.contains('primary') ? 'pri' : 'sec';
   box.innerHTML = '';
   for (const k of recent) {
     const [a, v] = k.split('=');
-    const src = gadgetMenu.querySelector<HTMLElement>(`.tiles:not(#recentTiles) [data-${a}="${v}"]`);
+    // μόνο ό,τι υπάρχει στη βαθμίδα που είναι ανοιχτή (η Κλήρωση έχει πλακίδιο και στις δύο)
+    const src = [...gadgetMenu.querySelectorAll<HTMLElement>(`.tiles:not(#recentTiles) [data-${a}="${v}"]`)]
+      .find((el) => (el.closest<HTMLElement>('[data-lv]')?.dataset.lv ?? lv) === lv);
     if (src) box.append(src.cloneNode(true));
   }
   const empty = box.children.length === 0;
@@ -472,6 +479,22 @@ gadgetMenu.addEventListener('click', (e) => {
   recent = [k, ...recent.filter((x) => x !== k)].slice(0, 6);
   try { localStorage.setItem(RECENT, JSON.stringify(recent)); } catch { /* χωρίς αποθήκευση */ }
 }, true);
+// στο Δημοτικό τα Όργανα χωρίζονται σε καρτέλες, για να χωράνε χωρίς κύλιση· η τελευταία μένει ανοιχτή
+const GTAB = 'grafida.gtab';
+function setGadgetTab(tab: string): void {
+  const tabs = [...gadgetMenu.querySelectorAll<HTMLElement>('[data-gtab]')];
+  if (!tabs.some((b) => b.dataset.gtab === tab)) tab = 'num';
+  for (const b of tabs) b.classList.toggle('on', b.dataset.gtab === tab);
+  for (const el of gadgetMenu.querySelectorAll<HTMLElement>('[data-tab]')) el.classList.toggle('tabOff', el.dataset.tab !== tab);
+  try { localStorage.setItem(GTAB, tab); } catch { /* χωρίς αποθήκευση */ }
+}
+setGadgetTab((() => { try { return localStorage.getItem(GTAB) ?? 'num'; } catch { return 'num'; } })());
+gadgetMenu.addEventListener('click', (e) => {
+  const tab = (e.target as HTMLElement).closest<HTMLElement>('[data-gtab]')?.dataset.gtab;
+  if (!tab) return;
+  setGadgetTab(tab);
+  placeNear(gadgetMenu, $('gadgetBtn'));
+});
 $('gadgetBtn').onclick = () => {
   renderRecent();
   refreshUi();
@@ -512,6 +535,8 @@ gadgetMenu.addEventListener('click', (e) => {
     closePopups();
     board.addStamp(kidTool);
     refreshUi();
+    // τα κυβάκια ανοίγουν κατευθείαν σε όλη την οθόνη· η πόρτα στο τέλος των υλικών γυρίζει στον πίνακα
+    if (kidTool === 'build' && board.selectionIds[0]) openBuildView(board, board.selectionIds[0], (ev) => kidFx(ev));
     return;
   }
   const shape = t.closest<HTMLElement>('[data-shape]')?.dataset.shape;
@@ -695,8 +720,17 @@ const onMenu = async (e: Event): Promise<void> => {
   if (!act.startsWith('bg-')) closePopups();
   if (act === 'pdflogo') {
     setPdfLogo(!pdfLogo);
+  } else if (act === 'startscr') {
+    setStartScr(!startScr);
   } else if (act === 'labels') {
     setLabels(!$('toolbar').classList.contains('labels'));
+  } else if (act === 'fxsound' || act === 'fxclick') {
+    if (act === 'fxsound') fxPrefs.sound = !fxPrefs.sound;
+    else fxPrefs.click = !fxPrefs.click;
+    saveFx(fxPrefs);
+    showFxPrefs();
+    kidFx(act === 'fxsound' ? 'new' : 'click');
+    return;
   } else if (act === 'level') {
     setLevel(!primary);
     toast(primary ? 'Δημοτικό: απλή γραμμή εργαλείων. Τα εργαλεία του είναι στα Όργανα.' : 'Γυμνάσιο – Λύκειο: όλα τα εργαλεία.', 4000);
@@ -733,7 +767,9 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'clear') {
     board.clearPage();
   } else if (act === 'delpage') {
-    void confirmBox('Να διαγραφεί η σελίδα;', 'Διαγραφή', true).then((y) => y && board.deletePage());
+    // χωρίς ερώτηση: η σελίδα σβήνει αμέσως και το μήνυμα έχει «Αναίρεση» για λίγα δευτερόλεπτα
+    const gone = board.deletePage();
+    if (gone.page.items.length) toast('Η σελίδα διαγράφηκε', 9000, { label: 'Αναίρεση', run: () => board.restorePage(gone) });
   } else if (act === 'full') {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await document.documentElement.requestFullscreen().catch(() => {});
@@ -857,6 +893,8 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     board.duplicateSelected();
   } else if (e.key === 'Escape') {
+    closePopups();
+    lessons?.dismiss();
     board.stopReplay();
   } else if (e.key === 'Delete' || e.key === 'Backspace') {
     board.deleteSelected();
@@ -876,8 +914,34 @@ window.addEventListener('keydown', (e) => {
 // ---------- Δημοτικό ή Γυμνάσιο–Λύκειο: ποια εργαλεία φαίνονται ----------
 const LEVEL = 'grafida.level';
 let primary = false;
+
+// ήχοι, κίνηση και πανηγυρισμοί: μόνο στο Δημοτικό
+const fxPrefs = loadFx();
+function showFxPrefs(): void {
+  const mark = (act: string, on: boolean, name: string): void => {
+    const b = document.querySelector<HTMLElement>(`#menu [data-act="${act}"]`);
+    if (!b) return;
+    b.classList.toggle('on', on);
+    b.lastChild!.textContent = `${name}: ${on ? 'ναι' : 'όχι'}`;
+  };
+  mark('fxsound', fxPrefs.sound, 'Ήχοι');
+  mark('fxclick', fxPrefs.sound && fxPrefs.click, 'Ήχος «κλικ» στα κουμπιά των εργαλείων');
+}
+showFxPrefs();
+/** Ήχος για κάτι που έγινε σε εργαλείο του Δημοτικού· στις επιτυχίες και κομφετί από το σημείο (x, y) της οθόνης. */
+function kidFx(ev: string, x?: number, y?: number): void {
+  if (!primary) return;
+  playFx(ev, fxPrefs);
+  if (ev === 'win') confetti(x, y, 180);
+  else if (ev === 'cheer') confetti(x, y, 70);
+}
+board.onKidFx = (ev, it) => {
+  const [x, y] = board.toScreen(it.x + it.w / 2, it.y + it.h / 2);
+  kidFx(ev, x, y);
+};
 function setLevel(pri: boolean, save = true): void {
   primary = pri;
+  board.kidMotion = pri;
   document.body.classList.toggle('primary', pri);
   // εργαλείο που δεν υπάρχει στο Δημοτικό δεν μένει ενεργό
   if (pri && board.tool === 'measure') board.setTool('select');
@@ -953,12 +1017,25 @@ function setLabels(on: boolean): void {
   layoutBar();
 }
 setLabels((() => { try { return localStorage.getItem('grafida.labels') !== '0'; } catch { return true; } })());
+/** Η οθόνη «Τι κάνουμε σήμερα;» στο πρώτο άνοιγμα της μέρας· ανοιχτή μέχρι να την κλείσει ο χρήστης. */
+let startScr = true;
+function setStartScr(on: boolean): void {
+  startScr = on;
+  document.querySelector('[data-act=startscr]')!.classList.toggle('on', on);
+  try {
+    localStorage.setItem('grafida.startscr', on ? '1' : '0');
+  } catch {
+    /* χωρίς αποθήκευση */
+  }
+}
+setStartScr((() => { try { return localStorage.getItem('grafida.startscr') !== '0'; } catch { return true; } })());
 
 // το διαφανές παράθυρο δεν έχει μαθήματα και δεν πειράζει ό,τι είναι αποθηκευμένο
 export const lessons = isOverlay
   ? null
-  : new Lessons({ getDoc: () => board.doc, setDoc: (d) => board.loadDoc(d), thumb: () => board.thumb(), download, toast }, app);
+  : new Lessons({ getDoc: () => board.doc, setDoc: (d) => board.loadDoc(d), thumb: () => board.thumb(), redraw: () => board.redraw(), download, toast }, app);
 board.onChange = () => lessons?.touch();
+board.kidNames = () => lessons?.names() ?? [];
 
 void (async () => {
   await lessons?.init().catch((err) => console.error(err));
@@ -968,10 +1045,30 @@ void (async () => {
   let seen = true;
   try { seen = localStorage.getItem(WELCOME) === '1'; } catch { /* χωρίς αποθήκευση: δεν ενοχλούμε */ }
   if (!seen && !isOverlay) openWelcome();
+  // στο πρώτο άνοιγμα της μέρας: συνέχισε το τελευταίο μάθημα ή ξεκίνα νέο για το τμήμα σου
+  else if (startScr) lessons?.start();
   // μετά από ενημέρωση, μία φορά σε κάθε συσκευή: τι άλλαξε
   if (newsPending(seen) && !isOverlay) void showNews();
 })();
 
 if (import.meta.env.PROD && !isNative && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// Πίνακας που μένει ανοιχτός για μέρες δεν παίρνει ποτέ τη νέα έκδοση: όταν ανέβει καινούρια, ένα μήνυμα προτείνει ανανέωση.
+if (import.meta.env.PROD && !isNative) {
+  // η λίστα αρχείων της έκδοσης αλλάζει σε κάθε δημοσίευση
+  const buildId = (): Promise<string | null> => fetch('./precache.json', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
+  let mine: string | null = null, told = false, last = Date.now();
+  void buildId().then((s) => { mine = s; });
+  const check = async (): Promise<void> => {
+    if (told || !mine || document.visibilityState !== 'visible' || Date.now() - last < 30 * 60000) return;
+    last = Date.now();
+    const now = await buildId();
+    if (!now || now === mine) return;
+    told = true;
+    toast('Υπάρχει νέα έκδοση του PrismaBoard', 0, { label: 'Ανανέωση', run: () => void (lessons?.flush(true) ?? Promise.resolve()).then(() => location.reload()) });
+  };
+  document.addEventListener('visibilitychange', () => void check());
+  setInterval(() => void check(), 10 * 60000);
 }

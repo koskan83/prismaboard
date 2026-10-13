@@ -113,31 +113,160 @@ describe('μέτρηση μέσα σε άξονες', () => {
 
 import { KIDS } from '../src/kids';
 
+describe('άσκηση με το 🎯 στα εργαλεία του Δημοτικού', () => {
+  const at = (name: string, v: number[], fx: number, fy: number): number[] | null => {
+    const d = KIDS[name];
+    return d.tap!(v, fx * d.w, fy * d.h, d.w, d.h);
+  };
+  it('κλάσμα: το 🎯 ζητά γνήσιο κλάσμα σε άδειο σχήμα και κρατά την όψη', () => {
+    for (let i = 0; i < 30; i++) {
+      const v = at('fracbar', [4, 5, 1], 0.32, 0.75)!;
+      expect(v[1]).toBe(0);
+      expect(v[2]).toBe(1);
+      expect(v[3]).toBeGreaterThanOrEqual(1);
+      expect(v[3]).toBeLessThan(v[0]);
+    }
+  });
+  it('κλάσμα: ο στόχος μένει όσο χρωματίζεις, πανηγυρισμός μόλις γίνουν όσα ζητούνται, και φεύγει αν αλλάξει ο παρονομαστής', () => {
+    const d = KIDS.fracbar;
+    const one = at('fracbar', [4, 0, 0, 2], 0.1, 0.2)!;
+    expect(one).toEqual([4, 1, 0, 2]);
+    expect(d.fx!([4, 0, 0, 2], one)).toBe('click');
+    const two = at('fracbar', one, 0.9, 0.2)!;
+    expect(two).toEqual([4, 9, 0, 2]);
+    expect(d.fx!(one, two)).toBe('win');
+    expect(at('fracbar', two, 0.68, 0.75)).toEqual([4, 9, 1, 2]);
+    expect(at('fracbar', two, 0.86, 0.75)).toEqual([5, 0]);
+    expect(d.fx!([4, 0], [4, 1])).toBe('click');
+  });
+  it('ρολόι: το 🎯 ζητά άλλη ώρα ανά 5 λεπτά και κρύβει την ψηφιακή· σωστό μόνο όταν αφήσεις τους δείκτες εκεί', () => {
+    const d = KIDS.clock;
+    const v = d.tap!([185, 1], d.w * 0.92, d.w * 0.08, d.w, d.h)!;
+    expect(v[0]).toBe(185);
+    expect(v[1]).toBe(0);
+    expect((v[2] - 1) % 5).toBe(0);
+    expect(v[2] - 1).not.toBe(185);
+    expect(d.drop!([185, 0, 186])).toEqual({ v: [185, 0, 186, 1], ev: 'win' });
+    expect(d.drop!([180, 0, 186])).toBeNull();
+    expect(d.drop!([185, 0, 186, 1])).toBeNull();
+    expect(d.drop!([185, 1])).toBeNull();
+    // οι δείκτες κρατούν τον στόχο όσο σέρνονται, και το πλαίσιο της ώρας τελειώνει την άσκηση
+    const c = d.w / 2, r = d.w * 0.47;
+    expect(d.paint!([185, 0, 186, 1], c, c - r * 0.8, d.w, d.h, {}, true)).toEqual([180, 0, 186, 0]);
+    expect(d.tap!([185, 0, 186, 1], d.w / 2, d.w + 10, d.w, d.h)).toEqual([185, 1]);
+  });
+  it('προπαίδεια: η γωνία ζητά γινόμενο, το σωστό κουτάκι πανηγυρίζει, και δεύτερο πάτημα στη γωνία σταματά την άσκηση', () => {
+    const d = KIDS.times;
+    const cell = (v: number[], q: number, r: number): number[] => at('times', v, (q + 1.5) / 11, (r + 1.5) / 11)!;
+    for (let i = 0; i < 30; i++) {
+      const v = at('times', [0, 0, 0, 0], 0.04, 0.04)!;
+      expect(v.length).toBe(6);
+      expect(v[4]).toBeGreaterThanOrEqual(4);
+      expect(v[5]).toBe(0);
+    }
+    // ζητείται το 12: το 3×5 απλώς ανοίγει, το 3×4 (ή το 2×6) το βρίσκει
+    const wrong = cell([0, 0, 0, 0, 12, 0], 2, 4);
+    expect(wrong.slice(4)).toEqual([12, 0]);
+    expect(d.fx!([0, 0, 0, 0, 12, 0], wrong)).toBe('click');
+    const right = cell(wrong, 5, 1);
+    expect(right.slice(4)).toEqual([12, 1]);
+    expect(d.fx!(wrong, right)).toBe('win');
+    expect(at('times', wrong, 0.04, 0.04)!.length).toBe(4);
+    const next = at('times', right, 0.04, 0.04)!;
+    expect(next[5]).toBe(0);
+    expect(next[4]).not.toBe(12);
+  });
+  it('ψηφοφορία: κάθε πάτημα μετράει μία ψήφο, το 📊 δείχνει το αποτέλεσμα, το ⟳ μηδενίζει', () => {
+    const d = KIDS.poll;
+    let v = d.init!.slice();
+    // 4 επιλογές: Β, Β, Δ
+    v = at('poll', v, 0.38, 0.4)!;
+    v = at('poll', v, 0.38, 0.4)!;
+    v = at('poll', v, 0.88, 0.4)!;
+    expect(v).toEqual([4, 0, 0, 2, 0, 1]);
+    const shown = at('poll', v, 0.9, 0.89)!;
+    expect(shown).toEqual([4, 1, 0, 2, 0, 1]);
+    expect(d.fx!(v, shown)).toBe('drum');
+    // με ψήφους το αριστερό κουμπί είναι ⟳· χωρίς ψήφους τα −/+ αλλάζουν πόσες είναι οι επιλογές
+    expect(at('poll', shown, 0.08, 0.89)).toEqual([4, 0]);
+    expect(at('poll', [4, 0], 0.08, 0.89)).toEqual([3, 0]);
+    expect(at('poll', [5, 0], 0.2, 0.89)).toBeNull();
+    expect(at('poll', [2, 0], 0.75, 0.4)).toEqual([2, 0, 0, 1]);
+  });
+  it('ζυγαριά: το 🎯 βάζει βαρίδια αριστερά που δεν αλλάζουν, και η ισορροπία από τα δεξιά πανηγυρίζει', () => {
+    const d = KIDS.balance;
+    const v = at('balance', [1, 0], 0.07, 0.1)!;
+    expect(v[0]).toBe(3);
+    expect(v[1]).toBe(2);
+    expect(v.length).toBe(4);
+    expect(v[2] + v[3]).toBeGreaterThan(10);
+    expect(d.fx!([3, 2, 6, 7, 10], [3, 2, 6, 7, 10, 3])).toBe('win');
+    expect(d.fx!([1, 2, 6, 7, 10], [1, 2, 6, 7, 10, 3])).toBe('equal');
+    // άλυτη άσκηση: το 🎯 τη σταματά· λυμένη: δίνει καινούργια
+    expect(at('balance', [3, 2, 6, 7, 10], 0.07, 0.1)).toEqual([1, 2, 6, 7, 10]);
+    expect(at('balance', [3, 2, 6, 7, 10, 3], 0.07, 0.1)!.length).toBe(4);
+  });
+});
+
 describe('εργαλεία Δημοτικού', () => {
   const tap = (name: string, v: number[], x: number, y: number): number[] | null => {
     const d = KIDS[name];
     return d.tap!(v, x * d.w, y * d.h, d.w, d.h);
   };
   it('ζυγαριά: τα βαρίδια μπαίνουν στη σωστή πλευρά και βγαίνουν με πάτημα', () => {
-    // κουμπιά κάτω: αριστερά +1 στο 0,38·w − ακτίνα, δεξιά +1 στο 0,62·w + ακτίνα
-    let v = tap('balance', [1, 0], 0.38 - 0.036, 0.88)!;
+    // κουμπιά κάτω, για κάθε πλευρά δύο σειρές: 1–5 και 6–10. Αριστερά το 1 είναι πρώτο στην πάνω σειρά, δεξιά το 10 τελευταίο στην κάτω
+    let v = tap('balance', [1, 0], 0.07, 0.8)!;
     expect(v).toEqual([1, 1, 1]);
-    v = tap('balance', v, 0.62 + 0.036 + 0.036 * 2.5 * 3, 0.88)!;
+    v = tap('balance', v, 0.642 + 0.072 * 4, 0.92)!;
     expect(v).toEqual([1, 1, 1, 10]);
+    // όλα τα νούμερα από το 1 ως το 10 υπάρχουν και στις δύο πλευρές
+    for (let n = 1; n <= 10; n++) {
+      const y = n <= 5 ? 0.8 : 0.92, col = (n - 1) % 5;
+      expect(tap('balance', [1, 0], 0.07 + 0.072 * col, y)).toEqual([1, 1, n]);
+      expect(tap('balance', [1, 0], 0.642 + 0.072 * col, y)).toEqual([1, 0, n]);
+    }
     // κρύψιμο της σύγκρισης στη μέση
-    expect(tap('balance', v, 0.5, 0.88)).toEqual([0, 1, 1, 10]);
+    expect(tap('balance', v, 0.5, 0.86)).toEqual([0, 1, 1, 10]);
     expect(tap('balance', v, 0.5, 0.5)).toBeNull();
+  });
+  it('Ε Δ Μ: προστίθενται χιλιάδες και δεκάδες χιλιάδες, με κρατούμενο ως το 99.999', () => {
+    // κουμπί «＋ Χιλιάδες» κάτω αριστερά· «− στήλη» κάτω δεξιά
+    let v = tap('blocks', [234, 1], 0.12, 0.92)!;
+    expect(v).toEqual([234, 1, 4]);
+    v = tap('blocks', v, 0.12, 0.92)!;
+    expect(v).toEqual([234, 1, 5]);
+    expect(tap('blocks', v, 0.12, 0.92)).toEqual([234, 0, 5]);
+    // + στις δεκάδες χιλιάδες (πρώτη στήλη, ως το 0,19 του πλάτους)
+    const r = Math.min(0.24 * 400 * 0.2, 0.19 * 620 * 0.15) / 620;
+    expect(tap('blocks', v, 0.19 - r * 1.5, 0.24 * 0.68)).toEqual([10234, 1, 5]);
+    // κρατούμενο από τις μονάδες ως επάνω, και όριο στο 99.999
+    expect(tap('blocks', [9999, 1, 5], 1 - (Math.min(19.2, 0.2 * 620 * 0.15) / 620) * 1.5, 0.24 * 0.68)).toEqual([10000, 1, 5]);
+    expect(tap('blocks', [99999, 1, 5], 1 - (Math.min(19.2, 0.2 * 620 * 0.15) / 620) * 1.5, 0.24 * 0.68)).toBeNull();
+    // αφαίρεση στήλης: ό,τι δεν χωρά πια φεύγει· στις τρεις στήλες η κατάσταση γυρίζει στην παλιά της μορφή
+    expect(tap('blocks', [45678, 1, 5], 0.88, 0.92)).toEqual([5678, 1, 4]);
+    expect(tap('blocks', [5678, 1, 4], 0.88, 0.92)).toEqual([678, 1]);
   });
   it('κλάσμα: πάτημα χρωματίζει κομμάτι, + και − αλλάζουν τον παρονομαστή', () => {
     expect(tap('fracbar', [4, 0], 0.1, 0.2)).toEqual([4, 1]);
     expect(tap('fracbar', [4, 1], 0.9, 0.2)).toEqual([4, 9]);
     expect(tap('fracbar', [4, 3], 0.86, 0.75)).toEqual([5, 0]);
     expect(tap('fracbar', [1, 0], 0.14, 0.75)).toBeNull();
+    // όψη σοκολάτας / πίτσας: ανάβει από το κουμπί της και μένει όταν αλλάζουν τα κομμάτια ή ο παρονομαστής
+    expect(tap('fracbar', [4, 1], 0.68, 0.75)).toEqual([4, 1, 1]);
+    expect(tap('fracbar', [4, 1, 1], 0.68, 0.75)).toEqual([4, 1, 0]);
+    expect(tap('fracbar', [4, 1, 1], 0.9, 0.2)).toEqual([4, 9, 1]);
+    expect(tap('fracbar', [4, 3, 1], 0.86, 0.75)).toEqual([5, 0, 1]);
+    expect(tap('fracpie', [4, 0], 0.9, 0.1 * 280 / 370)).toEqual([4, 0, 1]);
+    expect(KIDS.fracpizza.init).toEqual([4, 0, 1]);
+    expect(KIDS.fracchoc.init).toEqual([4, 0, 1]);
   });
   it('ρολόι: έξω τα λεπτά, μέσα η ώρα, κάτω η ψηφιακή ένδειξη', () => {
     const d = KIDS.clock, c = d.w / 2, r = d.w * 0.47;
     // λεπτοδείκτης στο «6» (30 λεπτά), με ώρα 3
     expect(d.paint!([180, 1], c, c + r * 0.8, d.w, d.h, {}, true)).toEqual([210, 1]);
+    // ο λεπτοδείκτης πηγαίνει ανά λεπτό: 7 λεπτά, με ώρα 3
+    const a7 = (7 / 60) * 2 * Math.PI;
+    expect(d.paint!([180, 1], c + r * 0.8 * Math.sin(a7), c - r * 0.8 * Math.cos(a7), d.w, d.h, {}, true)).toEqual([187, 1]);
     // ωροδείκτης στο «9»
     expect(d.paint!([180, 1], c - r * 0.4, c, d.w, d.h, {}, true)).toEqual([540, 1]);
     // σύρσιμο του λεπτοδείκτη: μένει λεπτοδείκτης ακόμα κι αν το δάχτυλο περάσει πιο μέσα
@@ -192,9 +321,13 @@ describe('χτίσιμο με κυβάκια', () => {
     expect(d.paint!([slots - 2, ...v.slice(1)], s * 0.5, s * 0.5, d.w, d.h, {}, true)![1]).toBe(0);
   });
   it('η σειρά υλικών διαλέγει υλικό, και ο κάδος αδειάζει το χτίσιμο', () => {
-    const y = s * 14 + (d.h - s * 14) / 2, sw = d.w / slots;
+    // στη σειρά υπάρχει και μια τελευταία θέση: «όλη η οθόνη» (ή η πόρτα επιστροφής)
+    const y = s * 14 + (d.h - s * 14) / 2, sw = d.w / (slots + 1);
     expect(d.paint!([0, 1, 1], sw * 5.5, y, d.w, d.h, {}, true)![0]).toBe(5);
     expect(d.paint!([4, 1, 1], sw * (slots - 0.5), y, d.w, d.h, {}, true)).toEqual([4]);
+    expect(d.fullAt!(sw * (slots + 0.5), y, d.w, d.h)).toBe(true);
+    expect(d.fullAt!(sw * (slots - 0.5), y, d.w, d.h)).toBe(false);
+    expect(d.paint!([4, 1, 1], sw * (slots + 0.5), y, d.w, d.h, {}, true)).toBeNull();
     // σύρσιμο που ξεκίνησε από τα υλικά δεν χτίζει
     const st = {};
     d.paint!([0], sw * 5.5, y, d.w, d.h, st, true);
