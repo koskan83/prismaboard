@@ -28,10 +28,26 @@ export interface SpringGeom {
   r: number;
 }
 
+/** Περιοχή μέσα στο κουτί του εργαλείου (στις μονάδες του). */
+export interface KidArea { x: number; y: number; w: number; h: number }
 export interface KidAsk {
   title: string;
   hint?: string;
   secret?: boolean;
+  /** Πόσα γράμματα χωρά η απάντηση· αν λείπει, 24. */
+  max?: number;
+  /** Το παράθυρο έχει και 🎤: ό,τι πει ο χρήστης σε αυτή τη γλώσσα (π.χ. 'el-GR') προστίθεται στην απάντηση. */
+  voice?: string;
+  /** Οι λέξεις της ορθογραφίας: αντί για απλό πεδίο, το παράθυρο με τις φυλαγμένες λίστες (βλ. spell-lists.ts). */
+  lists?: boolean;
+  /**
+   * Αντί για ερώτηση προς τον χρήστη, η «απάντηση» βγαίνει από ό,τι έχει γραφτεί με το μολύβι στην περιοχή:
+   * 'read' = το διαβάζει η υπηρεσία αναγνώρισης και δίνεται στο apply (κενό αν δεν μπόρεσε να διαβαστεί)· 'clear' = σβήνεται και το apply παίρνει κενό.
+   */
+  area?: KidArea;
+  mode?: 'read' | 'clear';
+  /** Μετά από ερώτηση που απαντήθηκε: σβήνεται και ό,τι είχε γραφτεί σε αυτή την περιοχή. */
+  then?: { area: KidArea; mode: 'clear' };
   apply(text: string): number[] | null;
 }
 
@@ -47,6 +63,10 @@ export interface StampDef {
   kid?: boolean;
   /** Αρχική κατάσταση. */
   init?: number[];
+  /** Παιχνίδι για όλη την τάξη: όταν μπαίνει στον πίνακα μεγαλώνει ώστε να γεμίσει την οθόνη. */
+  big?: boolean;
+  /** Πόσο κρατά η κίνηση μετά από κάθε αλλαγή (ms)· αν λείπει, ενάμισι δευτερόλεπτο. */
+  animMs?: number;
   drawKid?(c: C, w: number, h: number, v: number[], env: KidEnv): void;
   /** Πάτημα στο σημείο (x, y) του κουτιού: η νέα κατάσταση, ή null αν δεν έπεσε πουθενά. */
   tap?(v: number[], x: number, y: number, w: number, h: number, env?: { names?: string[] }): number[] | null;

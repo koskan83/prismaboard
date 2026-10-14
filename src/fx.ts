@@ -114,8 +114,100 @@ export function playFx(ev: string, prefs: FxPrefs): void {
     if (now - lastTok < 45) return;
     lastTok = now;
   }
+  const munch = /^(munch|sniff)(\d+)(x?)$/.exec(ev);
+  if (munch) {
+    // συγχρονισμένα με την κίνηση στο εργαλείο της ορθογραφίας: πρώτο δάγκωμα στα 0,8 s, μετά ένα κάθε 0,8 s·
+    // στον πρώτο έλεγχο το τερατάκι πρώτα μυρίζει (δύο ρουθουνίσματα) και όλα πάνε 0,3 s πιο πίσω
+    const sniff = munch[1] === 'sniff', t0 = sniff ? 1.1 : 0.8;
+    if (sniff) for (const at of [0, 0.22]) noise(0.14, { gain: 0.22, freq: 1800, to: 3200, at });
+    for (let i = 0; i < Number(munch[2]); i++) {
+      const at = t0 + i * 0.8;
+      // «χραπ», δύο μασήματα και κατάποση
+      noise(0.1, { gain: 0.55, freq: 1100, to: 300, at });
+      tone(190, 0.11, { type: 'square', to: 85, gain: 0.2, at });
+      for (const d of [0.13, 0.25]) {
+        noise(0.06, { gain: 0.3, freq: 650, to: 260, at: at + d });
+        tone(140, 0.06, { type: 'square', to: 100, gain: 0.1, at: at + d });
+      }
+      tone(240, 0.1, { to: 520, gain: 0.22, at: at + 0.4 });
+    }
+    // «x»: δέκατο λάθος, μετά τα γράμματα τρώει κι εσένα (βλ. spellFeast): γρύλισμα όσο φουσκώνει, ΧΑΜ, μάσημα, ρέψιμο
+    if (munch[3]) {
+      const f = t0 - 0.45 + Number(munch[2]) * 0.8 + 0.4;
+      tone(70, 1.3, { type: 'sawtooth', to: 180, gain: 0.22, at: f });
+      tone(140, 1.3, { type: 'triangle', to: 360, gain: 0.15, at: f });
+      // ένα «ΧΑΜ» σε κάθε κλείσιμο του στόματος (SPELL_CHOMP = 0,6 s)
+      for (const d of [1.3, 1.9, 2.5]) {
+        noise(0.35, { gain: 0.85, freq: 900, to: 150, at: f + d });
+        tone(160, 0.4, { type: 'square', to: 40, gain: 0.38, at: f + d });
+      }
+      for (let i = 0; i < 6; i++) tone(105 - i * 6, 0.1, { type: 'sawtooth', gain: 0.35, at: f + 2.75 + i * 0.085 });
+      tone(600, 0.08, { to: 950, gain: 0.25, at: f + 3.5 });
+    }
+    return;
+  }
   SOUNDS[ev]?.();
 }
+
+/**
+ * Κρυφό πλαίσιο από το οποίο ζητείται η φωνή του διαδικτύου: η υπηρεσία απαντά μόνο σε αιτήματα χωρίς «Referer»,
+ * και αυτό ορίζεται ανά έγγραφο· έτσι δεν αλλάζει τίποτα για τα υπόλοιπα αιτήματα της εφαρμογής.
+ */
+let voiceFrame: HTMLIFrameElement | null = null;
+function netAudio(url: string): HTMLAudioElement | null {
+  if (!voiceFrame) {
+    voiceFrame = document.createElement('iframe');
+    voiceFrame.hidden = true;
+    voiceFrame.srcdoc = '<meta name="referrer" content="no-referrer">';
+    document.body.append(voiceFrame);
+    return null;
+  }
+  const win = voiceFrame.contentWindow as (Window & { Audio?: typeof Audio }) | null;
+  return win?.Audio ? new win.Audio(url) : null;
+}
+let speaking: HTMLAudioElement | null = null, sayNo = 0;
+/**
+ * Λέει δυνατά ένα κείμενο (ορθογραφία: η λέξη που πρέπει να γραφτεί). `lang` π.χ. 'el-GR'.
+ * Με τη φωνή της συσκευής αν έχει για αυτή τη γλώσσα· αλλιώς (συχνό σε Linux και σε Chrome χωρίς ελληνικά) με φωνή από το διαδίκτυο.
+ * false αν δεν ακούστηκε με κανέναν από τους δύο τρόπους.
+ */
+export async function say(text: string, lang: string): Promise<boolean> {
+  const synth = typeof speechSynthesis === 'undefined' ? null : speechSynthesis, no = ++sayNo;
+  const is = (v: SpeechSynthesisVoice, l: string): boolean => v.lang.replace('_', '-').toLowerCase().startsWith(l.toLowerCase());
+  const voices = synth?.getVoices() ?? [], voice = voices.find((v) => is(v, lang)) ?? voices.find((v) => is(v, lang.slice(0, 2)));
+  speaking?.pause();
+  if (synth && (voice || !voices.length)) {
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    if (voice) u.voice = voice;
+    u.rate = 0.8;
+    // άδεια λίστα φωνών: ή δεν έχει φορτώσει ακόμη (η συσκευή διαλέγει από τη γλώσσα) ή η συσκευή δεν έχει καμία·
+    // αν δεν αρχίσει να μιλά σε λίγο, η λέξη ζητείται από το διαδίκτυο
+    const started = voice ? null : new Promise<boolean>((done) => {
+      u.onstart = () => done(true);
+      u.onerror = () => done(false);
+      setTimeout(() => done(false), 700);
+    });
+    synth.speak(u);
+    if (!started || (await started)) return true;
+    // στο μεταξύ ζητήθηκε άλλη λέξη: αυτή δεν λέγεται πια
+    if (no !== sayNo) return true;
+    synth.cancel();
+  }
+  const audio = netAudio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang.startsWith('en') ? 'en-GB' : lang.slice(0, 2)}&q=${encodeURIComponent(text)}`);
+  if (!audio) return false;
+  speaking = audio;
+  try {
+    await audio.play();
+    return true;
+  } catch {
+    return false;
+  }
+}
+// οι φωνές της συσκευής και το πλαίσιο της φωνής του διαδικτύου ετοιμάζονται από νωρίς
+if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
+if (typeof document !== 'undefined') netAudio('');
 
 const COLORS = ['#f43f5e', '#f59e0b', '#fde047', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
 

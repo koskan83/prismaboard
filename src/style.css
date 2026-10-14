@@ -358,8 +358,8 @@ body.inking #zoomCtl { pointer-events: none; }
 #toolbar.labels > .group > button[data-l]::after { content: attr(data-l); font-size: 10.5px; line-height: 1; opacity: .8; }
 #toolbar.labels > .group > button[data-l] span svg { width: 24px; height: 24px; }
 .overlay #zoomCtl { display: none; }
-#menu { max-height: calc(100vh - 96px); overflow-y: auto; }
-#menu > * { flex-shrink: 0; }
+#menu, #setMenu { max-height: calc(100vh - 96px); overflow-y: auto; }
+#menu > *, #setMenu > * { flex-shrink: 0; }
 
 /* ---------- αποστολή στους μαθητές ---------- */
 #sendMenu { width: 440px; max-width: calc(100vw - 16px); padding: 14px; gap: 8px; }
@@ -544,12 +544,30 @@ body.primary #gadgetMenu .tiles[data-tab] { animation: tabIn .14s ease-out; }
 .askIn input:focus { outline: none; border-color: #3b82f6; }
 .askIn input.secret { -webkit-text-security: disc; }
 .askIn .eye { width: 60px; height: 60px; border-radius: 14px; background: var(--bar-2); font-size: 26px; }
+.askIn .mic.on { background: #dc2626; animation: micOn 1s ease-in-out infinite alternate; }
+@keyframes micOn { to { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.25); } }
 .askPicks { display: flex; flex-wrap: wrap; gap: 8px; }
 .askPicks button { padding: 10px 16px; border-radius: 999px; background: var(--bar-2); color: var(--fg); font-size: 18px; }
 .askActs { display: flex; gap: 10px; }
 .askActs button { flex: 1; height: 58px; border-radius: 14px; background: var(--bar-2); color: var(--fg); font-size: 20px; }
 .askActs button.go { background: #2563eb; color: #fff; font-weight: 600; }
 .askActs button.go.danger { background: #dc2626; }
+.askActs button:disabled { opacity: .45; }
+/* οι λέξεις της ορθογραφίας: φυλαγμένες λίστες, όνομα, μεγάλο κουτί με 👁 και 🎤 στο πλάι */
+.wordsBox { width: min(720px, 100%); overflow-y: auto; }
+.wordsBox > * { flex-shrink: 0; }
+.wordsBox > .wordsIn { flex-shrink: 1; min-height: 110px; }
+.wordLists { max-height: 132px; overflow-y: auto; }
+.wordLists > small { font-size: 16px; opacity: .7; }
+.wordLists .wordChip { display: inline-flex; align-items: center; gap: 10px; }
+.wordLists .wordChip.on { background: #2563eb; color: #fff; }
+.wordDel { padding: 0 4px; border-radius: 8px; opacity: .7; font-size: 16px; }
+.wordDel:hover { opacity: 1; background: rgba(220,38,38,.25); }
+.wordName { height: 52px; padding: 0 16px; border-radius: 14px; border: 2px solid var(--bar-3); background: var(--bar-2); color: var(--fg); font: inherit; font-size: 20px; }
+.wordName:focus { outline: none; border-color: #3b82f6; }
+.wordsIn .askText { flex: 1; min-width: 0; height: auto; min-height: 110px; max-height: min(30vh, 260px); }
+.wordsIn .askText.secret { -webkit-text-security: disc; }
+.wordsSide { display: flex; flex-direction: column; gap: 8px; }
 @media print { #ask { display: none !important; } }
 
 /* ετικέτες και στη μπάρα των αξόνων / ελατηρίου: οι επεξηγήσεις τους δεν φαίνονται ποτέ στην αφή */

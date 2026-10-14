@@ -122,6 +122,7 @@ export function mountUi(app: HTMLElement): void {
     <div class="gHead">Για προχωρημένους</div>
     ${mi('data-act="diag"', I.target, 'Διάγνωση αφής/γραφίδας')}
     ${mi('data-act="test"', I.check, 'Λίστα δοκιμής στην τάξη')}
+    ${mi('data-act="usage"', I.check, 'Μετρητές χρήσης (αρχείο)')}
     ${mi('data-act="news"', I.spark, 'Τι νέο')}
     <div id="verLine"></div>
   </div>
@@ -246,6 +247,7 @@ export function mountUi(app: HTMLElement): void {
     <button data-rec="solve" class="rec solve" data-lv="sec" title="Λύση της επιλεγμένης άσκησης (μπαίνει από κάτω)"><span class="txt">x=?</span><small>Λύση</small></button>
     <button data-rec="spell" class="rec check" data-lv="pri" title="Έλεγχος ορθογραφίας: από κάτω γράφεται ποιες λέξεις θέλουν διόρθωση"><span class="txt">αβγ</span><small>Ορθογραφία</small></button>
     <button data-speak="1" class="rec" data-lv="pri" title="Ο πίνακας διαβάζει φωναχτά το επιλεγμένο κείμενο"><span class="txt">🔊</span><small>Διάβασέ το</small></button>
+    <button data-spellwords="1" class="rec" data-lv="pri" title="Ορθογραφία με το τερατάκι με τις επιλεγμένες λέξεις (γραμμένες με το «Κείμενο» ή με το χέρι)"><span class="txt">👾</span><small>Τερατάκι</small></button>
     <button data-rec="graph" class="rec graph" data-lv="sec" title="Γραφική παράσταση της επιλεγμένης συνάρτησης, σε άξονες που ταιριάζουν στο πεδίο ορισμού της"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3v17h17"/><path d="M6 17c3 0 4-11 7-11s3 7 7 7"/></svg></span><small>Γραφική</small></button>
     <button data-rec="figure" class="rec graph" data-lv="sec" title="Σχήμα για την επιλεγμένη εκφώνηση (π.χ. Φυσικής): μπαίνει από κάτω, αν η άσκηση χρειάζεται σχήμα"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 19h18M5 19L17 8v11"/><rect x="9.500" y="8.800" width="5" height="4" transform="rotate(-42.500 12 10.800)"/></svg></span><small>Σχήμα</small></button>
     <button data-rec="check" class="rec check" title="Έλεγχος της λύσης ενός μαθητή: δείχνει σε ποια γραμμή είναι το πρώτο λάθος"><span class="txt">✓?</span><small>Έλεγχος</small></button>
@@ -325,6 +327,7 @@ export function mountUi(app: HTMLElement): void {
     <div class="gHead" data-lv="pri" data-tab="play">Παιχνίδια</div>
     <div class="tiles" data-lv="pri" data-tab="play">
       ${tile('data-kid="build"', '<b class="em">🧱</b>', 'Κυβάκια', 'Χτίσιμο με κυβάκια: διαλέγεις υλικό και σέρνεις για να χτίσεις')}
+      ${tile('data-kid="spell"', '<b class="em">👾</b>', 'Ορθογραφία', 'Ορθογραφία: έτοιμες λέξεις ανά τάξη ή δικές σου· ο μαθητής γράφει, το τερατάκι τρώει τα λάθη και μεγαλώνει, και ο μαθητής γράφει το σωστό στα κενά')}
       ${tile('data-kid="hangman"', '<b class="em">🔡</b>', 'Κρεμάλα', 'Κρεμάλα: τυχαία λέξη ή δική σου, με πάτημα στα γράμματα')}
       ${tile('data-kid="dice"', '<b class="em">🎲</b>', 'Ζάρι')}
       ${tile('data-kid="poll"', '<b class="em">📊</b>', 'Ψηφοφορία', 'Ψηφοφορία της τάξης: Α Β Γ Δ ή ναι/όχι, με ραβδόγραμμα στο τέλος')}
@@ -448,7 +451,7 @@ export function mountUi(app: HTMLElement): void {
   <div id="diag" class="hidden"></div>
   <div id="toast" class="hidden"></div>
   <div id="drop" class="hidden">Άφησε το αρχείο εδώ (εικόνα, PDF ή Word)</div>
-  <input id="fileImport" type="file" accept="image/*,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden />
+  <input id="fileImport" type="file" accept="image/*,.png,.jpg,.jpeg,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden />
   <input id="fileOpen" type="file" accept=".json,application/json" hidden />
 `
   );
