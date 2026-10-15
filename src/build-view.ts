@@ -8,8 +8,8 @@ import { STAMPS } from './stamps';
 
 const COLS = 24, ROWS = 14;
 
-export function openBuildView(board: Board, id: string, onFx: (ev: string) => void = () => {}): void {
-  const d = STAMPS.build;
+export function openBuildView(board: Board, id: string, onFx: (ev: string) => void = () => {}, name = 'build'): void {
+  const d = STAMPS[name];
   let v = board.kidState(id);
   if (!v || !d.drawKid || !d.paint || document.getElementById('buildView')) return;
 
@@ -30,11 +30,27 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     cv.width = Math.round(W * dpr);
     cv.height = Math.round(H * dpr);
     const bar = Math.max(64, Math.min(120, H * 0.12));
-    const s = Math.min(W / COLS, (H - bar) / ROWS);
+    // τα άλλα εργαλεία (αριθμοκυβάκια) στήνουν μόνα τους τη σκηνή τους σε όλο το πλάτος
+    const s = name === 'build' ? Math.min(W / COLS, (H - bar) / ROWS) : W / COLS;
     gw = s * COLS;
     ox = (W - gw) / 2;
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw();
+  };
+  /** Κίνηση μετά από αλλαγή (για εργαλεία με animMs), όπως στον πίνακα. */
+  let anim: { t0: number; prev: number[] } | null = null;
+  const animate = (prev: number[]): void => {
+    if (!d.animMs) return;
+    const idle = !anim;
+    anim = { t0: performance.now(), prev };
+    if (!idle) return;
+    const tick = (): void => {
+      if (!anim || !root.isConnected) return;
+      if (performance.now() - anim.t0 > d.animMs!) anim = null;
+      draw();
+      if (anim) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   };
   const draw = (): void => {
     const gh = (gw / COLS) * ROWS;
@@ -46,7 +62,7 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     c.translate(ox, 0);
     c.fillStyle = '#111111';
     c.strokeStyle = '#111111';
-    d.drawKid!(c, gw, H, v!, { ink: '#111111', bg: '#ffffff', full: true });
+    d.drawKid!(c, gw, H, v!, { ink: '#111111', bg: '#ffffff', full: true, anim: anim ? { t: performance.now() - anim.t0, prev: anim.prev } : undefined });
     c.restore();
   };
 
@@ -81,7 +97,9 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     ptrs.set(e.pointerId, st);
     const next = d.paint!(v!, x, y, gw, H, st, true);
     if (next) {
-      onFx(d.fx?.(v!, next) ?? 'click');
+      const ev = d.fx ? d.fx(v!, next) : 'click';
+      if (ev) onFx(ev);
+      animate(v!);
       v = next;
       dirty = true;
       draw();
@@ -89,11 +107,15 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
   });
   cv.addEventListener('pointermove', (e) => {
     const st = ptrs.get(e.pointerId);
-    if (!st) return;
+    if (!st) {
+      if (d.cursor) { const [hx, hy] = at(e); cv.style.cursor = d.cursor(v!, hx, hy, gw, H) ?? ''; }
+      return;
+    }
     const [x, y] = at(e);
     const next = d.paint!(v!, x, y, gw, H, st, false);
     if (next) {
-      onFx(d.fx?.(v!, next) ?? 'click');
+      const ev = d.fx ? d.fx(v!, next) : 'click';
+      if (ev) onFx(ev);
       v = next;
       dirty = true;
       draw();
@@ -101,6 +123,15 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
   });
   const up = (e: PointerEvent): void => {
     if (!ptrs.delete(e.pointerId)) return;
+    // το εργαλείο «κλείνει» την κίνηση (αριθμοκυβάκια: ένωση ή κάδος)
+    const end = d.drop?.(v!);
+    if (end) {
+      animate(v!);
+      v = end.v;
+      dirty = true;
+      if (end.ev) onFx(end.ev);
+      draw();
+    }
     // κάθε «πινελιά» αποθηκεύεται στη σελίδα μόλις σηκωθούν όλα τα δάχτυλα: έτσι αναιρείται και δεν χάνεται
     if (ptrs.size === 0) commit();
   };

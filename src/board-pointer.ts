@@ -150,10 +150,14 @@ export function down(bd: Board, e: PointerEvent): void {
       // πιάνοντας το σώμα ενός ελατηρίου το τραβάς· όταν το αφήσεις ταλαντώνεται
       const spring = bd.springAt(wx, wy);
       if (spring) {
+        // το εκκρεμές πιάνεται από εκεί που βρίσκεται (ακίνητο είναι γερμένο), το ελατήριο από τη θέση ισορροπίας
+        const g = STAMPS[spring.name]?.spring?.(spring.w, spring.h);
+        const st = bd.springState(spring);
+        const d0 = g?.bob ? (!st.amp && !st.d ? g.rest ?? 0 : st.d) : 0;
         bd.osc.delete(spring.id);
         bd.selected = spring.id;
         bd.multi = [];
-        bd.oscDrag = { id: spring.id, d: 0 };
+        bd.oscDrag = { id: spring.id, d: d0, d0 };
         ps.mode = 'osc';
         ps.start = [wx, wy];
         bd.redraw();
@@ -225,6 +229,7 @@ export function down(bd: Board, e: PointerEvent): void {
         break;
       }
       if (hit && !(hit.kind === 'image' && hit.id !== bd.selected)) {
+        ps.wasSel = hit.id === bd.selected;
         bd.selected = hit.id;
         ps.mode = 'move';
         ps.orig = hit;
@@ -367,9 +372,25 @@ export function armSnap(bd: Board, ps: PState): void {
   }, 600);
 }
 
+/** Ποντίκι ή γραφίδα που αιωρείται πάνω από εργαλείο του Δημοτικού: ο κέρσορας που ζητά (π.χ. ψαλίδι). */
+function kidCursor(bd: Board, e: PointerEvent): void {
+  let cur = '';
+  if (['select', 'pen', 'highlighter', 'shape', 'text', 'laser'].includes(bd.tool)) {
+    const [wx, wy] = bd.toWorld(e.clientX, e.clientY);
+    const hit = bd.hitTest(wx, wy);
+    const d = hit && hit.kind === 'stamp' ? STAMPS[hit.name] : undefined;
+    if (hit && hit.kind === 'stamp' && d?.cursor) {
+      const [lx, ly] = unrot(hit, wx, wy);
+      cur = d.cursor(hit.v ?? d.init ?? [], lx - hit.x, ly - hit.y, hit.w, hit.h) ?? '';
+    }
+  }
+  if (bd.live.style.cursor !== cur) bd.live.style.cursor = cur;
+}
+
 export function move(bd: Board, e: PointerEvent): void {
   const ps = bd.ptrs.get(e.pointerId);
   if (!ps) {
+    if (e.pointerType !== 'touch') kidCursor(bd, e);
     if (e.pointerType === 'mouse' && bd.tool === 'eraser') {
       const [wx, wy] = bd.toWorld(e.clientX, e.clientY);
       bd.eraserAt = { x: wx, y: wy };
@@ -531,7 +552,7 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
       if (o && g && it) {
         // σε στραμμένο ελατήριο η μετατόπιση μετριέται πάνω στον δικό του άξονα
         const [ax, ay] = unrot(it, ps.start![0], ps.start![1]), [bx, by] = unrot(it, wx, wy);
-        o.d = Math.max(-g.max, Math.min(g.max, (bx - ax) * g.ux + (by - ay) * g.uy));
+        o.d = Math.max(-g.max, Math.min(g.max, (o.d0 ?? 0) + (bx - ax) * g.ux + (by - ay) * g.uy));
       }
       break;
     }
@@ -554,6 +575,11 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
       if (o.kind === 'image' || o.kind === 'stamp') {
         const nw = Math.max(40, o.w + dx);
         ps.preview = { ...o, w: nw, h: (nw * o.h) / o.w };
+      } else if (o.kind === 'text') {
+        // η λαβή μεγαλώνει τα γράμματα, όσο τραβιέται το πλάτος
+        const b = itemBounds(o);
+        const w = Math.max(1, b.x1 - b.x0);
+        ps.preview = { ...o, size: Math.max(8, Math.min(1200, (o.size * (w + dx)) / w)) };
       } else if (o.kind === 'trig') {
         if (ps.handle === 1) {
           // ακέραιες μοίρες· κοντά σε πολλαπλάσια των 15° «κουμπώνει»
@@ -707,12 +733,14 @@ export function up(bd: Board, e: PointerEvent): void {
       let after = bd.page.items.find((x) => x.id === before.id);
       if (after && after !== before && after.kind === 'stamp') {
         // το εργαλείο μπορεί να «κλείσει» την κίνηση (π.χ. το ρολόι: βρέθηκε η ώρα της άσκησης)
-        const end = STAMPS[after.name]?.drop?.(after.v ?? []);
+        const d = STAMPS[after.name], end = d?.drop?.(after.v ?? []);
         if (end) {
           const done = { ...after, v: end.v };
           bd.page.items[bd.page.items.indexOf(after)] = done;
+          // με δική του κίνηση (αριθμοκυβάκια: ένωση) κινείται και στο άφημα
+          if (d.animMs) bd.kidChanged(done, after.v ?? [], end.ev);
+          else bd.onKidFx(end.ev, done);
           after = done;
-          bd.onKidFx(end.ev, done);
         }
       }
       if (after && after !== before) bd.push({ t: 'mod', p: bd.cur, before, after });
@@ -725,7 +753,7 @@ export function up(bd: Board, e: PointerEvent): void {
       const o = bd.oscDrag;
       bd.oscDrag = null;
       // ένα απλό άγγιγμα (χωρίς τράβηγμα) απλώς σταματά το σώμα
-      if (o && Math.abs(o.d) > 3) {
+      if (o && Math.abs(o.d) > 3 && Math.abs(o.d - (o.d0 ?? 0)) > 3) {
         bd.osc.set(o.id, { amp: o.d, t0: performance.now() });
         bd.runOsc();
       }
@@ -741,7 +769,7 @@ export function up(bd: Board, e: PointerEvent): void {
       if (ps.mode === 'rotate' && ps.tap) bd.nextPivot(itemBounds(before), before);
       const i = bd.page.items.findIndex((x) => x.id === before.id);
       // πάτημα (χωρίς σύρσιμο) πάνω σε εργαλείο του Δημοτικού: αλλάζει η κατάστασή του
-      if (i >= 0 && ps.mode === 'move' && before.kind === 'stamp' && bd.tapKid(before, after, ps.start!)) {
+      if (i >= 0 && ps.mode === 'move' && before.kind === 'stamp' && (bd.tapKid(before, after, ps.start!) || (ps.wasSel && bd.tapStampText(before, after, ps.start!)))) {
         ps.orig = undefined;
         ps.preview = undefined;
         bd.redraw();

@@ -585,3 +585,116 @@ describe('ορθογραφία με το τερατάκι', () => {
     expect(d.ask!(game(['μήλο']), ...button(3), d.w, d.h)).toBeNull();
   });
 });
+
+import { ncDrop, ncPack, ncShapes, ncState, type NCube } from '../src/kids';
+
+describe('αριθμοκυβάκια', () => {
+  const d = KIDS.numcubes, W = d.w, H = d.h;
+  // ίδια γεωμετρία με το ncGeom: σκηνή 28 × 13 κυβάκια πάνω από τη μπάρα (22% του ύψους)
+  const S = Math.min(W / 28, (H * 0.78) / 13), ox = (W - 28 * S) / 2, oy = H * 0.78 - 13 * S;
+  const mid = (e: NCube): [number, number] => [ox + (e.x / 10) * S, oy + (e.y / 10 - 0.5) * S];
+  const cube = (x: number, n: number, h = Math.min(n, 10)): NCube => ({ x, y: 130, n, h, acc: 0, col: 0, f: 0 });
+  const drag = (v: number[], from: [number, number], to: [number, number]): { v: number[]; ev: string } | null => {
+    const st: Record<string, number> = {};
+    let next = d.paint!(v, ...from, W, H, st, true)!;
+    next = d.paint!(next, ...to, W, H, st, false) ?? next;
+    return d.drop!(next);
+  };
+
+  it('τα σχήματα κάθε αριθμού', () => {
+    expect(ncShapes(6)).toEqual([6, 3, 2, 1]);
+    expect(ncShapes(7)).toEqual([7, 1]);
+    expect(ncShapes(16)).toEqual([10, 8, 4, 2]);
+    expect(ncShapes(11)).toEqual([10]);
+  });
+
+  it('σύρεις το 2 πάνω στο 3 και γίνονται 5', () => {
+    const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 2), cube(150, 3)] });
+    const s = ncState(v);
+    const r = drag(v, mid(s.cubes[0]), mid(s.cubes[1]))!;
+    expect(r.ev).toBe('num|pop|5');
+    expect(ncState(r.v).cubes.map((e) => [e.x, e.n, e.f])).toEqual([[150, 5, 0]]);
+  });
+
+  it('ενώνονται και όταν αφήνεις τον έναν πάνω στο κεφάλι του άλλου, όχι όταν είναι απλώς δίπλα', () => {
+    const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 1), cube(150, 4)] });
+    const s = ncState(v);
+    // το 1 αφήνεται με τα πόδια του λίγο πάνω από το κεφάλι του 4 (που φτάνει ως το 9 από το 13)
+    const r = drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 8.5 * S])!;
+    expect(r.ev).toBe('num|pop|5');
+    const side = drag(v, mid(s.cubes[0]), [ox + 16.2 * S, oy + 12.5 * S])!;
+    expect(ncState(side.v).cubes.map((e) => e.n)).toEqual([4, 1]);
+  });
+
+  it('πάνω από 20 δεν ενώνονται, και ο κάδος σβήνει', () => {
+    const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 12), cube(150, 10)] });
+    const s = ncState(v);
+    expect(drag(v, mid(s.cubes[0]), mid(s.cubes[1]))!.ev).toBe('bad');
+    const r = drag(v, mid(s.cubes[0]), [W * (7.5 / 9), H * 0.95])!;
+    expect(r.ev).toBe('wipe');
+    expect(ncState(r.v).cubes.map((e) => e.n)).toEqual([10]);
+  });
+
+  it('✂️ κόβει από το κυβάκι που πατήθηκε και πάνω· με απλό πάτημα το κομμάτι πάει δίπλα', () => {
+    const v = ncPack({ mode: 1, sel: 0, flags: 0, cubes: [cube(100, 5)] });
+    const st: Record<string, number> = {};
+    // το τρίτο κυβάκι από κάτω
+    const cut = d.paint!(v, ox + 10 * S, oy + 10.5 * S, W, H, st, true)!;
+    expect(d.fx!(v, cut)).toBe('num|split|3');
+    // δεύτερη επαφή στο ίδιο σημείο αμέσως μετά (διπλό άγγιγμα): δεν ξανακόβει
+    expect(d.paint!(cut, ox + 10 * S, oy + 10.5 * S, W, H, {}, true)).toBe(cut);
+    const r = ncDrop(cut)!;
+    const [a, b] = ncState(r.v).cubes;
+    expect([a.n, b.n, b.y, b.f]).toEqual([2, 3, 130, 0]);
+    expect(b.x).toBeGreaterThan(a.x);
+  });
+
+  it('νέος αριθμός από την παλέτα, σχήμα, αξεσουάρ και 🧽 για έναν χαρακτήρα', () => {
+    let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(40, 2)] });
+    // πάτημα στο 9 της παλέτας: μπαίνει στη σκηνή, πάνω στο έδαφος
+    v = ncDrop(d.paint!(v, W * 0.85, H * 0.83, W, H, {}, true)!)!.v;
+    let e = ncState(v).cubes[1];
+    expect([e.n, e.y]).toEqual([9, 130]);
+    const tap = (bx: number, by: number): void => { v = d.paint!(v, bx, by, W, H, {}, true)!; };
+    tap(W * (2.5 / 9), H * 0.95); // 🔄
+    tap(...mid(ncState(v).cubes[1]));
+    expect(ncState(v).cubes[1].h).toBe(3);
+    tap(W * (3.5 / 9), H * 0.95); // 🎩
+    expect(ncState(v).mode).toBe(4);
+    tap(W * (2.5 / 13), H * 0.83); // κορώνα
+    tap(...mid(ncState(v).cubes[1]));
+    e = ncState(v).cubes[1];
+    expect(e.acc).toBe(2);
+    expect(d.fx!(ncPack({ ...ncState(v), cubes: ncState(v).cubes.map((q) => ({ ...q, acc: 0 })) }), v)).toBe('new');
+    // ξανά το ίδιο: βγαίνει
+    tap(...mid(e));
+    expect(ncState(v).cubes[1].acc).toBe(0);
+    tap(W * (4.5 / 9), H * 0.95); // 🧽
+    tap(...mid(ncState(v).cubes[0]));
+    expect(ncState(v).cubes.map((q) => q.n)).toEqual([9]);
+  });
+
+  it('⚖️ τραμπάλα: ό,τι πατά στη σανίδα κάθεται πάνω της και γέρνει προς το μεγαλύτερο άθροισμα', () => {
+    let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 3), cube(220, 2), cube(275, 1)] });
+    v = d.paint!(v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
+    let s = ncState(v);
+    expect(s.flags & 2).toBe(2);
+    // το 3 και το 2 πάνω στη σανίδα· το 1, έξω από τη σανίδα, μένει στο γρασίδι
+    expect(s.cubes.map((e) => [e.f, e.y])).toEqual([[8, 114], [8, 114], [0, 130]]);
+    // το 1 ανεβαίνει στα δεξιά: 3 = 3, ισορροπεί
+    const r = drag(v, mid(s.cubes[2]), [ox + 18 * S, oy + 9 * S])!;
+    expect(r.ev).toBe('tok');
+    s = ncState(r.v);
+    expect(s.cubes.filter((e) => e.f & 8).length).toBe(3);
+    // σήκωμα από την τραμπάλα και άφημα αριστερά στο γρασίδι, έξω από τη σανίδα: τότε κατεβαίνει
+    const off = drag(r.v, [ox + 6 * S, oy + 10.9 * S], [ox + 1 * S, oy + 12.5 * S])!;
+    expect(ncState(off.v).cubes.find((e) => e.n === 3)!.f).toBe(0);
+    // βγαίνει η τραμπάλα: όλοι στο γρασίδι
+    v = d.paint!(r.v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
+    expect(ncState(v).cubes.map((e) => [e.f, e.y])).toEqual([[0, 130], [0, 130], [0, 130]]);
+  });
+
+  it('το παλιό βάψιμο (λειτουργία 3) γίνεται μετακίνηση', () => {
+    expect(ncState([3, 1, 0]).mode).toBe(0);
+  });
+});
