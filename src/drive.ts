@@ -93,8 +93,11 @@ async function api<T>(url: string, init: RequestInit, tk: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Το όνομα μέσα σε ερώτημα του Drive: τα ' και \ θέλουν διαφυγή. */
+const quoted = (s: string): string => s.replace(/['\\]/g, (c) => `\\${c}`);
+
 async function folderId(tk: string, name = FOLDER, parent?: string): Promise<string> {
-  const q = `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parent ? ` and '${parent}' in parents` : ''}`;
+  const q = `name='${quoted(name)}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parent ? ` and '${parent}' in parents` : ''}`;
   const found = await api<{ files: { id: string }[] }>(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {}, tk);
   if (found.files[0]) return found.files[0].id;
   const made = await api<{ id: string }>('https://www.googleapis.com/drive/v3/files?fields=id', {
@@ -123,10 +126,19 @@ export interface Uploaded {
   shared: boolean;
 }
 
-/** Ανεβάζει το αρχείο στον φάκελο «PrismaBoard» του Drive και το κάνει ορατό σε όποιον έχει τον σύνδεσμο. */
-export async function uploadToDrive(blob: Blob, name: string): Promise<Uploaded> {
+/** Ο φάκελος «PrismaBoard» ή, για μάθημα τμήματος, ο υποφάκελός του (π.χ. «PrismaBoard/Β2»). */
+async function classFolder(tk: string, group?: string): Promise<string> {
+  const root = await folderId(tk);
+  return group ? folderId(tk, group, root) : root;
+}
+
+/**
+ * Ανεβάζει το αρχείο στον φάκελο «PrismaBoard» του Drive (ή στον φάκελο του τμήματος) και το κάνει ορατό σε όποιον
+ * έχει τον σύνδεσμο.
+ */
+export async function uploadToDrive(blob: Blob, name: string, group?: string): Promise<Uploaded> {
   const tk = await getToken();
-  const parent = await folderId(tk);
+  const parent = await classFolder(tk, group);
   const mp = multipart({ name, parents: [parent] }, blob);
   const file = await api<{ id: string }>('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', {
     method: 'POST',
@@ -146,50 +158,106 @@ export async function uploadToDrive(blob: Blob, name: string): Promise<Uploaded>
   return { url: `https://drive.google.com/file/d/${file.id}/view`, shared };
 }
 
-// ---------- αντίγραφα ασφαλείας μαθημάτων ----------
-// Κάθε μάθημα είναι ένα ιδιωτικό αρχείο στον υποφάκελο «Αντίγραφα μαθημάτων»· δεν μοιράζεται με κανέναν.
+/**
+ * Ιδιωτικό αντίγραφο ενός αρχείου του μαθήματος (PDF, .json) στον φάκελο του τμήματος, π.χ. «PrismaBoard/Β2».
+ * Αν υπάρχει ήδη αρχείο με το ίδιο όνομα εκεί, γράφεται από πάνω (ίδιο μάθημα, ίδια μέρα), για να μη γεμίζει διπλά.
+ */
+export async function saveToDrive(blob: Blob, name: string, group?: string): Promise<void> {
+  const tk = await getToken();
+  const parent = await classFolder(tk, group);
+  const q = `name='${quoted(name)}' and '${parent}' in parents and trashed=false`;
+  const found = await api<{ files: { id: string }[] }>(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {}, tk);
+  const id = found.files[0]?.id;
+  const mp = multipart(id ? {} : { name, parents: [parent] }, blob);
+  await api(`https://www.googleapis.com/upload/drive/v3/files${id ? `/${id}` : ''}?uploadType=multipart&fields=id`, {
+    method: id ? 'PATCH' : 'POST',
+    headers: { 'content-type': mp.type },
+    body: mp.body,
+  }, tk);
+}
 
-const BACKUPS = 'Αντίγραφα μαθημάτων';
+// ---------- τα μαθήματα στο Drive ----------
+// Κάθε μάθημα είναι ένα ιδιωτικό αρχείο .json στον φάκελο του τμήματός του («PrismaBoard/Β2», ή «PrismaBoard» χωρίς τμήμα),
+// δίπλα στα PDF του. Δεν μοιράζεται με κανέναν. Παλιότερες εκδόσεις τα έβαζαν στο «PrismaBoard/Αντίγραφα μαθημάτων»:
+// βρίσκονται κι αυτά (η αναζήτηση γίνεται με τις ετικέτες του αρχείου, όχι με τον φάκελο) και μετακινούνται στο επόμενο ανέβασμα.
 
 /** Αν υπάρχει ήδη ζωντανή σύνδεση, ώστε να ανέβει κάτι χωρίς παράθυρο της Google. */
 export function driveReady(): boolean {
   return !!token && Date.now() < token.until;
 }
 
-export interface RemoteLesson { fileId: string; id: string; name: string; updated: number }
+/** Φορτώνει από πριν τη σύνδεση της Google, ώστε το παράθυρό της να ανοίξει αμέσως με το πάτημα (αλλιώς ο browser το μπλοκάρει). */
+export function drivePreload(): void {
+  if (driveClientId()) loadGis().catch(() => {});
+}
 
-interface DriveFile { id: string; name: string; appProperties?: Record<string, string> }
+export interface RemoteLesson {
+  fileId: string;
+  /** Το αναγνωριστικό του μαθήματος· κενό για σκέτο αρχείο πίνακα (π.χ. από παλιότερη αποθήκευση σε αρχείο). */
+  id: string;
+  name: string;
+  /** Τελευταία αλλαγή του μαθήματος (ms). */
+  updated: number;
+  /** Το τμήμα, όπως ήταν όταν ανέβηκε. */
+  group?: string;
+  parents: string[];
+}
 
-/** Τα αντίγραφα μαθημάτων που έχει ανεβάσει η εφαρμογή σε αυτόν τον λογαριασμό (από οποιαδήποτε συσκευή). */
-export async function listLessonBackups(): Promise<RemoteLesson[]> {
-  const tk = await getToken();
-  const q = "appProperties has { key='pbKind' and value='lesson' } and trashed=false";
-  const out: RemoteLesson[] = [];
+interface DriveFile { id: string; name: string; parents?: string[]; modifiedTime?: string; appProperties?: Record<string, string> }
+
+async function listFiles(q: string, tk: string): Promise<DriveFile[]> {
+  const out: DriveFile[] = [];
   let page = '';
   do {
     const r = await api<{ files: DriveFile[]; nextPageToken?: string }>(
-      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent('nextPageToken,files(id,name,appProperties)')}&pageSize=200${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, {}, tk);
-    for (const f of r.files) {
-      const id = f.appProperties?.pbLesson;
-      if (id) out.push({ fileId: f.id, id, name: f.name.replace(/\.json$/i, ''), updated: Number(f.appProperties?.pbUpdated) || 0 });
-    }
+      `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent('nextPageToken,files(id,name,parents,modifiedTime,appProperties)')}&pageSize=200${page ? `&pageToken=${encodeURIComponent(page)}` : ''}`, {}, tk);
+    out.push(...r.files);
     page = r.nextPageToken ?? '';
   } while (page);
   return out;
 }
 
-/** Ανεβάζει (ή ανανεώνει) το αντίγραφο ενός μαθήματος. `known`: το αρχείο του στο Drive, αν υπάρχει ήδη. */
-export async function backupLesson(id: string, name: string, updated: number, blob: Blob, known?: string): Promise<void> {
+const toRemote = (f: DriveFile): RemoteLesson => ({
+  fileId: f.id,
+  id: f.appProperties?.pbLesson ?? '',
+  name: f.name.replace(/\.json$/i, ''),
+  updated: Number(f.appProperties?.pbUpdated) || Date.parse(f.modifiedTime ?? '') || 0,
+  group: f.appProperties?.pbGroup || undefined,
+  parents: f.parents ?? [],
+});
+
+/** Τα μαθήματα που έχει ανεβάσει η εφαρμογή σε αυτόν τον λογαριασμό (από οποιαδήποτε συσκευή). */
+export async function listLessonBackups(): Promise<RemoteLesson[]> {
   const tk = await getToken();
-  const meta = { name: `${name}.json`, appProperties: { pbKind: 'lesson', pbLesson: id, pbUpdated: String(updated) } };
+  return (await listFiles("appProperties has { key='pbKind' and value='lesson' } and trashed=false", tk)).filter((f) => f.appProperties?.pbLesson).map(toRemote);
+}
+
+/** Όλα τα αρχεία .json της εφαρμογής στο Drive που ανοίγουν ως μάθημα: τα μαθήματα και τα σκέτα αρχεία πίνακα. */
+export async function listDriveLessons(): Promise<RemoteLesson[]> {
+  const tk = await getToken();
+  const files = await listFiles("mimeType='application/json' and trashed=false", tk);
+  return files.filter((f) => !f.appProperties?.pbKind || f.appProperties.pbKind === 'lesson').map(toRemote);
+}
+
+/**
+ * Ανεβάζει (ή ανανεώνει) ένα μάθημα στον φάκελο του τμήματός του. `known`: το αρχείο του στο Drive, αν υπάρχει ήδη·
+ * αν είναι σε άλλο φάκελο (άλλαξε τμήμα, ή είναι από παλιότερη έκδοση) μετακινείται.
+ * Επιστρέφει τη διαδρομή του φακέλου, π.χ. «PrismaBoard/Β2».
+ */
+export async function backupLesson(id: string, name: string, updated: number, blob: Blob, group?: string, known?: RemoteLesson): Promise<string> {
+  const tk = await getToken();
+  const parent = await classFolder(tk, group);
+  const meta = { name: `${name}.json`, appProperties: { pbKind: 'lesson', pbLesson: id, pbUpdated: String(updated), pbGroup: group ?? '' } };
+  const where = group ? `${FOLDER}/${group}` : FOLDER;
   if (known) {
+    const move = known.parents.includes(parent) ? '' : `&addParents=${parent}${known.parents.length ? `&removeParents=${known.parents.join(',')}` : ''}`;
     const mp = multipart(meta, blob);
-    await api(`https://www.googleapis.com/upload/drive/v3/files/${known}?uploadType=multipart&fields=id`, { method: 'PATCH', headers: { 'content-type': mp.type }, body: mp.body }, tk);
-    return;
+    await api(`https://www.googleapis.com/upload/drive/v3/files/${known.fileId}?uploadType=multipart&fields=id${move}`, { method: 'PATCH', headers: { 'content-type': mp.type }, body: mp.body }, tk);
+    return where;
   }
-  const parent = await folderId(tk, BACKUPS, await folderId(tk));
   const mp = multipart({ ...meta, parents: [parent] }, blob);
   await api('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', headers: { 'content-type': mp.type }, body: mp.body }, tk);
+  return where;
 }
 
 /** Κατεβάζει το περιεχόμενο ενός αντιγράφου. */

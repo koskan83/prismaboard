@@ -3,34 +3,15 @@
  * Τρέχει με: npm run test:e2e
  * Το Google Drive και η σύνδεση της Google αντικαθίστανται με ψεύτικες απαντήσεις: δεν ανεβαίνει τίποτα πουθενά.
  */
-import { spawn, execSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { chromium } from 'playwright-core';
+import { findChrome } from '../../scripts/find-chrome.mjs';
 
 const PORT = 4188;
 const URL_ = `http://localhost:${PORT}/`;
-
-function findChrome() {
-  if (process.env.CHROME && existsSync(process.env.CHROME)) return process.env.CHROME;
-  for (const cmd of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
-    try {
-      const p = execSync(`command -v ${cmd}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-      if (p) return p;
-    } catch { /* δεν υπάρχει */ }
-  }
-  const cache = join(homedir(), '.cache', 'ms-playwright');
-  if (existsSync(cache)) {
-    for (const d of readdirSync(cache).sort().reverse()) {
-      for (const rel of ['chrome-headless-shell-linux64/chrome-headless-shell', 'chrome-linux64/chrome', 'chrome-linux/chrome']) {
-        const p = join(cache, d, rel);
-        if (existsSync(p)) return p;
-      }
-    }
-  }
-  return null;
-}
 
 const exe = findChrome();
 if (!exe) {
@@ -53,12 +34,19 @@ for (let i = 0; ; i++) {
 
 const browser = await chromium.launch({ executablePath: exe, headless: true, args: ['--no-sandbox'] });
 const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 }, acceptDownloads: true, locale: 'el-GR' });
+// τα αρχεία κατεβαίνουν στις Λήψεις, χωρίς την ερώτηση για φάκελο και χωρίς αντίγραφο στο Drive (εκτός από το σενάριο που τα δοκιμάζει)
+await ctx.addInitScript(() => {
+  try {
+    if (!localStorage.getItem('grafida.files')) localStorage.setItem('grafida.files', 'downloads');
+    if (!localStorage.getItem('grafida.files.drive')) localStorage.setItem('grafida.files.drive', '0');
+  } catch { /* χωρίς αποθήκευση */ }
+});
 const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 
-// ψεύτικη Google: η σύνδεση πετυχαίνει αμέσως και το Drive δέχεται ό,τι του στείλεις
-const drive = { uploads: 0, perms: 0 };
+// ψεύτικη Google: η σύνδεση πετυχαίνει αμέσως και το Drive είναι ένα μικρό Drive στη μνήμη (φάκελοι, αρχεία, ετικέτες, αναζήτηση)
+const drive = { uploads: 0, perms: 0, files: new Map(), seq: 0, folders: 0 };
 await ctx.route('https://accounts.google.com/gsi/client', (r) => r.fulfill({
   contentType: 'text/javascript',
   body: `window.google={accounts:{oauth2:{initTokenClient:(o)=>({requestAccessToken:()=>setTimeout(()=>o.callback({access_token:'fake',expires_in:3600}),10)})}}};`,
@@ -74,15 +62,61 @@ await ctx.route('https://generativelanguage.googleapis.com/**', (r) => {
     : '✓ Σωστή επιλογή: το 2';
   return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }) });
 });
+/** Μεταδεδομένα και περιεχόμενο από ένα σώμα «multipart/related». */
+function multipart(req) {
+  const b = /boundary=(\S+)/.exec(req.headers()['content-type'] ?? '')?.[1];
+  const parts = (req.postDataBuffer() ?? Buffer.alloc(0)).toString('utf8').split(`--${b}`).slice(1, 3);
+  const body = (p) => p.slice(p.indexOf('\r\n\r\n') + 4).replace(/\r\n$/, '');
+  return { meta: JSON.parse(body(parts[0]) || '{}'), type: /Content-Type: ([^\r\n]+)/.exec(parts[1])?.[1] ?? '', content: body(parts[1]) };
+}
+/** Τα κριτήρια που χρησιμοποιεί η εφαρμογή στις αναζητήσεις του Drive. */
+function matches(f, q) {
+  const name = /name='((?:[^'\\]|\\.)*)'/.exec(q)?.[1]?.replace(/\\(.)/g, '$1');
+  const mime = /mimeType='([^']*)'/.exec(q)?.[1];
+  const parent = /'([^']*)' in parents/.exec(q)?.[1];
+  const prop = /appProperties has \{ key='(\w+)' and value='([^']*)' \}/.exec(q);
+  return !f.trashed && (name === undefined || f.name === name) && (mime === undefined || f.mimeType === mime)
+    && (parent === undefined || f.parents.includes(parent)) && (!prop || f.appProperties[prop[1]] === prop[2]);
+}
+const view = (f) => ({ id: f.id, name: f.name, parents: f.parents, appProperties: f.appProperties, modifiedTime: new Date(f.modified).toISOString() });
 await ctx.route('https://www.googleapis.com/**', (r) => {
   const req = r.request();
   const u = new URL(req.url());
-  let body = { id: 'x' };
-  if (req.method() === 'GET') body = { files: [{ id: 'folder' }] };
-  else if (u.pathname.startsWith('/upload')) { drive.uploads++; body = { id: 'file1' }; }
-  else if (u.pathname.endsWith('/permissions')) drive.perms++;
-  return r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+  const m = req.method();
+  const json = (body) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+  const id = /\/files\/([^/]+)/.exec(u.pathname)?.[1];
+  if (u.pathname.endsWith('/permissions')) { drive.perms++; return json({ id: 'perm' }); }
+  if (m === 'GET' && id) {
+    const f = drive.files.get(id);
+    if (!f) return r.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    return u.searchParams.get('alt') === 'media' ? r.fulfill({ contentType: f.mimeType, body: f.content }) : json(view(f));
+  }
+  if (m === 'GET') return json({ files: [...drive.files.values()].filter((f) => matches(f, u.searchParams.get('q') ?? '')).map(view) });
+  const upload = u.pathname.startsWith('/upload');
+  if (m === 'POST') {
+    const { meta, type, content } = upload ? multipart(req) : { meta: req.postDataJSON(), type: '', content: '' };
+    const folder = meta.mimeType === 'application/vnd.google-apps.folder';
+    const f = { id: folder ? `folder${++drive.folders}` : `file${++drive.seq}`, name: meta.name, mimeType: meta.mimeType ?? type, parents: meta.parents ?? [], appProperties: meta.appProperties ?? {}, content, modified: Date.now(), trashed: false };
+    drive.files.set(f.id, f);
+    if (upload) drive.uploads++;
+    return json({ id: f.id });
+  }
+  // PATCH: νέο περιεχόμενο και ετικέτες, μετακίνηση σε φάκελο, κάδος
+  const f = drive.files.get(id);
+  if (!f) return r.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+  const { meta, content } = upload ? multipart(req) : { meta: req.postDataJSON() ?? {} };
+  if (upload) { f.content = content; drive.uploads++; }
+  if (meta.name) f.name = meta.name;
+  if (meta.appProperties) Object.assign(f.appProperties, meta.appProperties);
+  if (meta.trashed) f.trashed = true;
+  const add = u.searchParams.get('addParents'), rm = u.searchParams.get('removeParents');
+  if (rm) f.parents = f.parents.filter((p) => !rm.split(',').includes(p));
+  if (add) f.parents.push(add);
+  f.modified = Date.now();
+  return json({ id: f.id });
 });
+/** Ο φάκελος του Drive με αυτό το όνομα (π.χ. «Β2»). */
+const driveFolder = (name) => [...drive.files.values()].find((f) => f.name === name && f.mimeType === 'application/vnd.google-apps.folder');
 
 const tmp = mkdtempSync(join(tmpdir(), 'prismaboard-e2e-'));
 process.on('exit', () => rmSync(tmp, { recursive: true, force: true }));
@@ -119,10 +153,11 @@ async function download(action) {
 async function doc() {
   const p = await download(async () => {
     await page.click('#menuBtn');
-    await page.click('#menu [data-act="more"]');
-    await page.click('#setMenu [data-act="save"]');
+    await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="save"]');
   });
-  return JSON.parse(readFileSync(p, 'utf8'));
+  const j = JSON.parse(readFileSync(p, 'utf8'));
+  return j.grafida === 'backup' ? j.lessons[0].doc : j;
 }
 const items = async (pi = 0) => (await doc()).pages[pi].items;
 function assert(cond, msg) {
@@ -154,18 +189,24 @@ test('Γραφή, αναίρεση, επανάληψη', async () => {
   assert((await items()).length === 2, 'η επανάληψη δεν την έφερε πίσω');
 });
 
-test('Γράφοντας, η μπάρα δεν ξεθωριάζει παρά μόνο όταν την πλησιάσει η γραφίδα', async () => {
+test('Γράφοντας, οι μπάρες δεν ξεθωριάζουν ούτε δίπλα στη γραφίδα, και δεν πιάνουν αγγίγματα', async () => {
   await pen();
-  const faded = () => page.evaluate(() => ['toolbarWrap', 'lessonName', 'zoomCtl'].filter((id) => document.getElementById(id).classList.contains('under')));
+  const faded = () => page.evaluate(() => ['toolbarWrap', 'lessonName', 'zoomCtl'].filter((id) => Number(getComputedStyle(document.getElementById(id)).opacity) < 0.8));
+  const z0 = await page.textContent('#zoomFit');
   await page.mouse.move(400, 300);
   await page.mouse.down();
   await page.mouse.move(520, 330, { steps: 6 });
   assert((await faded()).length === 0, 'κάτι ξεθώριασε ενώ η γραφίδα ήταν μακριά');
-  const z = await page.evaluate(() => { const r = document.getElementById('zoomCtl').getBoundingClientRect(); return { x: r.left - 20, y: r.bottom + 20 }; });
+  // η γραμμή περνά δίπλα και πάνω από το zoom
+  const z = await page.evaluate(() => { const r = document.getElementById('zoomIn').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(z.x - 30, z.y + 40, { steps: 6 });
   await page.mouse.move(z.x, z.y, { steps: 6 });
-  assert((await faded()).join() === 'zoomCtl', 'έπρεπε να ξεθωριάσει μόνο το zoom');
+  await sleep(200);
+  assert((await faded()).length === 0, `ξεθώριασε: ${await faded()}`);
+  assert(await page.evaluate(() => document.body.classList.contains('inking')), 'όσο γράφεις, οι μπάρες θα έπρεπε να μην πιάνουν αγγίγματα');
   await page.mouse.up();
-  assert((await faded()).length === 0, 'το zoom έμεινε ξεθωριασμένο μετά το σήκωμα');
+  assert((await page.textContent('#zoomFit')) === z0, 'η γραμμή πάτησε το κουμπί του zoom');
+  assert(!(await page.evaluate(() => document.body.classList.contains('inking'))), 'οι μπάρες έμειναν χωρίς αγγίγματα μετά το σήκωμα');
   await page.click('#undo');
 });
 
@@ -254,10 +295,90 @@ test('Σχήμα από τα Όργανα, επιλογή και διαγραφ�
   assert((await items()).filter((i) => i.kind === 'shape').length === 1, 'η διαγραφή δεν έγινε');
 });
 
+test('Γωνία ανάμεσα σε δύο ευθείες: σβήνει με τη γόμα και ξαναφαίνεται με το «Γωνία»', async () => {
+  const lines = async () => (await items()).filter((i) => i.kind === 'shape' && i.shape === 'line');
+  await page.click('#gadgetBtn');
+  await page.click('#gadgetMenu [data-shape="line"]');
+  await drag(300, 520, 560, 520);
+  await page.click('#gadgetBtn');
+  await page.click('#gadgetMenu [data-shape="line"]');
+  await drag(300, 520, 300, 330);
+  let l = await lines();
+  assert(l.length === 2 && l[1].angleWith === l[0].id && !l[1].noAng, 'η δεύτερη ευθεία δεν κούμπωσε στην πρώτη');
+  // η γόμα κατά μήκος της διχοτόμου περνά από το τόξο και τις μοίρες, μακριά από τις ευθείες
+  await tool('eraser');
+  await drag(300 + 40 * Math.SQRT1_2, 520 - 40 * Math.SQRT1_2, 300 + 110 * Math.SQRT1_2, 520 - 110 * Math.SQRT1_2);
+  l = await lines();
+  assert(l.length === 2, 'η γόμα έσβησε ευθεία αντί για τη γωνία');
+  assert(l[1].noAng === true, 'η γωνία δεν σβήστηκε με τη γόμα');
+  await tool('select');
+  await page.mouse.click(300, 425);
+  assert(await visible('#selOpts #angBtn'), 'δεν εμφανίστηκε το «Γωνία» στην επιλεγμένη ευθεία');
+  await page.click('#selOpts #angBtn');
+  assert(!(await lines())[1].noAng, 'το «Γωνία» δεν ξανάφερε τη γωνία');
+  await page.click('#selOpts #angBtn');
+  assert((await lines())[1].noAng === true, 'το «Γωνία» δεν έκρυψε τη γωνία');
+  await page.click('#selOpts #del');
+  await page.mouse.click(430, 520);
+  await page.click('#selOpts #del');
+  assert((await lines()).length === 0, 'οι ευθείες της δοκιμής δεν σβήστηκαν');
+});
+
 test('Λάσο σε χειρόγραφο: εμφανίζονται αναγνώριση, λύση και έλεγχος', async () => {
   await tool('select');
   await lasso(260, 250, 560, 350);
   for (const k of ['text', 'math', 'solve', 'check', 'graph']) assert(await visible(`#selOpts [data-rec="${k}"]`), `λείπει το κουμπί «${k}»`);
+  await page.mouse.click(1000, 600);
+});
+
+test('«Τακτοποίηση» χειρόγραφου: η σειρά ισιώνει, και μία αναίρεση τη γυρίζει πίσω', async () => {
+  const ink = async () => (await items()).filter((i) => i.kind === 'stroke' && i.pts[0][1] > 420 && i.pts[0][1] < 560);
+  await pen();
+  // πέντε «γράμματα» σε σειρά που ανεβαίνει προς τα δεξιά
+  for (let i = 0; i < 5; i++) {
+    const x = 160 + i * 45, y = 520 - i * 8;
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    for (const [dx, dy] of [[6, -20], [12, 0], [18, -20]]) await page.mouse.move(x + dx, y + dy, { steps: 3 });
+    await page.mouse.up();
+  }
+  const before = await ink();
+  await tool('select');
+  await lasso(140, 450, 420, 540);
+  assert(await visible('#selOpts #tidyBtn'), 'δεν εμφανίστηκε το «Τακτοποίηση»');
+  await page.click('#selOpts #tidyBtn');
+  const after = await ink();
+  const firstY = (s) => s.pts[0][1];
+  const spread = (list) => Math.max(...list.map(firstY)) - Math.min(...list.map(firstY));
+  assert(after.length === before.length && spread(after) < spread(before) / 3, `η σειρά δεν ίσιωσε (${spread(before).toFixed(1)} → ${spread(after).toFixed(1)})`);
+  await page.click('#undo');
+  assert(Math.abs(spread(await ink()) - spread(before)) < 0.5, 'η αναίρεση δεν γύρισε τη σειρά όπως ήταν');
+  await lasso(140, 450, 420, 540);
+  await page.click('#selOpts #del');
+  await page.mouse.click(1000, 600);
+});
+
+test('«Σε σελίδα»: η επιλογή πάει σε νέα σελίδα στην ίδια θέση, και μία αναίρεση τη γυρίζει πίσω', async () => {
+  const mine = (list) => list.filter((i) => i.kind === 'stroke' && i.pts[0][1] > 420 && i.pts[0][1] < 560);
+  await pen();
+  await drag(200, 500, 300, 480);
+  await drag(320, 500, 420, 480);
+  await tool('select');
+  await lasso(180, 450, 440, 530);
+  await page.click('#selOpts #moveBtn');
+  await page.click('#moveGrid .new');
+  assert((await page.textContent('#pageLabel')).trim() === '2 / 2', 'δεν πήγε στη νέα σελίδα');
+  let d = await doc();
+  assert(mine(d.pages[0].items).length === 0 && mine(d.pages[1].items).length === 2, 'οι γραμμές δεν μεταφέρθηκαν');
+  await page.click('#undo');
+  d = await doc();
+  assert((await page.textContent('#pageLabel')).trim() === '1 / 2', 'η αναίρεση δεν γύρισε στην πρώτη σελίδα');
+  assert(mine(d.pages[0].items).length === 2 && mine(d.pages[1].items).length === 0, 'η αναίρεση δεν γύρισε τις γραμμές');
+  await lasso(180, 450, 440, 530);
+  await page.click('#selOpts #del');
+  await page.click('#next');
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="delpage"]');
   await page.mouse.click(1000, 600);
 });
 
@@ -439,10 +560,24 @@ test('Διαγραφή σελίδας με «Αναίρεση»· το Esc κλ�
   assert(opened && !(await visible('#gadgetMenu')), 'το Esc δεν έκλεισε τα Όργανα');
 });
 
+test('Εξαγωγή σε PDF μόνο της τρέχουσας σελίδας', async () => {
+  const p = await download(async () => {
+    await page.click('#menuBtn');
+    await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="pdf"]');
+    await page.waitForSelector('#pagePick:not(.hidden)');
+    await page.click('#ppCur');
+    await page.click('#ppOk');
+  });
+  const n = (readFileSync(p).toString('latin1').match(/\/Type\s*\/Page\b/g) ?? []).length;
+  assert(n === 1, `με «Μόνο αυτή» το PDF έχει ${n} σελίδες αντί για 1`);
+});
+
 test('Εξαγωγή σε PDF με επιλογή σελίδων', async () => {
   pdfPath = await download(async () => {
     await page.click('#menuBtn');
-    await page.click('#menu [data-act="pdf"]');
+    await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="pdf"]');
     await page.waitForSelector('#pagePick:not(.hidden)');
     await page.click('#ppOk');
   });
@@ -453,7 +588,8 @@ test('Εξαγωγή σε PDF με επιλογή σελίδων', async () => {
 
 test('Αποστολή με επιλογή σελίδων: το QR εμφανίζεται μετά το ανέβασμα', async () => {
   await page.click('#menuBtn');
-  await page.click('#menu [data-act="send"]');
+  await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="send"]');
   await page.click('#sendDrive');
   await page.waitForSelector('#pagePick:not(.hidden)');
   await page.click('#ppOk');
@@ -756,6 +892,23 @@ test('Τμήμα με ονόματα: η Κλήρωση βγάζει μαθητ�
   assert(reset[0] === 0 && !reset[2], 'το ⟳ δεν ξεκίνησε νέο γύρο');
 });
 
+test('Αρχεία ανά τμήμα: ρωτά μία φορά πού να μπαίνουν, και το όνομα έχει μπροστά το τμήμα', async () => {
+  await page.evaluate(() => localStorage.removeItem('grafida.files'));
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="save"]');
+  await page.waitForSelector('#ask .no');
+  assert((await page.textContent('#ask .no')) === 'Στις Λήψεις', 'δεν ρώτησε πού να μπαίνουν τα αρχεία');
+  const p = await download(() => page.click('#ask .no'));
+  const name = p.split(/[\\/]/).pop();
+  assert(/^Β2 – Δοκιμή Β2 νέο \d\d-\d\d-\d{4}\.json$/.test(name), `το αρχείο λέγεται «${name}»`);
+  const saved = JSON.parse(readFileSync(p, 'utf8'));
+  assert(saved.lessons?.[0]?.doc?.pages?.length >= 1 && saved.lessons[0].meta.group === 'Β2', 'το αρχείο δεν είναι μάθημα με το τμήμα του');
+  // δεύτερη φορά δεν ξαναρωτά
+  await doc();
+  assert(!(await visible('#ask')), 'ξαναρώτησε για τον φάκελο');
+});
+
 test('Άσκηση με το 🎯: το ρολόι ζητά ώρα και το σωστό μετράει όταν αφήσεις τους δείκτες εκεί· το κλάσμα ζητά κομμάτια', async () => {
   const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
   const kid = async (name) => (await items()).find((i) => i.kind === 'stamp' && i.name === name);
@@ -839,6 +992,62 @@ test('Αντίγραφο μαθημάτων στο Drive', async () => {
   await page.click('#lib [data-lib="close"]');
 });
 
+test('☁ Αποθήκευση στο Drive και ☁ Άνοιγμα από το Drive (μάθημα από άλλη συσκευή)', async () => {
+  // κάθε μάθημα πάει στον φάκελο του τμήματός του, με το τμήμα στις ετικέτες του
+  const b2 = driveFolder('Β2');
+  const onDrive = [...drive.files.values()].filter((f) => f.appProperties.pbKind === 'lesson');
+  assert(b2 && onDrive.some((f) => f.parents.includes(b2.id) && f.appProperties.pbGroup === 'Β2'), 'τα μαθήματα του Β2 δεν μπήκαν στο PrismaBoard/Β2');
+  const cloud = () => page.textContent('#lessonName .cl');
+  // το μάθημα που είναι ανοιχτό τώρα: σε αυτό γυρίζουμε στο τέλος, για τα επόμενα σενάρια
+  await page.click('#libOpen');
+  const prev = await page.getAttribute('#libGrid .card.on', 'data-id');
+  await page.click('#lib [data-lib="close"]');
+  await page.waitForFunction(() => document.querySelector('#lessonName .cl')?.textContent === '☁ ✓');
+  // μια αλλαγή: το ☁ δείχνει ότι θέλει ανέβασμα· το «☁ Αποθήκευση στο Drive» το ανεβάζει
+  await pen();
+  await drag(320, 420, 520, 460);
+  await page.waitForFunction(() => document.querySelector('#lessonName .cl')?.textContent === '☁ ↑', null, { timeout: 8000 });
+  const before = drive.uploads;
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="savewhere"]');
+    await page.click('#whereMenu [data-act="drivesave"]');
+  await page.waitForFunction(() => document.getElementById('toast')?.textContent.includes('Αποθηκεύτηκε στο Google Drive'), null, { timeout: 10000 });
+  assert(drive.uploads === before + 1 && (await cloud()) === '☁ ✓', 'το μάθημα δεν ανέβηκε');
+  assert([...drive.files.values()].filter((f) => f.appProperties.pbKind === 'lesson').length === onDrive.length, 'έγινε δεύτερο αρχείο αντί να γραφτεί από πάνω');
+  // η γραμμή φεύγει, για να μη μπλέκεται με τα επόμενα σενάρια
+  await page.click('#undo');
+  // μάθημα που ανέβηκε από άλλη συσκευή: φαίνεται στο τμήμα του και ανοίγει με ένα πάτημα
+  const d = await doc();
+  const t = Date.now();
+  const other = { grafida: 'backup', v: 1, lessons: [{ meta: { id: 'apo-laptop', name: 'Από το laptop', updated: t, pages: d.pages.length, group: 'Γ1' }, doc: d }] };
+  drive.files.set('fileLaptop', { id: 'fileLaptop', name: 'Από το laptop.json', mimeType: 'application/json', parents: [], appProperties: { pbKind: 'lesson', pbLesson: 'apo-laptop', pbUpdated: String(t), pbGroup: 'Γ1' }, content: JSON.stringify(other), modified: t, trashed: false });
+  const openFromDrive = async () => {
+    await page.click('#menuBtn');
+    await page.click('#menu [data-act="openwhere"]');
+    await page.click('#whereMenu [data-act="driveopen"]');
+    await page.waitForSelector('#ask .chRow');
+  };
+  await openFromDrive();
+  const sections = await page.$$eval('#ask .chSec', (els) => els.map((e) => e.textContent));
+  assert(sections.includes('Γ1') && sections.includes('Β2'), `λείπουν τμήματα από τη λίστα (${sections})`);
+  assert((await page.textContent('#ask [data-key="fileLaptop"]')).includes('δεν είναι εδώ'), 'δεν δείχνει ότι το μάθημα λείπει από εδώ');
+  await page.click('#ask [data-key="fileLaptop"]');
+  await page.waitForFunction(() => document.querySelector('#lessonName span')?.textContent === 'Από το laptop', null, { timeout: 10000 });
+  assert((await cloud()) === '☁ ✓', 'το μάθημα από το Drive δεν φαίνεται ίδιο με εκεί');
+  // δεύτερο άνοιγμα: ανοίγει το ίδιο μάθημα, δεν φτιάχνει διπλό
+  await openFromDrive();
+  assert((await page.textContent('#ask [data-key="fileLaptop"]')).includes('ίδιο με εδώ'), 'δεν δείχνει ότι είναι ίδιο με εδώ');
+  await page.click('#ask [data-key="fileLaptop"]');
+  await sleep(500);
+  await page.click('#libOpen');
+  await page.waitForSelector('#lib:not(.hidden)');
+  await page.click('#libGroups [data-group=""]');
+  const n = await page.$$eval('#libGrid .card .nm', (els) => els.filter((e) => e.textContent.includes('Από το laptop')).length);
+  assert(n === 1, `το μάθημα υπάρχει ${n} φορές`);
+  await page.click(`#libGrid .card[data-id="${prev}"] .nm`);
+  await page.waitForSelector('#lib.hidden', { state: 'attached' });
+});
+
 test('Σελίδα μαθητή (QR): δείχνει το αρχείο του Drive με κουμπί λήψης· λάθος σύνδεσμος δίνει μήνυμα', async () => {
   const p2 = await ctx.newPage();
   await p2.route('https://drive.google.com/**', (r) => r.fulfill({ contentType: 'text/html', body: '<p>drive</p>' }));
@@ -873,11 +1082,20 @@ test('Δύο δάχτυλα: το σύρσιμο δεν αλλάζει το zoom
   await sleep(100);
   const z2 = await zoom();
   await touch('touchEnd', []);
+  // σύρσιμο όπου τα δάχτυλα ανοίγουν σιγά σιγά (σύνολο 120, όπως γίνεται στις μεγάλες οθόνες): μένει μετακίνηση
+  await page.click('#zoomFit');
+  const z3 = await zoom();
+  await touch('touchStart', [[400, 300], [600, 300]]);
+  for (let i = 1; i <= 20; i++) await touch('touchMove', [[400 + i * 15 - i * 3, 300 + i * 4], [600 + i * 15 + i * 3, 300 + i * 4]]);
+  await sleep(100);
+  const z4 = await zoom();
+  await touch('touchEnd', []);
   await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
   await cdp.detach();
   await page.click('#zoomFit');
   assert(z1 === z0, `το σύρσιμο με δύο δάχτυλα άλλαξε το zoom από ${z0} σε ${z1}`);
   assert(parseInt(z2) > parseInt(z1), `το άνοιγμα των δαχτύλων δεν μεγέθυνε (${z1} → ${z2})`);
+  assert(z4 === z3, `το σύρσιμο με δάχτυλα που ανοίγουν σιγά σιγά άλλαξε το zoom από ${z3} σε ${z4}`);
 });
 
 test('Όλο το χέρι (5 δάχτυλα) πάνω στον πίνακα: το στρίψιμο περιστρέφει το επιλεγμένο', async () => {
@@ -972,6 +1190,31 @@ await page.goto(URL_);
 await page.waitForSelector('#toolbar');
 await sleep(600);
 let failed = 0;
+// στο τέλος: το περίγραμμα αλλάζει την προβολή της σελίδας
+test('Περίγραμμα Α4: η εικόνα της σελίδας βγαίνει ακριβώς Α4, όρθια ή πλάγια', async () => {
+  const pngSize = async () => {
+    const p = await download(async () => {
+      await page.click('#menuBtn');
+      await page.click('#menu [data-act="savewhere"]');
+      await page.click('#whereMenu [data-act="png"]');
+    });
+    const b = readFileSync(p);
+    return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  };
+  await pen();
+  await drag(300, 300, 400, 320);
+  for (const [a4, ratio] of [['v', 1188 / 840], ['h', 840 / 1188]]) {
+    await page.click('#menuBtn');
+    await page.click(`#menu [data-act="a4-${a4}"]`);
+    const [w, h] = await pngSize();
+    assert(Math.abs(h / w - ratio) < 0.01, `με Α4 ${a4} η εικόνα είναι ${w}×${h}`);
+  }
+  await page.click('#menuBtn');
+  await page.click('#menu [data-act="a4-off"]');
+  assert(!(await doc()).a4, 'το περίγραμμα δεν έσβησε');
+  await page.click('#undo');
+});
+
 for (const t of tests) {
   try {
     await t.fn();

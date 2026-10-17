@@ -674,27 +674,57 @@ describe('αριθμοκυβάκια', () => {
     expect(ncState(v).cubes.map((q) => q.n)).toEqual([9]);
   });
 
-  it('⚖️ τραμπάλα: ό,τι πατά στη σανίδα κάθεται πάνω της και γέρνει προς το μεγαλύτερο άθροισμα', () => {
+  it('⚖️ ζυγαριά: ό,τι αφήνεται πάνω από μια πιατέλα κάθεται πάνω της και γέρνει προς το μεγαλύτερο άθροισμα', () => {
     let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 3), cube(220, 2), cube(275, 1)] });
     v = d.paint!(v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
     let s = ncState(v);
     expect(s.flags & 2).toBe(2);
-    // το 3 και το 2 πάνω στη σανίδα· το 1, έξω από τη σανίδα, μένει στο γρασίδι
-    expect(s.cubes.map((e) => [e.f, e.y])).toEqual([[8, 114], [8, 114], [0, 130]]);
+    // το 3 στην αριστερή πιατέλα, το 2 στη δεξιά· το 1, έξω από τις πιατέλες, μένει στο γρασίδι
+    expect(s.cubes.map((e) => [e.f, e.y])).toEqual([[8, 102], [8, 102], [0, 130]]);
     // το 1 ανεβαίνει στα δεξιά: 3 = 3, ισορροπεί
     const r = drag(v, mid(s.cubes[2]), [ox + 18 * S, oy + 9 * S])!;
     expect(r.ev).toBe('tok');
     s = ncState(r.v);
     expect(s.cubes.filter((e) => e.f & 8).length).toBe(3);
-    // σήκωμα από την τραμπάλα και άφημα αριστερά στο γρασίδι, έξω από τη σανίδα: τότε κατεβαίνει
-    const off = drag(r.v, [ox + 6 * S, oy + 10.9 * S], [ox + 1 * S, oy + 12.5 * S])!;
+    // σήκωμα από τη ζυγαριά και άφημα αριστερά στο γρασίδι, έξω από την πιατέλα: τότε κατεβαίνει
+    const off = drag(r.v, [ox + 6 * S, oy + 9.8 * S], [ox + 1 * S, oy + 12.5 * S])!;
     expect(ncState(off.v).cubes.find((e) => e.n === 3)!.f).toBe(0);
-    // βγαίνει η τραμπάλα: όλοι στο γρασίδι
+    // βγαίνει η ζυγαριά: όλοι στο γρασίδι
     v = d.paint!(r.v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
     expect(ncState(v).cubes.map((e) => [e.f, e.y])).toEqual([[0, 130], [0, 130], [0, 130]]);
   });
 
+  it('όσοι κάθονταν στην παλιά τραμπάλα ανοίγουν πάνω στις πιατέλες της ζυγαριάς', () => {
+    // παλιό μάθημα: σανίδα στο ύψος 11,4 και χαρακτήρας στη μέση της (x = 14,5): πάει στην αρχή της δεξιάς πιατέλας
+    const s = ncState([0, 0, 2, 145, 114, 3, 3, 0, 0, 8, 40, 114, 2, 2, 0, 0, 8]);
+    expect(s.cubes.map((e) => [e.x, e.y, e.f])).toEqual([[160, 102, 8], [40, 102, 8]]);
+  });
+
   it('το παλιό βάψιμο (λειτουργία 3) γίνεται μετακίνηση', () => {
     expect(ncState([3, 1, 0]).mode).toBe(0);
+  });
+});
+
+import { hitsLineAngle, lineAngleMark } from '../src/measure';
+
+describe('γωνία ανάμεσα σε δύο ευθείες', () => {
+  const ln = (id: string, x1: number, y1: number, angleWith?: string): Sh => ({ kind: 'shape', id, shape: 'line', x0: 0, y0: 0, x1, y1, color: '#000', width: 3, angleWith });
+  const a = ln('a', 200, 0), b = ln('b', 0, -200, 'a');
+  it('90° με τις μοίρες στη μέση του τόξου', () => {
+    const m = lineAngleMark([a, b], b)!;
+    expect(m.deg).toBe(90);
+    expect(m.lx).toBeCloseTo(72 * Math.SQRT1_2);
+    expect(m.ly).toBeCloseTo(-72 * Math.SQRT1_2);
+  });
+  it('η γόμα πιάνει τις μοίρες και το τόξο, όχι τις ευθείες μακριά από αυτά', () => {
+    expect(hitsLineAngle([a, b], b, 51, -51, 6)).toBe(true);
+    expect(hitsLineAngle([a, b], b, 46 * Math.cos(-0.3), 46 * Math.sin(-0.3), 6)).toBe(true);
+    expect(hitsLineAngle([a, b], b, 150, 0, 6)).toBe(false);
+    expect(hitsLineAngle([a, b], b, 46 * Math.cos(1), 46 * Math.sin(1), 6)).toBe(false);
+  });
+  it('κρυμμένη γωνία: δεν ζωγραφίζεται και η γόμα δεν τη βρίσκει', () => {
+    const h = { ...b, noAng: true };
+    expect(lineAngleMark([a, h], h)).toBeNull();
+    expect(hitsLineAngle([a, h], h, 51, -51, 6)).toBe(false);
   });
 });

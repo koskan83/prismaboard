@@ -1,6 +1,6 @@
 /** Η σελίδα της εφαρμογής: εικονίδια και το HTML της γραμμής εργαλείων, των μενού και των παραθύρων. */
 
-import { PICS } from './kids';
+import { PICS } from './kids/stickers';
 
 export type PenKind = 'pen' | 'laser';
 export const LASER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="#ef4444" stroke="none"/></svg>';
@@ -27,6 +27,8 @@ const I = {
   lib: P('M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z'),
   folder: P('M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'),
   save: P('M12 4v11M7 11l5 5 5-5M4 20h16'),
+  cloudUp: P('M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4.5 4.5 0 0 1-1 8.9M12 12v8M9 15l3-3 3 3'),
+  cloudDown: P('M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 8.5a4.5 4.5 0 0 1-1 8.9M12 12v8M9 17l3 3 3-3'),
   doc: P('M6 3h8l4 4v14H6zM14 3v4h4M9 13h6M9 17h6'),
   image: IC('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-8 8"/>'),
   fit: P('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5'),
@@ -35,6 +37,7 @@ const I = {
   screen: IC('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
   spark: P('M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'),
   full: P('M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5'),
+  exit: P('M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9'),
   fullExit: P('M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5'),
   target: IC('<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8.5"/>'),
   check: P('M4 6.5l1.500 1.500 3-3M4 12.5l1.5 1.5 3-3M4 18.5l1.5 1.5 3-3M12 7h8M12 13h8M12 19h8'),
@@ -82,9 +85,9 @@ export function mountUi(app: HTMLElement): void {
   <div id="menu" class="popup hidden">
     <div class="gHead">Μάθημα</div>
     ${mi('data-act="lib"', I.lib, 'Μαθήματα…')}
+    ${mi('data-act="savewhere"', I.save, 'Αποθήκευση…')}
+    ${mi('data-act="openwhere"', I.folder, 'Άνοιγμα…')}
     ${mi('data-act="end" class="end"', I.send, 'Τέλος μαθήματος: QR για τους μαθητές')}
-    ${mi('data-act="send"', I.send, 'Αποστολή με επιλογή σελίδων…')}
-    ${mi('data-act="pdf"', I.doc, 'Εξαγωγή σε PDF…')}
     <div class="gHead">Σελίδα</div>
     <div class="bgRow">
       <span>Φόντο</span>
@@ -97,6 +100,12 @@ export function mountUi(app: HTMLElement): void {
       <button data-act="bg-write" class="bgSw write" data-lv="pri" title="Τετράδιο γραφής: γραμμές με βοηθητική για τα μικρά γράμματα"></button>
       <button data-act="bg-squares" class="bgSw squares" data-lv="pri" title="Τετράδιο αριθμητικής: μεγάλα τετράγωνα"></button>
     </div>
+    <div class="bgRow">
+      <span>Περίγραμμα Α4</span>
+      <button data-act="a4-off" class="a4Sw off" title="Χωρίς περίγραμμα">✕</button>
+      <button data-act="a4-v" class="a4Sw v" title="Αχνό περίγραμμα Α4 όρθιας: για στοίχιση, και το PDF βγαίνει ακριβώς Α4"><i></i></button>
+      <button data-act="a4-h" class="a4Sw h" title="Αχνό περίγραμμα Α4 πλάγιας: για στοίχιση, και το PDF βγαίνει ακριβώς Α4"><i></i></button>
+    </div>
     ${mi('data-act="fit"', I.fit, 'Προσαρμογή προβολής')}
     ${mi('data-act="clear"', I.clear, 'Καθαρισμός σελίδας')}
     ${mi('data-act="delpage"', I.delpage, 'Διαγραφή σελίδας')}
@@ -108,24 +117,37 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="level"', I.target, 'Αλλαγή σε Δημοτικό')}
     ${mi('data-act="help"', I.doc, 'Οδηγίες χρήσης')}
     ${mi('data-act="more"', I.target, 'Ρυθμίσεις και αρχεία…')}
+    ${mi('data-act="exit" id="exitAct" class="hidden"', I.exit, 'Έξοδος')}
   </div>
   <div id="setMenu" class="popup hidden">
     <div class="gHead">Ρυθμίσεις</div>
     ${mi('data-act="ai"', I.spark, 'Αναγνώριση γραφής και λύσεις (κλειδί)…')}
     ${mi('data-act="labels"', I.tag, 'Ονόματα κάτω από τα εικονίδια')}
+    ${mi('data-act="prettyink"', PENCIL_ICON, 'Ομορφότερη γραφή: λιγότερο τρέμουλο, πάχος σαν στυλό')}
     ${mi('data-act="pdflogo"', I.doc, 'Λογότυπο στις σελίδες του PDF')}
     ${mi('data-act="startscr"', I.spark, '«Τι κάνουμε σήμερα;» στο πρώτο άνοιγμα της μέρας')}
     ${mi('data-act="snip" class="hidden"', I.screen, 'Ψαλίδι πάνω από άλλες εφαρμογές')}
     <div class="gHead">Αρχεία</div>
-    ${mi('data-act="open"', I.folder, 'Άνοιγμα αρχείου ως νέο μάθημα…')}
-    ${mi('data-act="save"', I.save, 'Αποθήκευση του μαθήματος σε αρχείο')}
-    ${mi('data-act="png"', I.image, 'Εξαγωγή σελίδας σε PNG')}
+    ${mi('data-act="filesdir" class="hidden"', I.folder, 'Φάκελος για τα αρχεία των μαθημάτων…')}
+    ${mi('data-act="filesdrive" class="hidden"', I.save, 'Αρχεία και στο Google Drive, στον φάκελο του τμήματος')}
     <div class="gHead">Για προχωρημένους</div>
     ${mi('data-act="diag"', I.target, 'Διάγνωση αφής/γραφίδας')}
     ${mi('data-act="test"', I.check, 'Λίστα δοκιμής στην τάξη')}
     ${mi('data-act="usage"', I.check, 'Τι χρησιμοποιώ')}
     ${mi('data-act="news"', I.spark, 'Τι νέο')}
     <div id="verLine"></div>
+  </div>
+  <div id="whereMenu" class="popup hidden">
+    <div class="gHead" data-for="save">Αποθήκευση του μαθήματος</div>
+    ${mi('data-act="save" data-for="save"', I.save, 'Στον δίσκο, σε αρχείο')}
+    ${mi('data-act="drivesave" data-for="save" data-drive', I.cloudUp, 'Στο Google Drive')}
+    <div class="gHead" data-for="save">Εξαγωγή και αποστολή</div>
+    ${mi('data-act="pdf" data-for="save"', I.doc, 'Σε PDF…')}
+    ${mi('data-act="png" data-for="save"', I.image, 'Η σελίδα σε εικόνα PNG')}
+    ${mi('data-act="send" data-for="save"', I.send, 'Στους μαθητές, με επιλογή σελίδων…')}
+    <div class="gHead" data-for="open">Άνοιγμα μαθήματος</div>
+    ${mi('data-act="open" data-for="open"', I.folder, 'Από τον δίσκο, από αρχείο…')}
+    ${mi('data-act="driveopen" data-for="open" data-drive', I.cloudDown, 'Από το Google Drive…')}
   </div>
 
   <div id="zoomCtl">
@@ -151,6 +173,9 @@ export function mountUi(app: HTMLElement): void {
         <button id="flipH" title="Καθρέφτης: αριστερά–δεξιά" data-l="Καθρέφτης"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18" stroke-dasharray="2 2.5"/><path d="M9 6L3 18h6z"/><path d="M15 6l6 12h-6z" fill="currentColor" fill-opacity=".25"/></svg></span></button>
         <button id="flipV" title="Καθρέφτης: πάνω–κάτω" data-l="Πάνω–κάτω"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18" stroke-dasharray="2 2.5"/><path d="M6 9L18 3v6z"/><path d="M6 15l12 6v-6z" fill="currentColor" fill-opacity=".25"/></svg></span></button>
         <button id="sumBtn" title="Συνισταμένη: δύο βέλη ή ευθείες με κοινή κορυφή, ή μία γωνία" data-l="Συνισταμένη"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l5-12M4 20l11-3"/><path d="M4 20L20 5" stroke="#60a5fa"/><path d="M14 5h6v6" stroke="#60a5fa"/></svg></span></button>
+        <button id="tidyBtn" title="Τακτοποίηση της χειρόγραφης γραφής: ίσια σειρά, ίσα κενά ανάμεσα στις λέξεις (μένει χειρόγραφη)" data-l="Τακτοποίηση"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18" stroke-dasharray="2 2.5"/><path d="M4 16c1-6 3-6 4 0M10 16c0-3 1-5 3-5s3 2 3 5M18 9v7"/></svg></span></button>
+        <button id="angBtn" title="Γωνία ανάμεσα στις ευθείες: κρύψιμο ή εμφάνιση (σβήνεται και με τη γόμα πάνω στις μοίρες)" data-l="Γωνία"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 19H4L16 5"/><path d="M11 19a7 7 0 0 0-2.400-5.300"/></svg></span></button>
+        <button id="moveBtn" title="Μεταφορά της επιλογής σε άλλη σελίδα (ή σε νέα), στην ίδια θέση" data-l="Σε σελίδα"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h8l3 3v5M4 4v16h7"/><path d="M14 17h7M18 14l3 3-3 3"/></svg></span></button>
         <i class="sep recSep"></i>
         <button data-rec="text" class="rec" title="Αναγνώριση της επιλογής ως κείμενο" data-l="Σε κείμενο"><span class="txt">Aα</span></button>
         <button data-rec="math" class="rec" data-lv="sec" title="Αναγνώριση της επιλογής ως τύπο" data-l="Σε τύπο"><span class="txt">√x</span></button>
@@ -335,7 +360,7 @@ export function mountUi(app: HTMLElement): void {
     <div class="gHead" data-lv="pri" data-tab="play">Παιχνίδια</div>
     <div class="tiles" data-lv="pri" data-tab="play">
       ${tile('data-kid="build"', '<b class="em">🧱</b>', 'Κυβάκια', 'Χτίσιμο με κυβάκια: διαλέγεις υλικό και σέρνεις για να χτίσεις')}
-      ${tile('data-kid="numcubes"', '<b class="em">🟥</b>', 'Αριθμοκυβάκια', 'Αριθμοκυβάκια 1–20: σέρνεις το ένα πάνω στο άλλο και ενώνονται, ✂️ τα χωρίζει, και αλλάζουν σχήμα, χρώμα και αξεσουάρ· ⚖️ τραμπάλα για αθροίσματα')}
+      ${tile('data-kid="numcubes"', '<b class="em">🟥</b>', 'Αριθμοκυβάκια', 'Αριθμοκυβάκια 1–20: σέρνεις το ένα πάνω στο άλλο και ενώνονται, ✂️ τα χωρίζει, και αλλάζουν σχήμα, χρώμα και αξεσουάρ· ⚖️ ζυγαριά για αθροίσματα')}
       ${tile('data-kid="spell"', '<b class="em">👾</b>', 'Ορθογραφία', 'Ορθογραφία: έτοιμες λέξεις ανά τάξη ή δικές σου· ο μαθητής γράφει, το τερατάκι τρώει τα λάθη και μεγαλώνει, και ο μαθητής γράφει το σωστό στα κενά')}
       ${tile('data-kid="hangman"', '<b class="em">🔡</b>', 'Κρεμάλα', 'Κρεμάλα: τυχαία λέξη ή δική σου, με πάτημα στα γράμματα')}
       ${tile('data-kid="dice"', '<b class="em">🎲</b>', 'Ζάρι')}
@@ -376,6 +401,10 @@ export function mountUi(app: HTMLElement): void {
   <div id="labelMenu" class="popup hidden">
     <div id="labelGrid"></div>
     ${mi('id="labelOther"', I.keys, 'Άλλο…')}
+  </div>
+  <div id="moveMenu" class="popup hidden">
+    <div class="gHead">Μεταφορά σε σελίδα</div>
+    <div id="moveGrid"></div>
   </div>
   <div id="scaleMenu" class="popup hidden">
     <div id="scaleGrid"></div>
@@ -439,7 +468,7 @@ export function mountUi(app: HTMLElement): void {
         <div><i>${I.send}</i><b>Στο τέλος, ένα QR</b><span>☰ → «Τέλος μαθήματος»: οι μαθητές σκανάρουν και παίρνουν το μάθημα σε PDF.</span></div>
       </div>
       <div id="wLevel"><span>Για ποιες τάξεις;</span><button data-level="primary"><b>Δημοτικό</b><small>Απλή γραμμή εργαλείων, αριθμογραμμή, κλάσματα, ρολόι, ζυγαριά</small></button><button data-level="secondary"><b>Γυμνάσιο – Λύκειο</b><small>Συναρτήσεις, μετρήσεις, φυσική, λύση ασκήσεων</small></button></div>
-      <div id="wActs"><button id="wHelp">Πλήρεις οδηγίες (PDF)</button><button id="wGo" class="go">Ξεκίνα</button></div>
+      <div id="wActs"><button id="wHelp">Πλήρεις οδηγίες</button><button id="wGo" class="go">Ξεκίνα</button></div>
     </div>
   </div>
   <div id="qrBig" class="hidden"><img src="./logo.svg" alt="" /><canvas width="1200" height="1200"></canvas><div></div></div>
