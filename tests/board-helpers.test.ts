@@ -597,7 +597,7 @@ describe('ορθογραφία με το τερατάκι', () => {
   });
 });
 
-import { ncDrop, ncPack, ncShapes, ncState, type NCube } from '../src/kids';
+import { ncCell, ncDrop, ncPack, ncShapes, ncStartH, ncState, type NCube } from '../src/kids';
 
 describe('κυβάκια και αριθμοί', () => {
   const d = KIDS.numcubes, W = d.w, H = d.h;
@@ -614,9 +614,25 @@ describe('κυβάκια και αριθμοί', () => {
 
   it('τα σχήματα κάθε αριθμού', () => {
     expect(ncShapes(6)).toEqual([6, 3, 2, 1]);
-    expect(ncShapes(7)).toEqual([7, 1]);
+    // οι μονοί ως το 9 δεν ξαπλώνουν: δύο ή τρεις στήλες με τα κυβάκια που περισσεύουν από πάνω
+    expect(ncShapes(3)).toEqual([3, 2]);
+    expect(ncShapes(5)).toEqual([5, 3, 2]);
+    expect(ncShapes(7)).toEqual([7, 4, 3]);
+    expect(ncShapes(9)).toEqual([9, 5, 3]);
     expect(ncShapes(16)).toEqual([10, 8, 4, 2]);
     expect(ncShapes(11)).toEqual([10]);
+  });
+
+  it('μονοί αριθμοί όπως στα Numberblocks: σειρά σειρά από κάτω, και ό,τι περισσεύει από πάνω αριστερά', () => {
+    const at = (n: number, h: number): [number, number][] => Array.from({ length: n }, (_, i) => ncCell({ x: 0, y: 0, n, h, acc: 0, col: 0, f: 0 }, i));
+    // 7 σε δύο στήλες: 3 σειρές των 2 και ένα κυβάκι πάνω αριστερά
+    expect(at(7, 4)).toEqual([[0, 0], [1, 0], [0, 1], [1, 1], [0, 2], [1, 2], [0, 3]]);
+    // 7 σε τρεις στήλες: 2 σειρές των 3 και ένα πάνω αριστερά
+    expect(at(7, 3).at(-1)).toEqual([0, 2]);
+    // πύργοι, ορθογώνια και δεκάδες γεμίζουν όπως πριν, στήλη στήλη
+    expect(at(6, 3)).toEqual([[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]);
+    expect(at(13, 10).at(-1)).toEqual([1, 2]);
+    expect([3, 5, 7, 9, 4, 10].map(ncStartH)).toEqual([2, 3, 4, 3, 4, 10]);
   });
 
   it('σύρεις το 2 πάνω στο 3 και γίνονται 5', () => {
@@ -693,8 +709,10 @@ describe('κυβάκια και αριθμοί', () => {
     expect([e.n, e.y]).toEqual([9, 130]);
     const tap = (bx: number, by: number): void => { v = d.paint!(v, bx, by, W, H, {}, true)!; };
     tap(W * (2.5 / 9), H * 0.95); // 🔄
-    tap(...mid(ncState(v).cubes[1]));
+    // το 9 μπαίνει τετράγωνο 3 × 3· με το 🔄 γίνεται πύργος
     expect(ncState(v).cubes[1].h).toBe(3);
+    tap(...mid(ncState(v).cubes[1]));
+    expect(ncState(v).cubes[1].h).toBe(9);
     tap(W * (3.5 / 9), H * 0.95); // 🎩
     expect(ncState(v).mode).toBe(4);
     tap(W * (2.5 / 13), H * 0.83); // κορώνα

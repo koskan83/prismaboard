@@ -28,6 +28,7 @@ export function ncState(v: number[]): NCState {
   for (let i = NC_HEAD; i + NC_REC <= v.length; i += NC_REC) {
     const n = Math.max(1, Math.min(NC_MAX, v[i + 2] || 1));
     const e = { x: v[i], y: v[i + 1], n, h: Math.max(1, Math.min(n, v[i + 3] || Math.min(n, 10))), acc: v[i + 4] ?? 0, col: v[i + 5] ?? 0, f: v[i + 6] ?? 0 };
+    ncFitH(e);
     // όσοι κάθονταν στην παλιά τραμπάλα πάνε στην πιατέλα τους
     if (e.f & F_PAN && !(e.f & F_HELD) && e.y !== NC_PY * 10) ncClamp(e, 1);
     cubes.push(e);
@@ -39,10 +40,42 @@ export function ncPack(s: NCState): number[] {
   return [s.mode, s.sel, s.flags, ...s.cubes.flatMap((e) => [e.x, e.y, e.n, e.h, e.acc, e.col, e.f])];
 }
 const ncCols = (e: NCube): number => Math.ceil(e.n / e.h);
-/** Τα σχήματα ενός αριθμού (ύψος στήλης): πύργος (ή δεκάδα + μονάδες) και όσα ορθογώνια βγαίνουν ακριβώς, π.χ. 6 → 6, 3, 2, 1. */
+/**
+ * Σχήμα «σειρά σειρά», όπως στα Numberblocks: αριθμός ως το 10 που δεν γεμίζει ορθογώνιο (π.χ. το 7 σε δύο στήλες).
+ * Τα κυβάκια μπαίνουν σειρά σειρά από κάτω και όσα περισσεύουν κάθονται από πάνω, αριστερά (7 → 4 + 3).
+ * Όλα τα άλλα (πύργοι, ορθογώνια, δεκάδες με μονάδες) γεμίζουν στήλη στήλη, όπως πάντα.
+ */
+const ncByRows = (e: NCube): boolean => e.n <= 10 && e.n % e.h !== 0;
+/** Η θέση του κυβακίου i: [στήλη, σειρά από κάτω]. */
+export function ncCell(e: NCube, i: number): [number, number] {
+  if (!ncByRows(e)) return [Math.floor(i / e.h), i % e.h];
+  const c = ncCols(e);
+  return [i % c, Math.floor(i / c)];
+}
+/** Το κυβάκι στη θέση (στήλη, σειρά), ή −1 αν η θέση είναι κενή. */
+function ncAt(e: NCube, col: number, row: number): number {
+  const c = ncCols(e);
+  if (col < 0 || col >= c || row < 0 || row >= e.h) return -1;
+  const i = ncByRows(e) ? row * c + col : col * e.h + row;
+  return i < e.n ? i : -1;
+}
+/** Πόσα κυβάκια έχει η στήλη j. */
+const ncColH = (e: NCube, j: number): number => (ncByRows(e) ? Math.floor(e.n / ncCols(e)) + (j < e.n % ncCols(e) ? 1 : 0) : Math.max(0, Math.min(e.h, e.n - j * e.h)));
+/** Στο σχήμα «σειρά σειρά» το ύψος είναι η ψηλότερη στήλη: διορθώνεται αν δεν ταιριάζει με τον αριθμό των στηλών. */
+function ncFitH(e: NCube): void {
+  if (ncByRows(e)) e.h = Math.ceil(e.n / ncCols(e));
+}
+/** Πώς εμφανίζεται ένας νέος αριθμός: οι μονοί ως το 9 σε δύο στήλες με το κυβάκι που περισσεύει από πάνω, το 9 τετράγωνο 3 × 3. */
+export const ncStartH = (n: number): number => (n === 9 ? 3 : n % 2 && n > 1 && n < 10 ? Math.ceil(n / 2) : Math.min(n, 10));
+/**
+ * Τα σχήματα ενός αριθμού (ύψος στήλης) για το 🔄: πύργος (ή δεκάδα + μονάδες) και όσα ορθογώνια βγαίνουν ακριβώς, π.χ. 6 → 6, 3, 2, 1.
+ * Οι μονοί ως το 9 δεν ξαπλώνουν σε μία σειρά: αντί γι' αυτό, δύο ή τρεις στήλες με τα κυβάκια που περισσεύουν από πάνω (7 → 7, 4, 3).
+ */
 export function ncShapes(n: number): number[] {
   const out = [Math.min(n, 10)];
-  for (let d = 10; d >= 1; d--) if (n % d === 0 && n / d <= 10 && !out.includes(d)) out.push(d);
+  const odd = n % 2 === 1 && n > 1 && n < 10;
+  for (let d = 10; d >= 1; d--) if (n % d === 0 && n / d <= 10 && !out.includes(d) && !(odd && d === 1)) out.push(d);
+  if (odd) for (const d of [Math.ceil(n / 2), Math.ceil(n / 3)]) if (d > 1 && !out.includes(d)) out.push(d);
   return out.sort((a, b) => b - a);
 }
 /**
@@ -637,7 +670,8 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
   // το σώμα πατά στο έδαφος· πάνω σε πατίνι ή σκέιτ ανεβαίνει λίγο
   const ground = g.oy + (e.y / 10) * S, by = ground - S * 0.04 - (extra === 1 || extra === 2 ? S * 0.36 : 0);
   const bx = g.ox + (e.x / 10 - C2 / 2) * S, top = by - H * S;
-  const fc = Math.max(1, Math.floor(e.n / H)), fw = Math.min(fc, 3) * S, fcx = bx + fw / 2;
+  // το πρόσωπο κάθεται στην πάνω σειρά: στο «σειρά σειρά» είναι τα κυβάκια που περισσεύουν, αλλιώς οι γεμάτες στήλες
+  const fc = ncByRows(e) ? e.n - (H - 1) * C2 : Math.max(1, Math.floor(e.n / H)), fw = Math.min(fc, 3) * S, fcx = bx + fw / 2;
   const k = Math.min(fw / S, 2), hu = S * Math.min(k, 1.6);
   // κίνηση: στην ένωση ένα χοπ· ένα νέο αξεσουάρ πέφτει από ψηλά (πρώτο 25%) και μετά κάνει το «κόλπο» του (q: 0 → 1)
   const p = an?.p ?? 1, land = Math.min(1, p / 0.25), q = an && an.drop >= 0 && p > 0.25 ? (p - 0.25) / 0.75 : -1;
@@ -691,13 +725,13 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
   // χωρίς χέρια: το μπαλόνι δένεται στο πλάι του σώματος, στο δεύτερο κυβάκι από πάνω (στο μοναδικό, όταν το σχήμα έχει ύψος ένα)
   const ay = top + S * (H > 1 ? 1.4 : 0.62), arow = H - 1 - Math.floor((ay - top) / S);
   let rc = 0;
-  for (let i = 0; i < C2; i++) if (Math.min(H, e.n - i * H) > arow) rc = i;
+  for (let i = 0; i < C2; i++) if (ncColH(e, i) > arow) rc = i;
   const ax = bx + (rc + 1) * S;
   // τα κυβάκια
   c.lineWidth = Math.max(1.5, S * 0.06);
   for (let i = 0; i < e.n; i++) {
     const [fill, line] = ncColour(e, i);
-    const x = bx + Math.floor(i / H) * S, y = by - ((i % H) + 1) * S;
+    const [cc, rr] = ncCell(e, i), x = bx + cc * S, y = by - (rr + 1) * S;
     rrect(c, x + 0.5, y + 0.5, S - 1, S - 1, S * 0.12);
     c.fillStyle = fill;
     c.fill();
@@ -751,7 +785,7 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
   else if (extra === 2) ncSkate(c, cx0, ground, L, S);
   else if (extra === 3) ncBalloon(c, ax + S * 0.75, top - S * 0.75 - bell * S * 0.3, S, ax, ay);
   c.restore();
-  if (!head) ncCap(c, fcx, top + S * 0.04, hu, ncColour(e, Math.min(e.n - 1, H - 1))[0]);
+  if (!head) ncCap(c, fcx, top + S * 0.04, hu, ncColour(e, ncAt(e, 0, H - 1))[0]);
   if (head) {
     // 🎩 χαιρετισμός · 🧢 στροφή · 🎓 πετιέται στον αέρα και πέφτει πίσω στο κεφάλι
     c.save();
@@ -946,7 +980,7 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
       return { v: ncPack(s), ev: 'bad' };
     }
     o.n = n;
-    o.h = Math.min(n, 10);
+    o.h = ncStartH(n);
     o.col = 0;
     for (let g = 0; g < 3; g++) if (!ncAcc(o.acc, g)) o.acc = ncSetAcc(o.acc, g, ncAcc(e.acc, g));
     s.cubes.splice(j, 1);
@@ -962,7 +996,7 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
 export const NUMCUBE_KIDS: Record<string, StampDef> = {
   numcubes: kid({
     label: 'Κυβάκια και αριθμοί', w: 960, h: 640, animMs: NC_ANIM_MS,
-    init: [0, 0, 0, ...[1, 2, 3, 4, 5].flatMap((n) => [10 + n * 45, 130, n, n, 0, 0, 0])],
+    init: [0, 0, 0, ...[1, 2, 3, 4, 5].flatMap((n) => [10 + n * 45, 130, n, ncStartH(n), 0, 0, 0])],
     drawKid(c, w, h, v, env) {
       const s = ncState(v), g = ncGeom(w, h, ncZoom(s.flags));
       c.save();
@@ -1086,7 +1120,7 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
           }
           // ένας νέος αριθμός βγαίνει από την παλέτα με σύρσιμο (ή με πάτημα μπαίνει στη σκηνή)
           if (s.cubes.length >= NC_ITEMS) return v;
-          return pick({ x: Math.round(cx * 10), y: Math.round((cy + (k + 1) / 2) * 10), n: k + 1, h: k + 1, acc: 0, col: 0, f: 0 });
+          return pick({ x: Math.round(cx * 10), y: Math.round((cy + ncStartH(k + 1) / 2) * 10), n: k + 1, h: ncStartH(k + 1), acc: 0, col: 0, f: 0 });
         }
         const k = Math.floor(x / (w / NC_BAR));
         if (k < B_NUM) { s.mode = NC_MODES[k]; s.sel = s.mode === 4 ? 1 : 0; }
@@ -1109,12 +1143,13 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
         if (now - ncCut.t < 300 && Math.hypot(cx - ncCut.x, cy - ncCut.y) < 1.5) return v;
         Object.assign(ncCut, { t: now, x: cx, y: cy });
         // χώρισμα: το κυβάκι που πατήθηκε και όσα είναι από πάνω του (και στις επόμενες στήλες) φεύγουν μαζί
-        const b = ncBox(e, th), i = Math.floor(cx - b.x0) * e.h + Math.max(0, Math.min(e.h - 1, Math.floor(b.y1 - cy)));
+        const b = ncBox(e, th), i = ncAt(e, Math.floor(cx - b.x0), Math.max(0, Math.min(e.h - 1, Math.floor(b.y1 - cy))));
         if (i > 0 && i < e.n) {
           const n2 = e.n - i;
           e.n = i;
           e.h = Math.min(e.h, i);
-          return pick({ x: e.x, y: Math.round(b.y1 * 10) - e.h * 10, n: n2, h: Math.min(n2, 10), acc: 0, col: e.col, f: F_FRESH });
+          ncFitH(e);
+          return pick({ x: e.x, y: Math.round(b.y1 * 10) - e.h * 10, n: n2, h: ncStartH(n2), acc: 0, col: e.col, f: F_FRESH });
         }
       }
       if (s.mode <= 1) {

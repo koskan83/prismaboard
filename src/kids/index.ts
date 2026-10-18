@@ -26,4 +26,4 @@ export { monster } from './monster';
 export { spellDiff, spellKeyboard } from './spell';
 export { spellGame, spellList, spellNorm, spellPack, spellState, type Spell } from './spell-words';
 export { hangNorm, hangStart, hangState } from './hangman';
-export { ncDrop, ncPack, ncShapes, ncState, type NCState, type NCube } from './numcubes';
+export { ncCell, ncDrop, ncPack, ncShapes, ncStartH, ncState, type NCState, type NCube } from './numcubes';
