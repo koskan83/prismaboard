@@ -360,7 +360,8 @@ body.inking #lessonName { pointer-events: none; }
 .tile span svg { width: 28px; height: 28px; }
 .tile span b { font-size: 24px; font-weight: 600; font-style: italic; }
 .tile span b.sm { font-size: 17px; font-style: normal; }
-.tile small { font-size: 14px; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* μεγάλα ονόματα (π.χ. «Κυβάκια και αριθμοί») σπάνε σε δύο γραμμές αντί να κόβονται */
+.tile small { font-size: 14px; line-height: 1.1; max-width: 100%; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 
 /* ---------- zoom ---------- */
 #zoomCtl { position: fixed; right: 14px; top: 14px; z-index: 10; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 14px;

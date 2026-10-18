@@ -599,7 +599,7 @@ describe('ορθογραφία με το τερατάκι', () => {
 
 import { ncDrop, ncPack, ncShapes, ncState, type NCube } from '../src/kids';
 
-describe('αριθμοκυβάκια', () => {
+describe('κυβάκια και αριθμοί', () => {
   const d = KIDS.numcubes, W = d.w, H = d.h;
   // ίδια γεωμετρία με το ncGeom: σκηνή 28 × 13 κυβάκια πάνω από τη μπάρα (22% του ύψους)
   const S = Math.min(W / 28, (H * 0.78) / 13), ox = (W - 28 * S) / 2, oy = H * 0.78 - 13 * S;

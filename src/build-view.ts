@@ -30,7 +30,7 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     cv.width = Math.round(W * dpr);
     cv.height = Math.round(H * dpr);
     const bar = Math.max(64, Math.min(120, H * 0.12));
-    // τα άλλα εργαλεία (αριθμοκυβάκια) στήνουν μόνα τους τη σκηνή τους σε όλο το πλάτος
+    // τα άλλα εργαλεία (κυβάκια και αριθμοί) στήνουν μόνα τους τη σκηνή τους σε όλο το πλάτος
     const s = name === 'build' ? Math.min(W / COLS, (H - bar) / ROWS) : W / COLS;
     gw = s * COLS;
     ox = (W - gw) / 2;
@@ -93,7 +93,7 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     const [x, y] = at(e);
     if (d.fullAt?.(x, y, gw, H)) return close();
     cv.setPointerCapture(e.pointerId);
-    // full: το εργαλείο ξέρει ότι παίζεται σε όλη την οθόνη (αριθμοκυβάκια: τα − και + του zoom)
+    // full: το εργαλείο ξέρει ότι παίζεται σε όλη την οθόνη (κυβάκια και αριθμοί: τα − και + του zoom)
     const st: Record<string, number> = { full: 1 };
     ptrs.set(e.pointerId, st);
     const next = d.paint!(v!, x, y, gw, H, st, true);
@@ -124,7 +124,7 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
   });
   const up = (e: PointerEvent): void => {
     if (!ptrs.delete(e.pointerId)) return;
-    // το εργαλείο «κλείνει» την κίνηση (αριθμοκυβάκια: ένωση ή κάδος)
+    // το εργαλείο «κλείνει» την κίνηση (κυβάκια και αριθμοί: ένωση ή κάδος)
     const end = d.drop?.(v!);
     if (end) {
       animate(v!);

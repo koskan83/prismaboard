@@ -228,7 +228,7 @@ const CLIPS = {
       await h.tapEl('#selOpts #bigger');
     });
   },
-  // 14. Αριθμοκυβάκια: σέρνεις το 2 πάνω στο 3 και γίνονται 5
+  // 14. Κυβάκια και αριθμοί: σέρνεις το 2 πάνω στο 3 και γίνονται 5
   async numcubes() {
     await record('numcubes', 'primary', async (page) => {
       await page.click('#gadgetBtn');

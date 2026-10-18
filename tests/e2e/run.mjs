@@ -1136,7 +1136,7 @@ test('Όλο το χέρι (5 δάχτυλα) πάνω στον πίνακα: τ
   assert(flat(s2), 'η αναίρεση δεν γύρισε τη γραμμή όπως ήταν');
 });
 
-test('Αριθμοκυβάκια μέσα στον πίνακα: σέρνεις το 2 πάνω στο 3 και γίνονται 5, με μία αναίρεση', async () => {
+test('Κυβάκια και αριθμοί μέσα στον πίνακα: σέρνεις το 2 πάνω στο 3 και γίνονται 5, με μία αναίρεση', async () => {
   const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
   const kid = async () => (await items()).find((i) => i.kind === 'stamp' && i.name === 'numcubes');
   await level();

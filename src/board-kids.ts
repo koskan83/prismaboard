@@ -61,7 +61,7 @@ export function kidPaint(bd: Board, ps: PState, it: StampItem, wx: number, wy: n
   if (!v) return false;
   const next = { ...it, v };
   bd.page.items[bd.page.items.indexOf(it)] = next;
-  // εργαλείο με δική του κίνηση (αριθμοκυβάκια: αξεσουάρ που πέφτει): κινείται από το πάτημα
+  // εργαλείο με δική του κίνηση (κυβάκια και αριθμοί: αξεσουάρ που πέφτει): κινείται από το πάτημα
   if (first && d.animMs) {
     bd.kidChanged(next, it.v ?? d.init ?? []);
     return true;

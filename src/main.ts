@@ -895,7 +895,7 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): 
   }
   const num = /^num\|(\w*)\|(\d+)$/.exec(ev);
   if (num) {
-    // αριθμοκυβάκια: μόνο ήχος, χωρίς φωνή
+    // κυβάκια και αριθμοί: μόνο ήχος, χωρίς φωνή
     if (num[1]) playFx(num[1], fxPrefs);
     return;
   }

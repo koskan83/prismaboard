@@ -751,7 +751,7 @@ export function up(bd: Board, e: PointerEvent): void {
         if (end) {
           const done = { ...after, v: end.v };
           bd.page.items[bd.page.items.indexOf(after)] = done;
-          // με δική του κίνηση (αριθμοκυβάκια: ένωση) κινείται και στο άφημα
+          // με δική του κίνηση (κυβάκια και αριθμοί: ένωση) κινείται και στο άφημα
           if (d.animMs) bd.kidChanged(done, after.v ?? [], end.ev);
           else bd.onKidFx(end.ev, done);
           after = done;
