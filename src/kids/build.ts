@@ -1,4 +1,4 @@
-/** Χτίσιμο με κυβάκια. */
+/** Χτίσιμο με τουβλάκια. */
 import type { StampDef } from '../stamps';
 import { type C, FONT, fullIcon, kid, rrect, text } from './common';
 
@@ -26,7 +26,7 @@ const BLOCKS: { name: string; base: string; dark: string; light: string; top?: s
   { name: 'Νερό', base: '#3b82f6', dark: '#1d4ed8', light: '#93c5fd' },
   { name: 'Γυαλί', base: '#bae6fd', dark: '#7dd3fc', light: '#f0f9ff' },
   { name: 'Χρυσός', base: '#facc15', dark: '#ca8a04', light: '#fef08a' },
-  // χαρακτήρες και στολίδια: ζωγραφιές 8 × 8 «ψηφίδων» πάνω στον ουρανό, δεν μετράνε στα κυβάκια
+  // χαρακτήρες και στολίδια: ζωγραφιές 8 × 8 «ψηφίδων» πάνω στον ουρανό, δεν μετράνε στα τουβλάκια
   { name: 'Αγόρι', base: '', dark: '', light: '', pal: { H: '#5b3a1e', S: '#f2c29b', e: '#1f2937', B: '#2563eb', P: '#1e3a8a' },
     px: ['..HHHH..', '..SSSS..', '..eSSe..', '.BBBBBB.', '.SBBBBS.', '..BBBB..', '..PPPP..', '..P..P..'] },
   { name: 'Κορίτσι', base: '', dark: '', light: '', pal: { H: '#7c2d12', S: '#f2c29b', e: '#1f2937', R: '#ec4899' },
@@ -40,7 +40,7 @@ const BLOCKS: { name: string; base: string; dark: string; light: string; top?: s
   { name: 'Πόρτα', base: '', dark: '', light: '', pal: { W: '#5b3a1e', d: '#b98146', y: '#facc15' },
     px: ['.WWWWWW.', '.WddddW.', '.WddddW.', '.WddddW.', '.WdddyW.', '.WddddW.', '.WddddW.', '.WddddW.'] },
 ];
-/** Ένα κυβάκι σε στιλ pixel: βασικό χρώμα, λίγες «ψηφίδες» για υφή, σκούρο περίγραμμα. */
+/** Ένα τουβλάκι σε στιλ pixel: βασικό χρώμα, λίγες «ψηφίδες» για υφή, σκούρο περίγραμμα. */
 function drawBlock(c: C, type: number, x: number, y: number, s: number): void {
   const b = BLOCKS[type];
   if (!b) return;
@@ -60,7 +60,7 @@ function drawBlock(c: C, type: number, x: number, y: number, s: number): void {
   c.fillStyle = b.base;
   c.fillRect(x, y, s, s);
   const q = s / 4;
-  // σταθερές θέσεις ανά υλικό, ώστε το ίδιο κυβάκι να φαίνεται πάντα ίδιο
+  // σταθερές θέσεις ανά υλικό, ώστε το ίδιο τουβλάκι να φαίνεται πάντα ίδιο
   const spots: [number, number, boolean][] = [[0, 1, true], [2, 0, false], [3, 2, true], [1, 3, false], [2, 2, true], [0, 3, false]];
   for (const [i, j, dk] of spots) {
     c.fillStyle = dk ? b.dark : b.light;
@@ -86,10 +86,10 @@ function buildGeom(w: number, h: number): { s: number; gh: number; slots: number
 
 export const BUILD_KIDS: Record<string, StampDef> = {
   build: kid({
-    label: 'Χτίσιμο με κυβάκια', w: 960, h: 640, init: [0],
+    label: 'Χτίσιμο με τουβλάκια', w: 960, h: 640, init: [0],
     drawKid(c, w, h, v, env) {
       const g = buildGeom(w, h);
-      // ουρανός και αχνό πλέγμα, για να φαίνεται πού μπαίνει κάθε κυβάκι
+      // ουρανός και αχνό πλέγμα, για να φαίνεται πού μπαίνει κάθε τουβλάκι
       c.save();
       c.fillStyle = '#e0f2fe';
       c.fillRect(0, 0, w, g.gh);
@@ -132,7 +132,7 @@ export const BUILD_KIDS: Record<string, StampDef> = {
       c.textAlign = 'right';
       c.textBaseline = 'top';
       c.fillStyle = '#1e3a8a';
-      c.fillText(`${count} κυβάκια`, w - g.s * 0.2, g.s * 0.14);
+      c.fillText(`${count} τουβλάκια`, w - g.s * 0.2, g.s * 0.14);
       c.restore();
     },
     fullAt(x, y, w, h) {
@@ -146,7 +146,7 @@ export const BUILD_KIDS: Record<string, StampDef> = {
       if (y >= 0 && y < g.gh && x >= 0 && x < w) {
         if (st.pal) return null;
         const i = Math.floor(y / g.s) * BCOLS + Math.floor(x / g.s);
-        // το επιλεγμένο υλικό μπαίνει πάντα (και πάνω σε άλλο κυβάκι)· σβήνει μόνο το σφουγγάρι
+        // το επιλεγμένο υλικό μπαίνει πάντα (και πάνω σε άλλο τουβλάκι)· σβήνει μόνο το σφουγγάρι
         const val = sel >= BLOCKS.length ? 0 : sel + 1;
         if (out[1 + i] === val) return first ? out : null;
         out[1 + i] = val;

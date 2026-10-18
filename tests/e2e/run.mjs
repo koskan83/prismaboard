@@ -723,10 +723,10 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   await page.click('#menuBtn');
   const soundOff = await page.textContent('#menu [data-act="fxsound"]');
   await page.click('#menu [data-act="fxsound"]');
-  // κυβάκια: όσο κρατάς πατημένο για να χτίσεις, το εργαλείο πρέπει να μένει στην οθόνη
+  // τουβλάκια: όσο κρατάς πατημένο για να χτίσεις, το εργαλείο πρέπει να μένει στην οθόνη
   await page.click('#gadgetBtn');
   await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="build"]');
-  // τα κυβάκια ανοίγουν σε όλη την οθόνη: χωρίς γραμμή εργαλείων, με πόρτα επιστροφής στο τέλος των υλικών
+  // τα τουβλάκια ανοίγουν σε όλη την οθόνη: χωρίς γραμμή εργαλείων, με πόρτα επιστροφής στο τέλος των υλικών
   const fullOpen = await visible('#buildView');
   const barHidden = await page.evaluate(() => document.elementFromPoint(innerWidth / 2, innerHeight - 30).closest('#buildView') !== null);
   await drag(400, 300, 520, 300);
@@ -757,13 +757,13 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   assert(party, 'το αστέρι δεν έφερε κομφετί');
   assert(rolled, 'το ζάρι δεν έδειξε νέο αριθμό μετά το πάτημα');
   assert(soundLabel.includes('ναι') && soundOff.includes('όχι'), `ο διακόπτης «Ήχοι» δεν άλλαξε (${soundLabel} → ${soundOff})`);
-  assert(fullOpen && barHidden, 'τα κυβάκια δεν άνοιξαν σε όλη την οθόνη ή φαίνεται ακόμα η γραμμή εργαλείων');
-  assert(fullBlocks >= 2, `σε όλη την οθόνη το σύρσιμο έχτισε ${fullBlocks} κυβάκια αντί για τουλάχιστον 2`);
+  assert(fullOpen && barHidden, 'τα τουβλάκια δεν άνοιξαν σε όλη την οθόνη ή φαίνεται ακόμα η γραμμή εργαλείων');
+  assert(fullBlocks >= 2, `σε όλη την οθόνη το σύρσιμο έχτισε ${fullBlocks} τουβλάκια αντί για τουλάχιστον 2`);
   assert(fullClosed, 'η πόρτα δεν γύρισε πίσω στον πίνακα');
-  assert(blocks > fullBlocks, 'μετά την επιστροφή, το χτίσιμο πάνω στη σελίδα δεν πρόσθεσε κυβάκια');
-  assert(skyBefore === '224,242,254', `τα κυβάκια δεν ζωγραφίστηκαν εκεί που περίμενα (χρώμα ${skyBefore})`);
+  assert(blocks > fullBlocks, 'μετά την επιστροφή, το χτίσιμο πάνω στη σελίδα δεν πρόσθεσε τουβλάκια');
+  assert(skyBefore === '224,242,254', `τα τουβλάκια δεν ζωγραφίστηκαν εκεί που περίμενα (χρώμα ${skyBefore})`);
   assert(skyDuring === skyBefore, `όσο χτίζεις, το εργαλείο εξαφανίζεται από την οθόνη (χρώμα ${skyDuring})`);
-  assert(blocks >= 2, `το σύρσιμο έχτισε ${blocks} κυβάκια αντί για τουλάχιστον 2`);
+  assert(blocks >= 2, `το σύρσιμο έχτισε ${blocks} τουβλάκια αντί για τουλάχιστον 2`);
   assert(!(await visible('#tools [data-tool="measure"]')), 'η επιλογή «Δημοτικό» δεν έμεινε μετά το ξανάνοιγμα');
   await level();
   assert(await visible('#tools [data-tool="measure"]'), 'η Μέτρηση δεν επέστρεψε στο Γυμνάσιο – Λύκειο');
