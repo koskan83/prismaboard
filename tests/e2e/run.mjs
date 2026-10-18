@@ -777,7 +777,10 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   assert(last.some((i) => i.kind === 'axes') && last.some((i) => i.kind === 'text' && i.text === 'Ασύμπτωτες'), 'το πρότυπο «Μελέτη συνάρτησης» δεν έφτιαξε τη σελίδα του');
   await page.click('#menuBtn');
   await page.click('#menu [data-act="more"]');
-  assert(/Έκδοση \d{4}-\d\d-\d\d/.test(await page.textContent('#verLine')), 'δεν φαίνεται η έκδοση στις ρυθμίσεις');
+  // η έκδοση του package.json και η μέρα του build, στις ρυθμίσεις και στο κάτω μέρος του ☰
+  const ver = `Έκδοση ${JSON.parse(readFileSync('package.json', 'utf8')).version} · `;
+  assert(new RegExp(`^${ver}\\d{4}-\\d\\d-\\d\\d$`).test(await page.textContent('#verLine')), `δεν φαίνεται η έκδοση στις ρυθμίσεις: ${await page.textContent('#verLine')}`);
+  assert((await page.textContent('#verMain')).startsWith(ver), 'δεν φαίνεται η έκδοση στο ☰');
   await page.click('#setMenu [data-act="news"]');
   assert((await page.locator('#ask li').count()) >= 3, 'το «Τι νέο» δεν άνοιξε');
   await page.click('#ask .go');
@@ -1156,6 +1159,32 @@ test('Κυβάκια και αριθμοί μέσα στον πίνακα: σέ�
   const ns = (v) => v.slice(3).filter((_, i) => i % 7 === 2);
   assert(ns(joined).join() === '1,5,4,5', `μετά την ένωση: ${ns(joined)}`);
   assert(ns(back).join() === '1,2,3,4,5', 'η αναίρεση δεν ξεχώρισε το 2 από το 3');
+});
+
+test('Κείμενο: ένα πάτημα με την Επιλογή το επιλέγει, το διπλό πάτημα το ανοίγει για διόρθωση', async () => {
+  await page.click('#tools [data-tool="text"]');
+  await page.mouse.click(400, 300);
+  await page.fill('#textEd textarea', 'Αρχικό');
+  await page.click('#textOk');
+  await page.click('#tools [data-tool="select"]');
+  await page.mouse.click(420, 312);
+  await sleep(500);
+  const single = await visible('#textEd');
+  await page.mouse.dblclick(420, 312);
+  await sleep(200);
+  const opened = await visible('#textEd');
+  const was = await page.inputValue('#textEd textarea');
+  await page.fill('#textEd textarea', 'Διορθωμένο');
+  await page.click('#textOk');
+  const texts = (await items()).filter((i) => i.kind === 'text').map((i) => i.text);
+  // καθαρή κατάσταση: με κενό κείμενο το στοιχείο σβήνεται
+  await page.mouse.dblclick(420, 312);
+  await page.fill('#textEd textarea', '');
+  await page.click('#textOk');
+  await page.click('#penBtn');
+  assert(!single, 'ένα απλό πάτημα άνοιξε το πλαίσιο του κειμένου');
+  assert(opened && was === 'Αρχικό', `το διπλό πάτημα δεν άνοιξε το κείμενο (${opened}, «${was}»)`);
+  assert(texts.join() === 'Διορθωμένο', `μετά τη διόρθωση: ${texts}`);
 });
 
 test('⭐ Αγαπημένα: ο χάρακας μπαίνει στη μπάρα, ανοίγει από εκεί και μένει μετά από κλείσιμο', async () => {

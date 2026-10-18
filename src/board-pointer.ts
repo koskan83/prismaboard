@@ -228,6 +228,19 @@ export function down(bd: Board, e: PointerEvent): void {
         bd.onUi();
         break;
       }
+      // διπλό πάτημα (ή διπλό κλικ) σε κείμενο: ανοίγει το πλαίσιο για διόρθωση, όπως με το εργαλείο «Κείμενο»
+      if (hit && hit.kind === 'text') {
+        const last = bd.lastTextTap, now = performance.now();
+        bd.lastTextTap = { id: hit.id, t: now, x: e.clientX, y: e.clientY };
+        if (last && last.id === hit.id && now - last.t < 450 && Math.hypot(e.clientX - last.x, e.clientY - last.y) < 24) {
+          bd.lastTextTap = null;
+          bd.selected = null;
+          bd.redraw();
+          bd.onUi();
+          bd.onTextRequest(hit.x, hit.y, hit);
+          break;
+        }
+      }
       if (hit && !(hit.kind === 'image' && hit.id !== bd.selected)) {
         ps.wasSel = hit.id === bd.selected;
         bd.selected = hit.id;

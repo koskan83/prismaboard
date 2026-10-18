@@ -141,6 +141,8 @@ export class Board {
 
   /** Ζητά από το UI να ανοίξει editor κειμένου. */
   onTextRequest: (x: number, y: number, existing?: TextItem) => void = () => {};
+  /** Το τελευταίο πάτημα σε κείμενο με την Επιλογή, για να αναγνωρίζεται το διπλό πάτημα. */
+  lastTextTap: { id: string; t: number; x: number; y: number } | null = null;
   /** Καλείται όταν αλλάζει η προβολή (zoom/μετακίνηση). */
   onView: () => void = () => {};
   onChange: () => void = () => {};
