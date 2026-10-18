@@ -637,13 +637,38 @@ describe('αριθμοκυβάκια', () => {
     expect(ncState(side.v).cubes.map((e) => e.n)).toEqual([4, 1]);
   });
 
-  it('πάνω από 20 δεν ενώνονται, και ο κάδος σβήνει', () => {
-    const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 12), cube(150, 10)] });
+  it('ενώνονται ως το 100· πάνω από 100 όχι, και ο κάδος σβήνει', () => {
+    const ok = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 12), cube(150, 10)] });
+    const so = ncState(ok);
+    expect(drag(ok, mid(so.cubes[0]), mid(so.cubes[1]))!.ev).toBe('num|pop|22');
+    const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 60), cube(220, 50)] });
     const s = ncState(v);
     expect(drag(v, mid(s.cubes[0]), mid(s.cubes[1]))!.ev).toBe('bad');
     const r = drag(v, mid(s.cubes[0]), [W * (7.5 / 9), H * 0.95])!;
     expect(r.ev).toBe('wipe');
-    expect(ncState(r.v).cubes.map((e) => e.n)).toEqual([10]);
+    expect(ncState(r.v).cubes.map((e) => e.n)).toEqual([50]);
+  });
+
+  it('zoom out με − και + μόνο στη μεγάλη οθόνη· στο zoom in όσοι έμειναν έξω μπαίνουν μέσα', () => {
+    const r = H * 0.22 * 0.17, minus: [number, number] = [r * 1.4, r * 1.4], plus: [number, number] = [r * 3.9, r * 1.4];
+    let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(140, 5)] });
+    // στον πίνακα το κουμπί δεν υπάρχει: το πάτημα δεν αλλάζει τίποτα
+    expect(d.paint!(v, ...minus, W, H, {}, true)).toBeNull();
+    v = d.paint!(v, ...minus, W, H, { full: 1 }, true)!;
+    v = d.paint!(v, ...minus, W, H, { full: 1 }, true)!;
+    expect(ncState(v).flags & 12).toBe(8);
+    // με ×2 η σκηνή φτάνει ως το x = 42: ένας χαρακτήρας εκεί, ψηλά
+    const s = ncState(v);
+    s.cubes.push({ ...cube(400, 3), y: 20 });
+    v = ncPack(s);
+    v = d.paint!(v, ...plus, W, H, { full: 1 }, true)!;
+    v = d.paint!(v, ...plus, W, H, { full: 1 }, true)!;
+    const e = ncState(v).cubes[1];
+    expect(ncState(v).flags & 12).toBe(0);
+    expect(e.x).toBeLessThanOrEqual(280 - 5);
+    expect(e.y).toBeGreaterThanOrEqual(39);
+    // στο πιο κοντινό το + δεν κάνει τίποτα
+    expect(d.paint!(v, ...plus, W, H, { full: 1 }, true)).toBe(v);
   });
 
   it('✂️ κόβει από το κυβάκι που πατήθηκε και πάνω· με απλό πάτημα το κομμάτι πάει δίπλα', () => {

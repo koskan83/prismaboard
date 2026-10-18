@@ -93,7 +93,8 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     const [x, y] = at(e);
     if (d.fullAt?.(x, y, gw, H)) return close();
     cv.setPointerCapture(e.pointerId);
-    const st: Record<string, number> = {};
+    // full: το εργαλείο ξέρει ότι παίζεται σε όλη την οθόνη (αριθμοκυβάκια: τα − και + του zoom)
+    const st: Record<string, number> = { full: 1 };
     ptrs.set(e.pointerId, st);
     const next = d.paint!(v!, x, y, gw, H, st, true);
     if (next) {

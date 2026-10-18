@@ -3,13 +3,21 @@ import type { StampDef } from '../stamps';
 import { type C, FONT, fullIcon, kid, rrect, text } from './common';
 
 /**
- * Χαρακτήρες από κυβάκια, 1 έως 20, που ενώνονται (σύρεις το ένα πάνω στο άλλο), χωρίζονται (✂️), αλλάζουν σχήμα, χρώμα
+ * Χαρακτήρες από κυβάκια, 1 έως 100, που ενώνονται (σύρεις το ένα πάνω στο άλλο), χωρίζονται (✂️), αλλάζουν σχήμα, χρώμα
  * και φοράνε αξεσουάρ. Η σκηνή μετριέται σε κυβάκια (NC_W × NC_H), για να μη χρειάζεται το μέγεθος του κουτιού στο «άφημα».
  * Κατάσταση: [λειτουργία, επιλογή στην παλέτα, σημαίες σκηνής (S_*), και ανά χαρακτήρα NC_REC αριθμοί].
  */
-const NC_W = 28, NC_H = 13, NC_MAX = 20, NC_ITEMS = 30, NC_HEAD = 3, NC_REC = 7;
+const NC_W = 28, NC_H = 13, NC_MAX = 100, NC_ITEMS = 30, NC_HEAD = 3, NC_REC = 7;
 /** Σημαίες σκηνής: κρυφοί αριθμοί, ζυγαριά (η τιμή 2 ήταν η τραμπάλα: τα παλιά μαθήματα ανοίγουν με ζυγαριά). */
 const S_HIDDEN = 1, S_SCALE = 2;
+/**
+ * Zoom out (στη μεγάλη οθόνη, με − και +): τα bit 2–3 των σημαιών διαλέγουν πόσο μεγαλύτερος φαίνεται ο κόσμος. Το γρασίδι
+ * μένει στο y = NC_H και η μέση στο x = NC_W / 2· ο κόσμος απλώνεται προς τα πάνω και στα πλάγια (και σε αρνητικά x, y).
+ */
+const NC_ZOOMS = [1, 1.5, 2, 3], S_ZOOM = 12;
+const ncZoom = (flags: number): number => NC_ZOOMS[(flags & S_ZOOM) >> 2];
+/** Τι φαίνεται με zoom z: από x0 ως x1 και από y0 ως το γρασίδι (NC_H). */
+const ncView = (z: number): { x0: number; x1: number; y0: number } => ({ x0: (NC_W / 2) * (1 - z), x1: (NC_W / 2) * (1 + z), y0: NC_H * (1 - z) });
 /** Σημαίες χαρακτήρα: κρατιέται, πάνω από τον κάδο, μόλις κόπηκε, πάνω σε πιατέλα της ζυγαριάς. */
 const F_HELD = 1, F_TRASH = 2, F_FRESH = 4, F_PAN = 8;
 /** Χαρακτήρας: κάτω-κέντρο (x, y) σε δέκατα του κυβακίου, πόσα κυβάκια, ύψος σχήματος (γεμίζει ανά στήλη), αξεσουάρ, χρώμα, σημαίες (F_*). */
@@ -21,7 +29,7 @@ export function ncState(v: number[]): NCState {
     const n = Math.max(1, Math.min(NC_MAX, v[i + 2] || 1));
     const e = { x: v[i], y: v[i + 1], n, h: Math.max(1, Math.min(n, v[i + 3] || Math.min(n, 10))), acc: v[i + 4] ?? 0, col: v[i + 5] ?? 0, f: v[i + 6] ?? 0 };
     // όσοι κάθονταν στην παλιά τραμπάλα πάνε στην πιατέλα τους
-    if (e.f & F_PAN && !(e.f & F_HELD) && e.y !== NC_PY * 10) ncClamp(e);
+    if (e.f & F_PAN && !(e.f & F_HELD) && e.y !== NC_PY * 10) ncClamp(e, 1);
     cubes.push(e);
   }
   // το 3 ήταν το βάψιμο (δεν υπάρχει πια)
@@ -66,8 +74,8 @@ function ncBox(e: NCube, k = 0): { x0: number; x1: number; y0: number; y1: numbe
   const c = ncCols(e), y = e.y / 10 + ncLift(e, k);
   return { x0: e.x / 10 - c / 2, x1: e.x / 10 + c / 2, y0: y - e.h, y1: y };
 }
-function ncClamp(e: NCube): void {
-  const c = ncCols(e) / 2;
+function ncClamp(e: NCube, z: number): void {
+  const c = ncCols(e) / 2, vw = ncView(z);
   if (e.f & F_PAN) {
     // πάνω στη ζυγαριά: ολόκληρος μέσα στην πιατέλα του (ένας πολύ φαρδύς στη μέση της)
     const m = NC_PX + ncPan(e) * NC_PA;
@@ -75,14 +83,14 @@ function ncClamp(e: NCube): void {
     e.y = NC_PY * 10;
     return;
   }
-  e.x = Math.round(Math.max(c * 10, Math.min((NC_W - c) * 10, e.x)));
-  e.y = Math.round(Math.max((e.h + 0.9) * 10, Math.min(NC_H * 10, e.y)));
+  e.x = Math.round(Math.max((vw.x0 + c) * 10, Math.min((vw.x1 - c) * 10, e.x)));
+  e.y = Math.round(Math.max((vw.y0 + e.h + 0.9) * 10, Math.min(NC_H * 10, e.y)));
 }
 /** Με τη ζυγαριά, ό,τι αφήνεται πάνω από μια πιατέλα κάθεται πάνω της. true αν κάθισε. */
 function ncSeat(s: NCState, e: NCube): boolean {
   if (!(s.flags & S_SCALE) || Math.abs(Math.abs(e.x / 10 - NC_PX) - NC_PA) > NC_PW) return false;
   e.f |= F_PAN;
-  ncClamp(e);
+  ncClamp(e, 1);
   return true;
 }
 /** Η ζυγαριά, γερμένη κατά k, και πάνω στη μέση η σύγκριση των δύο αθροισμάτων (π.χ. 6 < 9). */
@@ -149,6 +157,8 @@ function ncScale(c: C, g: { S: number; ox: number; oy: number }, k: number, side
 }
 /** Το χρώμα κάθε αριθμού ως το 10 (το 7 είναι ουράνιο τόξο, το 10 άσπρο με κόκκινο περίγραμμα). */
 const NC_NUM = ['', '#ef4444', '#f97316', '#facc15', '#22c55e', '#22d3ee', '#8b5cf6', '', '#ec4899', '#9ca3af', '#ffffff'];
+/** Το περίγραμμα των άσπρων δεκάδων, από το ψηφίο των δεκάδων (1–10)· το 7 (κενό) παίρνει ουράνιο τόξο ανά δεκάδα. */
+const NC_TENS = ['', '#dc2626', '#ea580c', '#ca8a04', '#16a34a', '#0891b2', '#7c3aed', '', '#db2777', '#6b7280', '#dc2626'];
 const RAINBOW = ['#ef4444', '#f97316', '#facc15', '#22c55e', '#3b82f6', '#6366f1', '#a855f7'];
 /** Η παλέτα του 🎨: 0 = το χρώμα του αριθμού, 13 = ουράνιο τόξο. */
 const NC_PAL = ['', '#ef4444', '#f97316', '#facc15', '#22c55e', '#22d3ee', '#3b82f6', '#8b5cf6', '#ec4899', '#9ca3af', '#ffffff', '#92400e', '#1f2937', ''];
@@ -164,20 +174,44 @@ const darker = (hex: string, k = 0.32): string => {
   const n = parseInt(hex.slice(1), 16), f = (s: number): number => Math.round(((n >> s) & 255) * (1 - k));
   return `rgb(${f(16)},${f(8)},${f(0)})`;
 };
-/** Γέμισμα και περίγραμμα του κυβακίου i (από κάτω, ανά στήλη). Από το 11: μια άσπρη δεκάδα και οι μονάδες με το χρώμα τους. */
+/**
+ * Γέμισμα και περίγραμμα του κυβακίου i (από κάτω, ανά στήλη). Από το 10: άσπρες δεκάδες, με περίγραμμα στο χρώμα του
+ * ψηφίου των δεκάδων (10–19 κόκκινο, 20–29 πορτοκαλί, … το 70–79 ουράνιο τόξο, το 100 κόκκινο), και οι μονάδες με το χρώμα τους.
+ */
 function ncColour(e: NCube, i: number): [string, string] {
   let f: string;
   const one = (k: number, j: number): string => (k === 7 ? RAINBOW[6 - j] : NC_NUM[k]);
+  const t = Math.floor(e.n / 10);
   if (e.col === 13) f = RAINBOW[i % 7];
   else if (e.col) f = NC_PAL[e.col];
-  else if (e.n === 10 || (e.n > 10 && i < 10)) return ['#ffffff', '#dc2626'];
-  else if (e.n === 20) return ['#ffffff', '#ea580c'];
-  else f = e.n > 10 ? one(e.n - 10, i - 10) : one(e.n, i);
+  else if (t && i < t * 10) return ['#ffffff', NC_TENS[t] || darker(RAINBOW[Math.floor(i / 10) % 7], 0.2)];
+  else f = one(e.n % 10, i - t * 10);
   return [f, f === '#ffffff' ? '#94a3b8' : darker(f)];
 }
-function ncGeom(w: number, h: number): { bh: number; sh: number; S: number; ox: number; oy: number } {
-  const bh = h * 0.22, sh = h - bh, S = Math.min(w / NC_W, sh / NC_H);
-  return { bh, sh, S, ox: (w - NC_W * S) / 2, oy: sh - NC_H * S };
+function ncGeom(w: number, h: number, z = 1): { bh: number; sh: number; S: number; ox: number; oy: number } {
+  const bh = h * 0.22, sh = h - bh, S = Math.min(w / (NC_W * z), sh / (NC_H * z)), vw = ncView(z);
+  return { bh, sh, S, ox: (w - NC_W * z * S) / 2 - vw.x0 * S, oy: sh - NC_H * z * S - vw.y0 * S };
+}
+/** Τα κουμπιά − και + του zoom, πάνω αριστερά στη σκηνή (μόνο στη μεγάλη οθόνη): κέντρο του k-οστού και μισό πλάτος. */
+const ncZoomBtn = (k: number, bh: number): { x: number; y: number; r: number } => {
+  const r = bh * 0.17;
+  return { x: r * 1.4 + k * r * 2.5, y: r * 1.4, r };
+};
+/** Το κουμπί του zoom στο (x, y): −1 (−), 1 (+) ή 0 κανένα. */
+function ncZoomAt(x: number, y: number, bh: number): number {
+  for (const k of [0, 1]) {
+    const b = ncZoomBtn(k, bh);
+    if (Math.abs(x - b.x) <= b.r * 1.15 && Math.abs(y - b.y) <= b.r * 1.15) return k ? 1 : -1;
+  }
+  return 0;
+}
+/** Αλλάζει το zoom κατά ένα βήμα· όταν μεγαλώνει ξανά, όσοι έμειναν έξω από τη μικρότερη σκηνή μπαίνουν μέσα. */
+function ncZoomStep(s: NCState, dir: number): boolean {
+  const i = (s.flags & S_ZOOM) >> 2, j = Math.max(0, Math.min(NC_ZOOMS.length - 1, i - dir));
+  if (i === j) return false;
+  s.flags = (s.flags & ~S_ZOOM) | (j << 2);
+  for (const e of s.cubes) ncClamp(e, NC_ZOOMS[j]);
+  return true;
 }
 /** Πόσα κουμπιά έχει η πάνω σειρά της μπάρας σε κάθε λειτουργία: αριθμοί 1–10 ή αξεσουάρ. */
 const ncRowA = (mode: number): number => (mode === 4 ? NC_ACC.length : 10);
@@ -193,7 +227,7 @@ function ncScaleToggle(s: NCState): void {
     else if (e.f & F_PAN) {
       e.f &= ~F_PAN;
       e.y = NC_H * 10;
-      ncClamp(e);
+      ncClamp(e, ncZoom(s.flags));
     }
   }
 }
@@ -728,9 +762,11 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
     ncHat(c, head, 0, 0, hu);
     c.restore();
   }
-  // ο αριθμός, στην κάτω σειρά κάτω από το πρόσωπο· όταν το σχήμα έχει ύψος ένα (εκεί είναι τα μάτια), δίπλα στο σώμα
-  const label = hidden ? '?' : String(e.n), ns = S * (label.length > 1 ? 0.46 : 0.56);
-  const nx = H > 1 ? fcx : bx + C2 * S + S * 0.38, ny = by - S * (H > 1 ? 0.48 : 0.4);
+  // ο αριθμός, στη μέση της κάτω σειράς (στους φαρδιούς μεγαλώνει όσο χωράει)· όταν το σχήμα έχει ύψος ένα (εκεί είναι
+  // τα μάτια), δίπλα στο σώμα
+  const label = hidden ? '?' : String(e.n);
+  const ns = H > 1 ? S * Math.min(0.56 * Math.min(C2, 2.2), (C2 * 0.8) / (0.62 * label.length)) : S * [0.56, 0.56, 0.46, 0.36][label.length];
+  const nx = H > 1 ? bx + (C2 * S) / 2 : bx + C2 * S + S * (0.2 + 0.18 * label.length), ny = by - S * (H > 1 ? 0.48 : 0.4);
   c.font = `800 ${ns}px ${FONT}`;
   c.textAlign = 'center';
   c.textBaseline = 'middle';
@@ -898,15 +934,15 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
   if (best >= 0 && fresh) {
     // κόπηκε με απλό πάτημα (χωρίς σύρσιμο): το κομμάτι πάει δίπλα, για να μην ξανακολλήσει αμέσως
     const o = s.cubes[best], gap = (ncCols(o) / 2 + 0.6 + ncCols(e) / 2) * 10;
-    e.x = o.x + gap > (NC_W - ncCols(e) / 2) * 10 ? o.x - gap : o.x + gap;
+    e.x = o.x + gap > (ncView(ncZoom(s.flags)).x1 - ncCols(e) / 2) * 10 ? o.x - gap : o.x + gap;
     e.y = o.y;
-    if (!ncSeat(s, e)) ncClamp(e);
+    if (!ncSeat(s, e)) ncClamp(e, ncZoom(s.flags));
     return { v: ncPack(s), ev: '' };
   }
   if (best >= 0) {
     const o = s.cubes[best], n = o.n + e.n;
     if (n > NC_MAX) {
-      ncClamp(e);
+      ncClamp(e, ncZoom(s.flags));
       return { v: ncPack(s), ev: 'bad' };
     }
     o.n = n;
@@ -914,12 +950,12 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
     o.col = 0;
     for (let g = 0; g < 3; g++) if (!ncAcc(o.acc, g)) o.acc = ncSetAcc(o.acc, g, ncAcc(e.acc, g));
     s.cubes.splice(j, 1);
-    ncClamp(o);
+    ncClamp(o, ncZoom(s.flags));
     return { v: ncPack(s), ev: `num|pop|${n}` };
   }
   // πάνω στη ζυγαριά: «τοκ» και γέρνει
   if (ncSeat(s, e)) return { v: ncPack(s), ev: 'tok' };
-  ncClamp(e);
+  ncClamp(e, ncZoom(s.flags));
   return { v: ncPack(s), ev: '' };
 }
 
@@ -928,11 +964,12 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
     label: 'Αριθμοκυβάκια', w: 960, h: 640, animMs: NC_ANIM_MS,
     init: [0, 0, 0, ...[1, 2, 3, 4, 5].flatMap((n) => [10 + n * 45, 130, n, n, 0, 0, 0])],
     drawKid(c, w, h, v, env) {
-      const g = ncGeom(w, h), s = ncState(v);
+      const s = ncState(v), g = ncGeom(w, h, ncZoom(s.flags));
       c.save();
       c.fillStyle = '#e0f2fe';
       c.fillRect(0, 0, w, g.sh);
-      ncScenery(c, w, g);
+      // το τοπίο μένει ίδιο σε κάθε zoom· μικραίνουν μόνο οι χαρακτήρες (και η ζυγαριά)
+      ncScenery(c, w, ncGeom(w, h));
       c.fillStyle = '#86efac';
       c.fillRect(0, g.sh - g.S * 0.22, w, g.S * 0.22);
       // η μπάρα: πάνω σειρά ανάλογα με τη λειτουργία, κάτω οι λειτουργίες
@@ -985,9 +1022,25 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
         ncScale(c, g, th, ncSides(s.cubes), !!(s.flags & S_HIDDEN));
       }
       s.cubes.forEach((e, i) => ncDraw(c, g, e.f & F_PAN ? { ...e, y: e.y + ncLift(e, th) * 10 } : e, !!(s.flags & S_HIDDEN), an[i]));
+      if (env.full) {
+        const zi = (s.flags & S_ZOOM) >> 2;
+        for (const k of [0, 1]) {
+          const b = ncZoomBtn(k, g.bh), off = k ? zi === 0 : zi === NC_ZOOMS.length - 1;
+          c.save();
+          c.globalAlpha = off ? 0.4 : 1;
+          rrect(c, b.x - b.r, b.y - b.r, b.r * 2, b.r * 2, b.r * 0.35);
+          c.fillStyle = 'rgba(255,255,255,0.92)';
+          c.fill();
+          c.strokeStyle = '#334155';
+          c.lineWidth = Math.max(2, b.r * 0.08);
+          c.stroke();
+          text(c, k ? '+' : '−', b.x, b.y + b.r * 0.05, b.r * 1.5, '#1f2937', 800);
+          c.restore();
+        }
+      }
     },
     cursor(v, x, y, w, h) {
-      const g = ncGeom(w, h), s = ncState(v);
+      const s = ncState(v), g = ncGeom(w, h, ncZoom(s.flags));
       if (y >= g.sh) return 'pointer';
       const cx = (x - g.ox) / g.S, cy = (y - g.oy) / g.S;
       const th = ncTilt(s.cubes);
@@ -999,7 +1052,7 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
       return y >= g.sh + g.bh / 2 && y <= h && Math.floor(x / (w / NC_BAR)) === B_FULL;
     },
     paint(v, x, y, w, h, st, first) {
-      const g = ncGeom(w, h), s = ncState(v);
+      const s = ncState(v), g = ncGeom(w, h, ncZoom(s.flags));
       const [cx, cy] = [(x - g.ox) / g.S, (y - g.oy) / g.S];
       if (!first) {
         // σύρσιμο του χαρακτήρα που κρατιέται· πάνω από τον 🗑️ θα σβηστεί όταν αφεθεί
@@ -1012,6 +1065,11 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
         return ncPack(s);
       }
       st.j = 0;
+      // − και + του zoom: μόνο στη μεγάλη οθόνη, όπου φαίνονται
+      if (st.full && y < g.sh) {
+        const dir = ncZoomAt(x, y, g.bh);
+        if (dir) return ncZoomStep(s, dir) ? ncPack(s) : v;
+      }
       const pick = (e: NCube): number[] => {
         e.f |= F_HELD;
         s.cubes.push(e);
@@ -1080,7 +1138,7 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
         const [gp, val] = NC_ACC[s.sel] ?? [-1, 0];
         e.acc = gp < 0 ? 0 : ncSetAcc(e.acc, gp, ncAcc(e.acc, gp) === val ? 0 : val);
       }
-      ncClamp(e);
+      ncClamp(e, ncZoom(s.flags));
       return ncPack(s);
     },
     drop: ncDrop,
