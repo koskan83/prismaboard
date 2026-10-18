@@ -3264,6 +3264,7 @@ name = "prismaboard"
 version = "0.2.0"
 dependencies = [
  "image",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

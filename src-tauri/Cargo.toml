@@ -16,6 +16,8 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+# το tauri::generate_context! τη χρειάζεται όταν το tauri.conf.json έχει ενότητα plugins (updater)
+serde_json = "1"
 xcap = "0.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
