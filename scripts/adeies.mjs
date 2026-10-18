@@ -3,7 +3,7 @@
  * τα πακέτα npm που δεν είναι μόνο για την ανάπτυξη, και τα crates του Rust του προγράμματος Windows.
  * Τα crates τα δίνει το cargo· όπου δεν υπάρχει cargo, κρατιέται η λίστα του προηγούμενου build (scripts/rust-crates.json).
  */
-import { execFileSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -15,7 +15,8 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 /** Όλα τα πακέτα npm της εφαρμογής, μία φορά το καθένα (όνομα → φάκελος). */
 function npmPackages() {
-  const tree = JSON.parse(execFileSync('npm', ['ls', '--omit=dev', '--all', '--long', '--json'], { encoding: 'utf8', maxBuffer: 64 << 20 }));
+  // μέσω shell: στα Windows το npm είναι npm.cmd και δεν τρέχει απευθείας με execFileSync
+  const tree = JSON.parse(execSync('npm ls --omit=dev --all --long --json', { encoding: 'utf8', maxBuffer: 64 << 20 }));
   const found = new Map();
   const walk = (deps) => {
     for (const [name, d] of Object.entries(deps ?? {})) {

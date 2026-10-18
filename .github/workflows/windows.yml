@@ -52,7 +52,8 @@ jobs:
         run: |
           set -o pipefail
           npx tauri build --ci 2>&1 | tee build.log || {
-            grep -v '^\s*Compiling ' build.log | tail -n 40 | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error::${l:0:900}"; done
+            # μία annotation με όλες τις γραμμές (το GitHub κρατά το πολύ 10 ανά βήμα)
+            echo "::error::$(grep -v '^\s*Compiling ' build.log | tail -n 40 | cut -c1-300 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
             exit 1
           }
       - name: Release και latest.json
