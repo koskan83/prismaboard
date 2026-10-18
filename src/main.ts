@@ -34,6 +34,20 @@ import { isMoveTarget, isOldSite, movedNotice, offerMove, receiveMove } from './
 // σφάλματα που δεν πιάστηκαν: μήνυμα με κουμπί «Αναφορά» αντί για σιωπή
 catchErrors(toast);
 
+// δοκιμαστική έκδοση (beta.prismaboard.klabs.gr, βλ. pages.yml): εμφανής ένδειξη, για να μη δουλεύει κανείς εκεί κατά λάθος
+if (import.meta.env.VITE_CHANNEL === 'beta') {
+  document.title = 'PrismaBoard BETA';
+  const tag = document.createElement('button');
+  tag.id = 'betaTag';
+  tag.textContent = 'BETA';
+  tag.title = 'Δοκιμαστική έκδοση';
+  tag.onclick = () => void notice('Δοκιμαστική έκδοση', [
+    'Εδώ δοκιμάζονται οι αλλαγές πριν φτάσουν σε όλους.',
+    'Τα μαθήματα εδώ είναι χωριστά από την κανονική διεύθυνση prismaboard.klabs.gr. Για κανονική δουλειά στην τάξη χρησιμοποίησε εκείνη.',
+  ]);
+  document.body.append(tag);
+}
+
 // ---------- εισαγωγή ----------
 
 initImport();

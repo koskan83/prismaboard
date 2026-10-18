@@ -1,15 +1,19 @@
-name: Web app (GitHub Pages + Cloudflare Pages)
+name: Web app (beta και κυκλοφορία)
 
-# Η ίδια έκδοση ανεβαίνει σε δύο διευθύνσεις:
-#  - prismaboard.klabs.gr (Cloudflare Pages): η κανονική διεύθυνση της εφαρμογής.
-#  - koskan83.github.io/prismaboard (GitHub Pages): η παλιά· μένει για να μεταφέρουν οι δάσκαλοι τα μαθήματά τους (βλ. src/move.ts).
+# Δύο κανάλια:
+#  - push στο main → beta.prismaboard.klabs.gr (Cloudflare Pages, έργο prismaboard-beta), με ένδειξη «BETA».
+#    Εκεί δοκιμάζεται κάθε αλλαγή πριν φτάσει στους δασκάλους.
+#  - tag v* (π.χ. v0.2.1) → κυκλοφορία: prismaboard.klabs.gr (Cloudflare Pages, έργο prismaboard)
+#    και η παλιά διεύθυνση koskan83.github.io/prismaboard (GitHub Pages), που μένει για τη μεταφορά των μαθημάτων (βλ. src/move.ts).
+#    Το ίδιο tag βγάζει και το πρόγραμμα για Windows (windows.yml).
 # Για το Cloudflare χρειάζονται τα secrets CLOUDFLARE_API_TOKEN (δικαίωμα «Cloudflare Pages: Edit») και CLOUDFLARE_ACCOUNT_ID.
-# Χωρίς αυτά το βήμα παραλείπεται.
+# Για το GitHub Pages από tag: Settings → Environments → github-pages → να επιτρέπονται τα tags v*.
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ['v*']
 
 permissions:
   contents: read
@@ -17,20 +21,18 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  beta:
+    if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     env:
-      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      VITE_CHANNEL: beta
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -39,25 +41,51 @@ jobs:
       - run: npm run build
       # σενάρια που πατάνε κουμπιά στην χτισμένη εφαρμογή· αν κάποιο αποτύχει, η έκδοση δεν δημοσιεύεται
       - run: node tests/e2e/run.mjs
+      # το έργο φτιάχνεται την πρώτη φορά· αν υπάρχει ήδη, η εντολή αποτυγχάνει χωρίς πρόβλημα
+      - name: Cloudflare Pages – έργο beta
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create prismaboard-beta --production-branch=main
+      - name: Cloudflare Pages – δημοσίευση beta
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=prismaboard-beta --branch=main
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      # το tag πρέπει να είναι ίδιο με την έκδοση του package.json
+      - name: Έλεγχος έκδοσης
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          [ "$want" = "${GITHUB_REF_NAME}" ] || { echo "::error::Το tag ${GITHUB_REF_NAME} δεν ταιριάζει με την έκδοση $want του package.json"; exit 1; }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: node tests/e2e/run.mjs
+      - name: Cloudflare Pages – δημοσίευση
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=prismaboard --branch=main
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
-      # το έργο φτιάχνεται την πρώτη φορά· αν υπάρχει ήδη, η εντολή αποτυγχάνει χωρίς πρόβλημα
-      - name: Cloudflare Pages – έργο
-        if: env.HAS_CF == 'true'
-        continue-on-error: true
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages project create prismaboard --production-branch=main
-      - name: Cloudflare Pages – δημοσίευση
-        if: env.HAS_CF == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=prismaboard --branch=main

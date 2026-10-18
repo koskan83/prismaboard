@@ -691,3 +691,21 @@ canvas.mascot { position: static; display: block; touch-action: auto; }
 #lessonName .cl.chg { color: var(--warn); opacity: 1; }
 #libGrid .card .info .cl { white-space: nowrap; }
 #libGrid .card .info .cl.chg { color: var(--warn); }
+
+/* ένδειξη της δοκιμαστικής έκδοσης (beta) */
+#betaTag {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  padding: 3px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: #ea580c;
+  color: #fff;
+  font: 700 13px/1.4 system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  opacity: 0.9;
+}
