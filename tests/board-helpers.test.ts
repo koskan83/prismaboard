@@ -620,7 +620,9 @@ describe('κυβάκια και αριθμοί', () => {
     expect(ncShapes(7)).toEqual([7, 4, 3]);
     expect(ncShapes(9)).toEqual([9, 5, 3]);
     expect(ncShapes(16)).toEqual([10, 8, 4, 2]);
-    expect(ncShapes(11)).toEqual([10]);
+    expect(ncShapes(11)).toEqual([10, 4]);
+    expect(ncShapes(23)).toEqual([10, 6, 5]);
+    expect(ncShapes(50)).toEqual([10, 8, 5]);
   });
 
   it('μονοί αριθμοί όπως στα Numberblocks: σειρά σειρά από κάτω, και ό,τι περισσεύει από πάνω αριστερά', () => {
@@ -632,6 +634,8 @@ describe('κυβάκια και αριθμοί', () => {
     // πύργοι, ορθογώνια και δεκάδες γεμίζουν όπως πριν, στήλη στήλη
     expect(at(6, 3)).toEqual([[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]);
     expect(at(13, 10).at(-1)).toEqual([1, 2]);
+    // 23 σε πέντε στήλες: 4 σειρές των 5 και τα 3 που περισσεύουν από πάνω αριστερά
+    expect(at(23, 5).slice(-3)).toEqual([[0, 4], [1, 4], [2, 4]]);
     expect([3, 5, 7, 9, 4, 10].map(ncStartH)).toEqual([2, 3, 4, 3, 4, 10]);
   });
 
@@ -660,7 +664,7 @@ describe('κυβάκια και αριθμοί', () => {
     const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 60), cube(220, 50)] });
     const s = ncState(v);
     expect(drag(v, mid(s.cubes[0]), mid(s.cubes[1]))!.ev).toBe('bad');
-    const r = drag(v, mid(s.cubes[0]), [W * (7.5 / 9), H * 0.95])!;
+    const r = drag(v, mid(s.cubes[0]), [W * (8.5 / 10), H * 0.95])!;
     expect(r.ev).toBe('wipe');
     expect(ncState(r.v).cubes.map((e) => e.n)).toEqual([50]);
   });
@@ -708,12 +712,12 @@ describe('κυβάκια και αριθμοί', () => {
     let e = ncState(v).cubes[1];
     expect([e.n, e.y]).toEqual([9, 130]);
     const tap = (bx: number, by: number): void => { v = d.paint!(v, bx, by, W, H, {}, true)!; };
-    tap(W * (2.5 / 9), H * 0.95); // 🔄
+    tap(W * (2.5 / 10), H * 0.95); // 🔄
     // το 9 μπαίνει τετράγωνο 3 × 3· με το 🔄 γίνεται πύργος
     expect(ncState(v).cubes[1].h).toBe(3);
     tap(...mid(ncState(v).cubes[1]));
     expect(ncState(v).cubes[1].h).toBe(9);
-    tap(W * (3.5 / 9), H * 0.95); // 🎩
+    tap(W * (3.5 / 10), H * 0.95); // 🎩
     expect(ncState(v).mode).toBe(4);
     tap(W * (2.5 / 13), H * 0.83); // κορώνα
     tap(...mid(ncState(v).cubes[1]));
@@ -723,14 +727,14 @@ describe('κυβάκια και αριθμοί', () => {
     // ξανά το ίδιο: βγαίνει
     tap(...mid(e));
     expect(ncState(v).cubes[1].acc).toBe(0);
-    tap(W * (4.5 / 9), H * 0.95); // 🧽
+    tap(W * (4.5 / 10), H * 0.95); // 🧽
     tap(...mid(ncState(v).cubes[0]));
     expect(ncState(v).cubes.map((q) => q.n)).toEqual([9]);
   });
 
   it('⚖️ ζυγαριά: ό,τι αφήνεται πάνω από μια πιατέλα κάθεται πάνω της και γέρνει προς το μεγαλύτερο άθροισμα', () => {
     let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 3), cube(220, 2), cube(275, 1)] });
-    v = d.paint!(v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
+    v = d.paint!(v, W * (6.5 / 10), H * 0.95, W, H, {}, true)!;
     let s = ncState(v);
     expect(s.flags & 2).toBe(2);
     // το 3 στην αριστερή πιατέλα, το 2 στη δεξιά· το 1, έξω από τις πιατέλες, μένει στο γρασίδι
@@ -744,8 +748,51 @@ describe('κυβάκια και αριθμοί', () => {
     const off = drag(r.v, [ox + 6 * S, oy + 9.8 * S], [ox + 1 * S, oy + 12.5 * S])!;
     expect(ncState(off.v).cubes.find((e) => e.n === 3)!.f).toBe(0);
     // βγαίνει η ζυγαριά: όλοι στο γρασίδι
-    v = d.paint!(r.v, W * (6.5 / 9), H * 0.95, W, H, {}, true)!;
+    v = d.paint!(r.v, W * (6.5 / 10), H * 0.95, W, H, {}, true)!;
     expect(ncState(v).cubes.map((e) => [e.f, e.y])).toEqual([[0, 130], [0, 130], [0, 130]]);
+  });
+
+  it('+ = εξίσωση: οι χαρακτήρες κάθονται στις θέσεις, το = βγάζει το αποτέλεσμα ή ελέγχει την απάντηση', () => {
+    const eqBtn: [number, number] = [W * (7.5 / 10), H * 0.95];
+    const sign = (k: number): [number, number] => [ox + (k ? 18.5 : 9.5) * S, oy + 10.8 * S];
+    let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 3), cube(140, 2), cube(260, 1)] });
+    v = d.paint!(v, ...eqBtn, W, H, {}, true)!;
+    let s = ncState(v);
+    expect(s.flags & 16).toBe(16);
+    // το 3 και το 2 κάθονται στις δύο πρώτες θέσεις· το 1, πάνω από την τρίτη, κάθεται κι αυτό εκεί
+    expect(s.cubes.map((e) => [e.x, e.f])).toEqual([[50, 16], [140, 16], [230, 16]]);
+    // το 1 φεύγει από την απάντηση και αφήνεται στην άκρη
+    const out = drag(v, mid(s.cubes[2]), [ox + 27 * S, oy + 3 * S])!;
+    v = out.v;
+    expect(ncState(v).cubes[2].f).toBe(0);
+    // = : στην άδεια τρίτη θέση εμφανίζεται το 5
+    v = d.paint!(v, ...sign(1), W, H, {}, true)!;
+    s = ncState(v);
+    expect(s.cubes.at(-1)).toMatchObject({ x: 230, n: 5, f: 16 });
+    expect(d.fx!(out.v, v)).toBe('num|pop|5');
+    // + → −: 3 − 2, και η απάντηση 5 είναι λάθος
+    v = d.paint!(v, ...sign(0), W, H, {}, true)!;
+    const before = v;
+    v = d.paint!(v, ...sign(1), W, H, {}, true)!;
+    expect(ncState(v).flags & (64 | 128)).toBe(128);
+    expect(d.fx!(before, v)).toBe('bad');
+    // η απάντηση γίνεται 1 (το 1 πάνω στην τρίτη θέση δεν ενώνεται με το 5: το 5 φεύγει πρώτα)
+    s = ncState(v);
+    v = drag(v, mid(s.cubes[3]), [ox + 1 * S, oy + 3 * S])!.v;
+    s = ncState(v);
+    v = drag(v, mid(s.cubes.find((e) => e.n === 1)!), [ox + 23 * S, oy + 12.5 * S])!.v;
+    const ready = v;
+    v = d.paint!(v, ...sign(1), W, H, {}, true)!;
+    expect(ncState(v).flags & (64 | 128)).toBe(64);
+    expect(d.fx!(ready, v)).toBe('cheer');
+    // χωρίς δεύτερο αριθμό: λάθος, χωρίς αποτέλεσμα
+    let w = ncPack({ mode: 0, sel: 0, flags: 16, cubes: [{ ...cube(50, 4), f: 16 }] });
+    w = d.paint!(w, ...sign(1), W, H, {}, true)!;
+    expect([ncState(w).cubes.length, ncState(w).flags & 128]).toEqual([1, 128]);
+    // η ζυγαριά και η εξίσωση δεν είναι ποτέ μαζί
+    v = d.paint!(v, W * (6.5 / 10), H * 0.95, W, H, {}, true)!;
+    s = ncState(v);
+    expect([s.flags & 2, s.flags & 16, s.cubes.some((e) => e.f & 16)]).toEqual([2, 0, false]);
   });
 
   it('όσοι κάθονταν στην παλιά τραμπάλα ανοίγουν πάνω στις πιατέλες της ζυγαριάς', () => {
