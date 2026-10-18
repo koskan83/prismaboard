@@ -106,6 +106,13 @@ function spellLive(v: number[]): Spell {
 const spellNext = (s: Spell): Spell => ({ ...s, acc: 0, phase: 0, idx: s.idx + 1, typed: '', marks: [], sel: 0, peek: s.ready && s.idx + 1 < s.words.length && !s.hints[s.idx + 1] });
 /** Το γεγονός που κάνει την εφαρμογή να πει δυνατά τη λέξη (βλέπε kidFx). */
 const spellSay = (s: Spell): string => `say|${/[a-z]/.test(s.words[s.idx]) ? 'en-GB' : 'el-GR'}|${s.words[s.idx]}`;
+/** Η λέξη `i` έχει τελειώσει (έχει αποτέλεσμα και δεν παίζεται πια ή έχει ελεγχθεί τελικά). */
+const spellDone = (s: Spell, i: number): boolean => !!s.res[i] && (i < s.idx || (i === s.idx && s.phase === 2));
+/** Το χρώμα της κουκκίδας: πράσινο με την πρώτη, κίτρινο αν διορθώθηκε, κόκκινο αν το λάθος έμεινε. */
+const spellDotColor = (r: number): string => (r === 1 ? GOOD : spellFixed(r) ? YELLOW : RED);
+/** Οι κουκκίδες της προόδου: ακτίνα και κέντρο της `i`. */
+const spellDotR = (w: number, h: number, n: number): number => Math.min(h * 0.024, (w * 0.6) / n / 2.6);
+const spellDotX = (w: number, n: number, pr: number, i: number): number => w / 2 + (i - (n - 1) / 2) * pr * 2.6;
 /**
  * Διάταξη: πάνω η πρόοδος, μετά η γραμμή όπου γράφεται η λέξη (`base`) και τι λέει το τερατάκι (`msg`), στη μέση τα πλήκτρα
  * (ή το πλαίσιο για γραφή με το χέρι), κάτω τα κουμπιά: Λέξεις, 👁, 🔊, τρόπος γραφής, Έλεγχος / Επόμενη.
@@ -225,7 +232,7 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         s.words.forEach((word, i) => {
           const res = s.res[i], fixed = spellFixed(res), icon = res === 1 ? '⭐' : fixed ? '✅' : res >= 10 ? '👾' : '➖';
           const x = cols === 1 ? w * 0.6 : w * (0.45 + 0.34 * Math.floor(i / rows));
-          fitText(c, `${icon} ${word}`, x, h * 0.25 + rh * ((i % rows) + 0.5), rh * 0.7, cols === 1 ? w * 0.66 : w * 0.32, res >= 10 && !fixed ? PURPLE : env.ink, 700);
+          fitText(c, `${icon} ${word}`, x, h * 0.25 + rh * ((i % rows) + 0.5), rh * 0.7, cols === 1 ? w * 0.66 : w * 0.32, res === 1 ? GOOD : fixed ? '#ca8a04' : res >= 10 ? RED : env.ink, 700);
         });
         btn(w * 0.02, g.by, w * 0.47, g.bh, '↺ Ξανά οι ίδιες λέξεις', PURPLE);
         btn(w * 0.51, g.by, w * 0.47, g.bh, '✏️ Νέες λέξεις', BLUE);
@@ -263,15 +270,20 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         c.restore();
       };
       const end = SPELL_T0 + bad.length * SPELL_STEP;
-      // πρόοδος: μία κουκκίδα ανά λέξη
-      const pr = Math.min(h * 0.024, (w * 0.6) / n / 2.6);
+      // πρόοδος: μία κουκκίδα ανά λέξη· πράσινη με την πρώτη, κίτρινη αν τη διόρθωσε, κόκκινη αν δεν βρήκε το λάθος
+      const pr = spellDotR(w, h, n);
       s.words.forEach((_, i) => {
         c.save();
         c.beginPath();
-        c.arc(w / 2 + (i - (n - 1) / 2) * pr * 2.6, g.top, pr, 0, Math.PI * 2);
-        if (s.res[i] && (i !== s.idx || (s.phase === 2 && t >= end))) {
-          c.fillStyle = s.res[i] === 1 ? YELLOW : spellFixed(s.res[i]) ? GOOD : PURPLE;
+        c.arc(spellDotX(w, n, pr, i), g.top, pr, 0, Math.PI * 2);
+        if (spellDone(s, i) && (i !== s.idx || t >= end)) {
+          c.fillStyle = spellDotColor(s.res[i]);
           c.fill();
+          if (s.dot === i + 1) {
+            c.lineWidth = 3;
+            c.strokeStyle = env.ink;
+            c.stroke();
+          }
         } else {
           c.globalAlpha = i === s.idx ? 1 : 0.3;
           c.lineWidth = i === s.idx ? 3.5 : 2;
@@ -279,9 +291,25 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         }
         c.restore();
       });
+      const shown = s.dot && spellDone(s, s.dot - 1) ? s.dot - 1 : -1;
+      if (shown >= 0) {
+        // η λέξη της κουκκίδας που πατήθηκε, σε ταμπέλα κάτω από αυτήν
+        const word = s.words[shown], fs = h * 0.04, ly = g.top + pr + h * 0.035;
+        c.save();
+        c.font = `800 ${fs}px ${FONT}`;
+        const lw = Math.min(c.measureText(word).width + fs * 1.2, w * 0.9), lx = Math.max(lw / 2 + 4, Math.min(w - lw / 2 - 4, spellDotX(w, n, pr, shown)));
+        rrect(c, lx - lw / 2, ly - fs * 0.75, lw, fs * 1.5, fs * 0.5);
+        c.fillStyle = '#ffffff';
+        c.fill();
+        c.lineWidth = 3;
+        c.strokeStyle = spellDotColor(s.res[shown]);
+        c.stroke();
+        c.restore();
+        fitText(c, word, lx, ly + 1, fs, lw - fs * 0.6, '#0f172a', 800);
+      }
       c.save();
       c.globalAlpha = 0.6;
-      text(c, `Λέξη ${s.idx + 1} από ${n}`, w / 2, g.top + pr + h * 0.03, h * 0.03, env.ink, 600);
+      if (shown < 0) text(c, `Λέξη ${s.idx + 1} από ${n}`, w / 2, g.top + pr + h * 0.03, h * 0.03, env.ink, 600);
       // η γραμμή όπου γράφεται η λέξη
       c.globalAlpha = 0.3;
       c.lineWidth = 2;
@@ -512,6 +540,13 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         if (x >= w * 0.02 && x <= w * 0.49) return spellPack(spellStart(s, s.words, s.ready, s.hints));
         return x >= w * 0.51 && x <= w * 0.98 ? spellPack({ ...SPELL_EMPTY, hand: s.hand, en: s.en }) : null;
       }
+      // πάτημα σε κουκκίδα λέξης που τελείωσε: φαίνεται ποια ήταν (ξανά πάτημα, ή αλλού, και κρύβεται)
+      const n = s.words.length, pr = spellDotR(w, h, n);
+      if (Math.abs(y - g.top) <= pr * 1.6) {
+        const i = Math.round((x - spellDotX(w, n, pr, 0)) / (pr * 2.6));
+        if (i >= 0 && i < n && Math.abs(x - spellDotX(w, n, pr, i)) <= pr * 1.3 && spellDone(s, i)) return spellPack({ ...s, dot: s.dot === i + 1 ? 0 : i + 1 });
+      }
+      if (s.dot) s = { ...s, dot: 0 };
       const k = spellBtn(g, x, y);
       if (k === 0) return s.hand ? null : spellPack({ ...SPELL_EMPTY, en: s.en });
       if (k === 1) return s.phase < 2 ? spellPack({ ...s, peek: !s.peek }) : null;

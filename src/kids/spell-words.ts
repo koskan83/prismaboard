@@ -51,13 +51,14 @@ export function spellList(text: string): { words: string[]; hints: string[] } {
  * `hints`: ανά λέξη, αυτό που βλέπει ο μαθητής αντί να την ακούσει (η σημασία της στα ελληνικά), ή κενό. `said`: αλλάζει σε κάθε πάτημα του 🔊.
  * `en`: στην αρχική οθόνη έχουν διαλεχτεί τα Αγγλικά (έτοιμες αγγλικές λέξεις, υπαγόρευση στα αγγλικά).
  * `acc`: πατήθηκε το νεκρό πλήκτρο του τόνου και περιμένει φωνήεν (1 τόνος, 2 διαλυτικά, 3 και τα δύο).
+ * `dot`: πατήθηκε η κουκκίδα μιας λέξης που έχει τελειώσει και φαίνεται ποια ήταν (θέση + 1, ή 0).
  */
 export interface Spell {
-  phase: number; hand: boolean; peek: boolean; ready: boolean; en: boolean; said: boolean; acc: number; idx: number; sel: number;
+  phase: number; hand: boolean; peek: boolean; ready: boolean; en: boolean; said: boolean; acc: number; idx: number; sel: number; dot: number;
   words: string[]; hints: string[]; res: number[]; typed: string; marks: boolean[];
 }
 export const SPELL_NEW = 1024, SPELL_MARK = 0x10000;
-export const SPELL_EMPTY: Spell = { phase: 0, hand: false, peek: false, ready: false, en: false, said: false, acc: 0, idx: 0, sel: 0, words: [], hints: [], res: [], typed: '', marks: [] };
+export const SPELL_EMPTY: Spell = { phase: 0, hand: false, peek: false, ready: false, en: false, said: false, acc: 0, idx: 0, sel: 0, dot: 0, words: [], hints: [], res: [], typed: '', marks: [] };
 /** [σημαίες, ποια λέξη, πιασμένο γράμμα, μήκος λίστας, η λίστα…, αποτέλεσμα ανά λέξη…, ό,τι έχει γραφτεί…]. */
 export function spellState(v: number[]): Spell {
   const f = v[0] ?? 0;
@@ -66,14 +67,14 @@ export function spellState(v: number[]): Spell {
   const n = v[3] ?? 0, list = String.fromCharCode(...v.slice(4, 4 + n)), entries = list ? list.split('\n').map((e) => e.split('=')) : [], words = entries.map((e) => e[0]);
   const rest = v.slice(4 + n + words.length);
   return {
-    phase: f & 3, hand: (f & 4) !== 0, peek: (f & 8) !== 0, ready: (f & 16) !== 0, en: (f & 32) !== 0, said: (f & 64) !== 0, acc: (f >> 7) & 3, idx: v[1] ?? 0, sel: v[2] ?? 0, words, hints: entries.map((e) => e[1] ?? ''),
+    phase: f & 3, hand: (f & 4) !== 0, peek: (f & 8) !== 0, ready: (f & 16) !== 0, en: (f & 32) !== 0, said: (f & 64) !== 0, acc: (f >> 7) & 3, dot: Math.floor(f / 2048), idx: v[1] ?? 0, sel: v[2] ?? 0, words, hints: entries.map((e) => e[1] ?? ''),
     res: words.map((_, i) => v[4 + n + i] ?? 0), typed: rest.map((code) => String.fromCharCode(code % SPELL_MARK)).join(''), marks: rest.map((code) => code >= SPELL_MARK),
   };
 }
 export function spellPack(s: Spell): number[] {
   const list = s.words.map((word, i) => (s.hints[i] ? `${word}=${s.hints[i]}` : word)).join('\n');
   return [
-    SPELL_NEW + s.phase + (s.hand ? 4 : 0) + (s.peek ? 8 : 0) + (s.ready ? 16 : 0) + (s.en ? 32 : 0) + (s.said ? 64 : 0) + (s.acc << 7), s.idx, s.sel, list.length,
+    SPELL_NEW + s.phase + (s.hand ? 4 : 0) + (s.peek ? 8 : 0) + (s.ready ? 16 : 0) + (s.en ? 32 : 0) + (s.said ? 64 : 0) + (s.acc << 7) + s.dot * 2048, s.idx, s.sel, list.length,
     ...[...list].map((ch) => ch.charCodeAt(0)), ...s.words.map((_, i) => s.res[i] ?? 0),
     ...[...s.typed].map((ch, i) => ch.charCodeAt(0) + (s.marks[i] ? SPELL_MARK : 0)),
   ];

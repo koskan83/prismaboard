@@ -390,7 +390,7 @@ import { spellDiff, spellGame, spellKeyboard, spellList, spellNorm, spellPack, s
 describe('ορθογραφία με το τερατάκι', () => {
   const d = KIDS.spell;
   const game = (words: string[], more: Partial<Spell> = {}): number[] =>
-    spellPack({ phase: 0, hand: false, peek: false, ready: false, en: false, said: false, acc: 0, idx: 0, sel: 0, words, hints: words.map(() => ''), res: words.map(() => 0), typed: '', marks: [], ...more });
+    spellPack({ phase: 0, hand: false, peek: false, ready: false, en: false, said: false, acc: 0, idx: 0, sel: 0, dot: 0, words, hints: words.map(() => ''), res: words.map(() => 0), typed: '', marks: [], ...more });
   const EL = false, EN = true;
   /** Ένα πλήκτρο· τα τονισμένα γράφονται όπως σε κανονικό πληκτρολόγιο, με τον τόνο πρώτα. */
   const press1 = (v: number[], ch: string, en: boolean): number[] | null => {
@@ -441,7 +441,7 @@ describe('ορθογραφία με το τερατάκι', () => {
     expect(bad('οδοσ', 'οδός')).toBe('..ss');
   });
   it('η κατάσταση γράφεται και διαβάζεται ίδια· η παλιά (μία λέξη) ξεκινά από την αρχή', () => {
-    const s: Spell = { phase: 1, hand: true, peek: true, ready: true, en: true, said: true, acc: 3, idx: 1, sel: 2, words: ['μήλο', 'good morning'], hints: ['', 'καλημέρα'], res: [12, 0], typed: 'go_d', marks: [false, false, true, false] };
+    const s: Spell = { phase: 1, hand: true, peek: true, ready: true, en: true, said: true, acc: 3, idx: 1, sel: 2, dot: 2, words: ['μήλο', 'good morning'], hints: ['', 'καλημέρα'], res: [12, 0], typed: 'go_d', marks: [false, false, true, false] };
     expect(spellState(spellPack(s))).toEqual(s);
     expect(spellState([1, 4, 956, 942, 955, 959, 956]).words).toEqual([]);
     expect(spellState(d.init!).words).toEqual([]);
@@ -544,6 +544,17 @@ describe('ορθογραφία με το τερατάκι', () => {
     // στα αποτελέσματα: «Ξανά οι ίδιες» και «Νέες λέξεις»
     expect(spellState(d.tap!(v, d.w * 0.25, d.h * 0.93, d.w, d.h)!)).toMatchObject({ idx: 0, res: [0, 0], words: ['μήλο', 'φως'] });
     expect(spellState(d.tap!(v, d.w * 0.75, d.h * 0.93, d.w, d.h)!).words).toEqual([]);
+  });
+  it('πάτημα στην κουκκίδα λέξης που τελείωσε δείχνει ποια ήταν· της επόμενης όχι', () => {
+    // δύο λέξεις: η πρώτη σωστή, και τώρα παίζεται η δεύτερη
+    const v = game(['μήλο', 'φως'], { idx: 1, res: [1, 0] });
+    const pr = Math.min(d.h * 0.024, (d.w * 0.6) / 2 / 2.6), dot = (i: number): [number, number] => [d.w / 2 + (i - 0.5) * pr * 2.6, d.h * 0.05];
+    const shown = d.tap!(v, ...dot(0), d.w, d.h)!;
+    expect(spellState(shown).dot).toBe(1);
+    expect(d.tap!(v, ...dot(1), d.w, d.h)).toBeNull();
+    // ξανά πάτημα την κρύβει· πάτημα αλλού την κρύβει και κάνει ό,τι θα έκανε
+    expect(spellState(d.tap!(shown, ...dot(0), d.w, d.h)!).dot).toBe(0);
+    expect(spellState(key(shown, 'φ')!)).toMatchObject({ dot: 0, typed: 'φ' });
   });
   it('το 👁 δείχνει τη λέξη και το πρώτο πλήκτρο την κρύβει', () => {
     const shown = press(game(['μήλο']), 1)!;

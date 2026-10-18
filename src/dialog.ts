@@ -446,27 +446,50 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       return o.count(ta.value);
     });
     side.append(eye, mic.btn);
+    // 🎲: πατιέται και μετά τσεκάρεις λίστες από πάνω· σε κάθε τσεκάρισμα μπαίνουν 10 λέξεις στην τύχη από όσες τσεκαρίστηκαν
+    let picking = false;
+    const ticked = new Set<string>();
+    let dice: HTMLButtonElement | null = null;
+    const roll = (): void => {
+      if (!o.random) return;
+      const src = lists.filter((l) => ticked.has(l.name));
+      if (!src.length) {
+        info.textContent = '🎲 Τσέκαρε από πάνω μία ή περισσότερες λίστες: θα μπουν 10 λέξεις στην τύχη από αυτές.';
+        return;
+      }
+      const r = o.random(src.map((l) => l.text));
+      ta.value = r.text;
+      // το όνομα σβήνει, για να μη γραφτεί η τυχαία δεκάδα πάνω σε λίστα
+      name.value = '';
+      update();
+      const label = src.length === 1 ? `τη λίστα «${src[0].name}»` : `${src.length} λίστες`;
+      info.textContent = `🎲 ${o.count(r.text)} στην τύχη από ${label} (${r.count} λέξεις). Πάτα ξανά το 🎲 για άλλες.`;
+    };
     if (o.random) {
-      const random = o.random, dice = button('🎲', 'eye');
-      // ξανά 🎲 χωρίς αλλαγή στο κουτί: νέα δεκάδα από την ίδια πηγή, όχι από την προηγούμενη δεκάδα
-      let last: { text: string; from: string[]; label: string } | null = null;
-      dice.title = '10 λέξεις στην τύχη: από τη λίστα στο κουτί, ή από όλες τις λίστες σου αν το κουτί είναι άδειο';
+      const random = o.random;
+      dice = button('🎲', 'eye');
+      dice.title = 'Λέξεις στην τύχη: πάτα το 🎲 και τσέκαρε λίστες από πάνω';
       dice.onclick = () => {
-        // από ό,τι είναι στο κουτί (μια λίστα που μόλις διάλεξες, ή πολλές επικολλημένες)· αλλιώς από όλες τις φυλαγμένες
-        const again = last && ta.value === last.text ? last : null, own = o.count(ta.value) > 0, from = own ? name.value.trim() : '';
-        const src = again?.from ?? (own ? [ta.value] : lists.map((l) => l.text));
-        const label = again?.label ?? (own ? (from ? `τη λίστα «${from}»` : 'τις λέξεις του κουτιού') : lists.length === 1 ? 'τη λίστα σου' : 'όλες τις λίστες σου');
-        const r = random(src);
-        if (!r.text) {
-          info.textContent = 'Δεν υπάρχουν λέξεις για να διαλέξω: γράψε λέξεις ή φύλαξε πρώτα μια λίστα.';
+        if (!lists.length) {
+          // χωρίς φυλαγμένες λίστες: 10 στην τύχη από ό,τι είναι στο κουτί
+          const r = random([ta.value]);
+          if (!r.text) {
+            info.textContent = 'Δεν υπάρχουν λέξεις για να διαλέξω: γράψε λέξεις ή φύλαξε πρώτα μια λίστα.';
+            return;
+          }
+          ta.value = r.text;
+          name.value = '';
+          update();
+          info.textContent = `🎲 ${o.count(r.text)} στην τύχη από τις λέξεις του κουτιού (${r.count} λέξεις).`;
           return;
         }
-        ta.value = r.text;
-        last = { text: r.text, from: src, label };
-        // το όνομα σβήνει, για να μη γραφτεί η τυχαία δεκάδα πάνω στη λίστα από την οποία βγήκε
-        name.value = '';
-        update();
-        info.textContent = `🎲 ${o.count(r.text)} στην τύχη από ${label} (${r.count} λέξεις). Πάτα ξανά το 🎲 για άλλες.`;
+        // ξανά 🎲 με τσεκαρισμένες λίστες: νέα δεκάδα· χωρίς καμία, το τσεκάρισμα κλείνει
+        if (picking && !ticked.size) picking = false;
+        else picking = true;
+        dice!.classList.toggle('on', picking);
+        draw();
+        if (picking) roll();
+        else info.textContent = 'Το 🎲 έκλεισε: πάτημα σε λίστα τη φορτώνει ολόκληρη.';
       };
       side.append(dice);
     }
@@ -511,7 +534,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       info.textContent = !n ? 'Γράψε ή επικόλλησε λέξεις, ή διάλεξε μια λίστα από πάνω.' : `${n === 1 ? '1 λέξη' : `${n} λέξεις`}${n >= o.max ? ` (μπαίνουν οι πρώτες ${o.max})` : ''}`;
       yes.disabled = keep.disabled = !n;
       keep.disabled ||= !name.value.trim();
-      chips.querySelectorAll<HTMLElement>('[data-name]').forEach((c) => c.classList.toggle('on', c.dataset.name === name.value.trim()));
+      chips.querySelectorAll<HTMLElement>('[data-name]').forEach((c) => c.classList.toggle('on', picking ? ticked.has(c.dataset.name!) : c.dataset.name === name.value.trim()));
     };
     const draw = (): void => {
       chips.replaceChildren();
@@ -520,14 +543,26 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
         none.textContent = 'Δεν έχεις ακόμη φυλαγμένες λίστες: γράψε λέξεις, δώσε όνομα και πάτα «Φύλαξε».';
         chips.append(none);
       }
+      // λίστα που σβήστηκε δεν μένει τσεκαρισμένη
+      for (const n of [...ticked]) if (!lists.some((l) => l.name === n)) ticked.delete(n);
       for (const l of lists) {
-        const chip = button(l.name, 'wordChip');
+        const chip = button(picking ? `${ticked.has(l.name) ? '☑' : '☐'} ${l.name}` : l.name, 'wordChip');
         chip.dataset.name = l.name;
         chip.onclick = () => {
+          if (picking) {
+            if (ticked.has(l.name)) ticked.delete(l.name);
+            else ticked.add(l.name);
+            draw();
+            roll();
+            return;
+          }
           name.value = l.name;
           ta.value = l.text;
           update();
         };
+        chips.append(chip);
+        // στο τσεκάρισμα δεν σβήνονται λίστες
+        if (picking) continue;
         // το × θέλει δεύτερο πάτημα, για να μη σβηστεί λίστα κατά λάθος
         const x = document.createElement('span');
         x.className = 'wordDel';
@@ -542,7 +577,6 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
           void o.remove(l.name).then((next) => { lists = next; draw(); });
         };
         chip.append(x);
-        chips.append(chip);
       }
       update();
     };

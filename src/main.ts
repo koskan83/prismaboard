@@ -849,7 +849,7 @@ function showFxPrefs(): void {
 showFxPrefs();
 /** Ήχος για κάτι που έγινε σε εργαλείο του Δημοτικού· στις επιτυχίες και κομφετί από το σημείο (x, y) της οθόνης. */
 const noVoice = new Set<string>();
-function kidFx(ev: string, x?: number, y?: number, near?: Spot): void {
+function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): void {
   if (!primary) return;
   if (ev.startsWith('say|')) {
     // ορθογραφία: η λέξη λέγεται δυνατά· αν δεν ακουστεί, το λέμε μία φορά ανά γλώσσα
@@ -868,19 +868,24 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot): void {
     return;
   }
   playFx(ev, fxPrefs);
+  // συλλαβές: όταν ο βάτραχος φτάσει απέναντι (ένα πήδημα = SYL_HOP), κομφετί και η μασκότ
+  const frog = /^frog\|(\d+)\|w$/.exec(ev);
+  if (frog) setTimeout(() => { confetti(x, y, 180); cheer(near); }, (Number(frog[1]) + 1) * 700);
+  // στην ορθογραφία το τερατάκι είναι ήδη μέσα στο παιχνίδι: δεν πετάγεται και η μασκότ δίπλα του
+  const mascotToo = game !== 'spell';
   if (ev === 'win') {
     confetti(x, y, 180);
     // η μασκότ πανηγυρίζει μαζί με την τάξη, δίπλα στο παιχνίδι
-    cheer(near);
+    if (mascotToo) cheer(near);
   } else if (ev === 'cheer') {
     confetti(x, y, 70);
-    cheer(near);
+    if (mascotToo) cheer(near);
   }
 }
 board.onKidFx = (ev, it) => {
   const [x, y] = board.toScreen(it.x + it.w / 2, it.y + it.h / 2);
   const [left, top] = board.toScreen(it.x, it.y), [right, bottom] = board.toScreen(it.x + it.w, it.y + it.h);
-  kidFx(ev, x, y, { left, top, right, bottom });
+  kidFx(ev, x, y, { left, top, right, bottom }, it.name);
 };
 // τα εργαλεία του Δημοτικού φτάνουν λίγο μετά το άνοιγμα (βλ. kids/lazy.ts): ό,τι υπάρχει ήδη στον πίνακα ξαναζωγραφίζεται
 onKidsLoaded(() => board.redraw());

@@ -557,6 +557,7 @@ body.primary #gadgetMenu .tiles[data-tab] { animation: tabIn .14s ease-out; }
 .askIn input:focus { outline: none; border-color: var(--focus); }
 .askIn input.secret { -webkit-text-security: disc; }
 .askIn .eye { width: 60px; height: 60px; border-radius: 14px; background: var(--bar-2); font-size: 26px; }
+.askIn .eye.on { background: var(--accent); color: #fff; box-shadow: 0 0 0 3px rgba(124, 104, 176, 0.35); }
 .askIn .mic.on { background: var(--danger-bg); animation: micOn 1s ease-in-out infinite alternate; }
 @keyframes micOn { to { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.25); } }
 .askPicks { display: flex; flex-wrap: wrap; gap: 8px; }
