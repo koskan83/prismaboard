@@ -42,13 +42,17 @@ function report(text: string, toast: Toast): void {
   });
 }
 
-/** Παράθυρο αναφοράς προβλήματος (από το μήνυμα σφάλματος ή από το μενού). */
-export async function openReport(toast: Toast, title = 'Αναφορά από το μενού'): Promise<void> {
-  const note = await askLines('Αναφορά προβλήματος', {
-    hint: 'Γράψε τι έκανες πριν εμφανιστεί το πρόβλημα. Μαζί στέλνονται η έκδοση, ο browser και τα τεχνικά στοιχεία του σφάλματος, όχι τα μαθήματά σου.',
+/** Παράθυρο για πρόβλημα ή πρόταση: από το μήνυμα σφάλματος (`title` = το σφάλμα) ή από το ☰ (χωρίς `title`). */
+export async function openReport(toast: Toast, title?: string): Promise<void> {
+  const note = await askLines(title ? 'Αναφορά προβλήματος' : 'Πρόβλημα ή πρόταση', {
+    hint: title
+      ? 'Γράψε τι έκανες πριν εμφανιστεί το πρόβλημα. Μαζί στέλνονται η έκδοση, ο browser και τα τεχνικά στοιχεία του σφάλματος, όχι τα μαθήματά σου.'
+      : 'Τι δεν δούλεψε σωστά, ή τι θα ήθελες να έχει το PrismaBoard; Μαζί στέλνονται η έκδοση και ο browser, όχι τα μαθήματά σου.',
     ok: 'Αποστολή',
   });
   if (note === null) return;
+  if (!title && !note.trim()) return void toast('Γράψε πρώτα το πρόβλημα ή την πρότασή σου', 4000);
+  title ??= `Από το μενού: ${note.trim().split('\n')[0].slice(0, 60)}`;
   const details = errorReport();
   if (!REPORT_URL) {
     void navigator.clipboard?.writeText(details).catch(() => undefined);
@@ -59,7 +63,7 @@ export async function openReport(toast: Toast, title = 'Αναφορά από τ
   try {
     // text/plain χωρίς ανάγνωση της απάντησης: το Apps Script δεν δέχεται τον έλεγχο CORS που θα έκανε ο browser για JSON
     await fetch(REPORT_URL, { method: 'POST', mode: 'no-cors', headers: { 'content-type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ app: 'prismaboard', title, note: note.slice(0, 1500), details }) });
-    toast('Η αναφορά στάλθηκε. Ευχαριστούμε!', 4000);
+    toast('Στάλθηκε. Ευχαριστούμε!', 4000);
   } catch {
     void navigator.clipboard?.writeText(`${note}\n\n${details}`).catch(() => undefined);
     toast('Η αναφορά δεν στάλθηκε (ίσως δεν υπάρχει internet). Αντιγράφηκε στο πρόχειρο· δοκίμασε ξανά αργότερα.', 8000);

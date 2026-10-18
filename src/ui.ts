@@ -36,6 +36,7 @@ const I = {
   delpage: IC('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 12h6"/>'),
   screen: IC('<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/>'),
   spark: P('M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'),
+  chat: P('M4 5h16v11H10l-5 4v-4H4zM8 9.5h8M8 12.5h5'),
   full: P('M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5'),
   exit: P('M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5M15 8l4 4-4 4M19 12H9'),
   fullExit: P('M3 8h5V3M21 8h-5V3M3 16h5v5M21 16h-5v5'),
@@ -116,6 +117,7 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="fxclick" data-lv="pri"', I.spark, 'Ήχος «κλικ» στα κουμπιά των εργαλείων')}
     ${mi('data-act="level"', I.target, 'Αλλαγή σε Δημοτικό')}
     ${mi('data-act="help"', I.doc, 'Οδηγίες χρήσης')}
+    ${mi('data-act="report"', I.chat, 'Πρόβλημα ή πρόταση; Γράψε μας')}
     ${mi('data-act="more"', I.target, 'Ρυθμίσεις και αρχεία…')}
     ${mi('data-act="exit" id="exitAct" class="hidden"', I.exit, 'Έξοδος')}
   </div>
@@ -135,7 +137,6 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="test"', I.check, 'Λίστα δοκιμής στην τάξη')}
     ${mi('data-act="usage"', I.check, 'Τι χρησιμοποιώ')}
     ${mi('data-act="news"', I.spark, 'Τι νέο')}
-    ${mi('data-act="report"', I.send, 'Αναφορά προβλήματος')}
     ${mi('data-act="licenses"', I.doc, 'Απόρρητο και άδειες τρίτων')}
     <div id="verLine"></div>
   </div>
