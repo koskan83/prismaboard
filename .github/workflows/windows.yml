@@ -22,9 +22,12 @@ jobs:
     env:
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    defaults:
+      run:
+        shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
@@ -37,27 +40,43 @@ jobs:
       # το tag πρέπει να είναι ίδιο με την έκδοση του package.json, αλλιώς τα προγράμματα δεν θα έβλεπαν σωστά τη νέα έκδοση
       - name: Έλεγχος έκδοσης
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
         run: |
           want="v$(node -p "require('./package.json').version")"
-          [ "$want" = "${GITHUB_REF_NAME}" ] || { echo "Το tag ${GITHUB_REF_NAME} δεν ταιριάζει με την έκδοση $want του package.json"; exit 1; }
-      - name: Release
+          [ "$want" = "${GITHUB_REF_NAME}" ] || { echo "::error::Το tag ${GITHUB_REF_NAME} δεν ταιριάζει με την έκδοση $want του package.json"; exit 1; }
+      - name: Έλεγχος κλειδιού υπογραφής
+        run: |
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::Λείπει το secret TAURI_SIGNING_PRIVATE_KEY"; exit 1; }
+          [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ] || echo "::warning::Το secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD είναι κενό"
+      # οι τελευταίες γραμμές ενός σφάλματος γράφονται και ως annotations, που φαίνονται και χωρίς σύνδεση στο GitHub
+      - name: Χτίσιμο
+        run: |
+          set -o pipefail
+          npx tauri build --ci 2>&1 | tee build.log || {
+            grep -v '^\s*Compiling ' build.log | tail -n 40 | sed 's/%/%25/g' | while IFS= read -r l; do echo "::error::${l:0:900}"; done
+            exit 1
+          }
+      - name: Release και latest.json
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: PrismaBoard ${{ github.ref_name }}
-          releaseBody: Πρόγραμμα εγκατάστασης για Windows. Τα προγράμματα που είναι ήδη εγκατεστημένα ενημερώνονται μόνα τους.
-          releaseDraft: false
-          prerelease: false
-          includeUpdaterJson: true
-      - name: Χτίσιμο χωρίς release
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-        run: npx tauri build
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd src-tauri/target/release/bundle/nsis
+          exe=$(ls *-setup.exe | head -1)
+          [ -f "$exe.sig" ] || { echo "::error::Λείπει η υπογραφή $exe.sig"; exit 1; }
+          url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/${exe// /.}"
+          node -e '
+            const [ver, url, sig] = process.argv.slice(1);
+            const p = { signature: sig, url };
+            require("fs").writeFileSync("latest.json", JSON.stringify({
+              version: ver, notes: "PrismaBoard " + ver, pub_date: new Date().toISOString(),
+              platforms: { "windows-x86_64": p, "windows-x86_64-nsis": p },
+            }, null, 2));
+          ' "${GITHUB_REF_NAME#v}" "$url" "$(cat "$exe.sig")"
+          gh release create "$GITHUB_REF_NAME" "$exe" "$exe.sig" latest.json \
+            --title "PrismaBoard $GITHUB_REF_NAME" \
+            --notes "Πρόγραμμα εγκατάστασης για Windows. Τα προγράμματα που είναι ήδη εγκατεστημένα ενημερώνονται μόνα τους." \
+            --latest
       - uses: actions/upload-artifact@v4
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         with:
           name: prismaboard-windows
           path: src-tauri/target/release/bundle/nsis/*.exe
