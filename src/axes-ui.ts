@@ -181,7 +181,11 @@ function renderFnParams(): void {
   if (names.join() !== fnParamKey) {
     fnParamKey = names.join();
     box.innerHTML = names
-      .map((n) => `<label class="fnPar"><b>${esc(n)} = <output></output></b><input type="range" min="-5" max="5" step="0.1" data-par="${esc(n)}" /></label>`)
+      .map((n) => {
+        // εύρος από −5 ως 5, ή μεγαλύτερο όταν η τιμή είναι μεγάλη (π.χ. h = 20 m → από −40 ως 40)
+        const r = Math.max(5, Math.ceil((Math.abs(val(n)) * 2) / 5) * 5);
+        return `<label class="fnPar"><b>${esc(n)} = <output></output></b><input type="range" min="${-r}" max="${r}" step="${r / 50}" data-par="${esc(n)}" /></label>`;
+      })
       .join('');
   }
   box.querySelectorAll<HTMLInputElement>('[data-par]').forEach((sl) => {
