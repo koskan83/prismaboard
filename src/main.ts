@@ -2,7 +2,7 @@ import { EraserMode, SizedTool } from './board';
 import { AxesItem, AxesMode, Background, ShapeKind, Tool, isDark } from './model';
 import { Lessons } from './lessons';
 import { GadgetKind } from './gadgets';
-import { isNative, isOverlay, nativeExit, openOverlay } from './native';
+import { isNative, isOverlay, nativeCheckUpdate, nativeExit, nativeRelaunch, openOverlay, type NativeUpdate } from './native';
 import { initSnip, toggleSnip } from './snip';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
@@ -1101,6 +1101,36 @@ if (!isOverlay) trackUsage();
 
 if (import.meta.env.PROD && !isNative && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+// Πρόγραμμα των Windows: λίγο μετά το άνοιγμα και μετά μία φορά τη μέρα, ψάχνει νέα έκδοση στα GitHub Releases.
+// Η ενημέρωση γίνεται μόνο όταν πατηθεί το κουμπί, αφού αποθηκευτεί το μάθημα.
+if (isNative && !isOverlay) {
+  let busy = false;
+  const install = async (u: NativeUpdate): Promise<void> => {
+    busy = true;
+    try {
+      await lessons?.flush(true);
+      let total = 0, got = 0;
+      toast('Κατεβαίνει η ενημέρωση…', 0);
+      await u.downloadAndInstall((e) => {
+        if (e.event === 'Started') total = e.data?.contentLength ?? 0;
+        else if (e.event === 'Progress' && total) toast(`Κατεβαίνει η ενημέρωση… ${Math.round(((got += e.data?.chunkLength ?? 0) / total) * 100)}%`, 0);
+        else if (e.event === 'Finished') toast('Εγκατάσταση της ενημέρωσης…', 0);
+      });
+      await nativeRelaunch();
+    } catch (err) {
+      toast(`Η ενημέρωση δεν ολοκληρώθηκε: ${err instanceof Error ? err.message : err}`, 8000);
+      busy = false;
+    }
+  };
+  const check = async (): Promise<void> => {
+    const u = busy ? null : await nativeCheckUpdate();
+    if (!u) return;
+    toast(`Υπάρχει νέα έκδοση του PrismaBoard (${u.version})`, 0, { label: 'Ενημέρωση', run: () => void install(u) });
+  };
+  setTimeout(() => void check(), 8000);
+  setInterval(() => void check(), 24 * 3600000);
 }
 
 // Πίνακας που μένει ανοιχτός για μέρες δεν παίρνει ποτέ τη νέα έκδοση: όταν ανέβει καινούρια, ένα μήνυμα προτείνει ανανέωση.

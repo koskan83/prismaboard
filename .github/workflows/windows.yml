@@ -1,13 +1,27 @@
 name: Windows installer
 
+# Σε κάθε tag v* (π.χ. v0.2.0): χτίζει το πρόγραμμα εγκατάστασης, το υπογράφει για την αυτόματη ενημέρωση
+# και το ανεβάζει σε GitHub Release μαζί με το latest.json, που το διαβάζουν τα εγκατεστημένα προγράμματα
+# (βλ. plugins.updater στο src-tauri/tauri.conf.json).
+# Χειροκίνητα από την καρτέλα Actions: μόνο χτίσιμο, χωρίς release (το .exe κατεβαίνει από τα Artifacts).
+#
+# Χρειάζονται τα secrets του αποθετηρίου TAURI_SIGNING_PRIVATE_KEY και TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+# (το κλειδί από το «tauri signer generate»). Χωρίς αυτά το χτίσιμο αποτυγχάνει.
+
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,8 +34,30 @@ jobs:
           workspaces: src-tauri
       - run: npm ci
       - run: npm test
-      - run: npx tauri build
+      # το tag πρέπει να είναι ίδιο με την έκδοση του package.json, αλλιώς τα προγράμματα δεν θα έβλεπαν σωστά τη νέα έκδοση
+      - name: Έλεγχος έκδοσης
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          want="v$(node -p "require('./package.json').version")"
+          [ "$want" = "${GITHUB_REF_NAME}" ] || { echo "Το tag ${GITHUB_REF_NAME} δεν ταιριάζει με την έκδοση $want του package.json"; exit 1; }
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: PrismaBoard ${{ github.ref_name }}
+          releaseBody: Πρόγραμμα εγκατάστασης για Windows. Τα προγράμματα που είναι ήδη εγκατεστημένα ενημερώνονται μόνα τους.
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+      - name: Χτίσιμο χωρίς release
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: npx tauri build
       - uses: actions/upload-artifact@v4
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         with:
           name: prismaboard-windows
           path: src-tauri/target/release/bundle/nsis/*.exe

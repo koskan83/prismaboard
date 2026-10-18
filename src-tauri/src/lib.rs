@@ -177,6 +177,9 @@ fn exit_app(app: AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        // αυτόματη ενημέρωση από τα GitHub Releases (βλ. plugins.updater στο tauri.conf.json)
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![capture_screen, save_file, open_overlay, close_overlay, exit_app, save_in_folder, show_file])
         .run(tauri::generate_context!())
         .expect("σφάλμα κατά την εκκίνηση της εφαρμογής");

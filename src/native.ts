@@ -47,3 +47,24 @@ export async function nativeSaveIn(folder: string, blob: Blob, name: string): Pr
 export function nativeShowFile(path: string): Promise<void> {
   return core!.invoke<void>('show_file', { path });
 }
+
+/** Νέα έκδοση του προγράμματος των Windows, όπως τη δίνει το πρόσθετο updater του Tauri. */
+export interface NativeUpdate {
+  version: string;
+  downloadAndInstall(onEvent?: (e: { event: string; data?: { contentLength?: number; chunkLength?: number } }) => void): Promise<void>;
+}
+interface TauriPlugins {
+  updater?: { check(): Promise<NativeUpdate | null> };
+  process?: { relaunch(): Promise<void> };
+}
+const plugins = (): TauriPlugins => (window as unknown as { __TAURI__?: TauriPlugins }).__TAURI__ ?? {};
+
+/** Ψάχνει νεότερη έκδοση στα GitHub Releases (latest.json, υπογεγραμμένο). null αν δεν υπάρχει ή δεν υπάρχει internet. */
+export async function nativeCheckUpdate(): Promise<NativeUpdate | null> {
+  return (await plugins().updater?.check().catch(() => null)) ?? null;
+}
+
+/** Ξανανοίγει το πρόγραμμα (μετά την εγκατάσταση της ενημέρωσης). */
+export function nativeRelaunch(): Promise<void> {
+  return plugins().process?.relaunch() ?? Promise.resolve();
+}
