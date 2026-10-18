@@ -3,19 +3,13 @@
  * και η «Ορθογραφία από τον πίνακα» από την αρχή, ενώ η σκηνή (spell.ts) φορτώνεται αργότερα.
  */
 
+import { SPELL_READY_EN } from './ready-words';
+
 /** Τα πλήκτρα ακολουθούν τη γλώσσα της λέξης που ζητείται. */
 export const spellIsEn = (target: string): boolean => /[a-z]/.test(target);
 /** Πόσα γράμματα χωρά μια λέξη ή πρόταση, και πόσα μπορεί να γράψει ο μαθητής (λίγα παραπάνω, για τα περιττά). */
 export const SPELL_LEN = 40, SPELL_MAX = 42, SPELL_WORDS = 20, SPELL_PICK = 8;
-/** Οι αγγλικές έχουν δίπλα τους τη σημασία στα ελληνικά: αυτή βλέπει ο μαθητής, και γράφει την αγγλική λέξη. */
-export const SPELL_READY_EN = [
-  'cat=γάτα dog=σκύλος sun=ήλιος red=κόκκινο blue=μπλε one=ένα two=δύο book=βιβλίο pen=στιλό mum=μαμά dad=μπαμπάς ball=μπάλα',
-  'apple=μήλο school=σχολείο green=πράσινο yellow=κίτρινο three=τρία happy=χαρούμενος water=νερό house=σπίτι mother=μητέρα father=πατέρας sister=αδελφή brother=αδελφός',
-  'teacher=δάσκαλος friend=φίλος family=οικογένεια window=παράθυρο orange=πορτοκάλι monday=Δευτέρα pencil=μολύβι number=αριθμός garden=κήπος rabbit=κουνέλι summer=καλοκαίρι winter=χειμώνας',
-  'breakfast=πρωινό birthday=γενέθλια tomorrow=αύριο elephant=ελέφαντας football=ποδόσφαιρο saturday=Σάββατο beautiful=όμορφος kitchen=κουζίνα morning=πρωί thursday=Πέμπτη because=επειδή children=παιδιά',
-  'different=διαφορετικός favourite=αγαπημένος wednesday=Τετάρτη mountain=βουνό language=γλώσσα question=ερώτηση february=Φεβρουάριος together=μαζί vegetable=λαχανικό computer=υπολογιστής yesterday=χθες dangerous=επικίνδυνος',
-  'environment=περιβάλλον necessary=απαραίτητος restaurant=εστιατόριο temperature=θερμοκρασία government=κυβέρνηση interesting=ενδιαφέρων neighbour=γείτονας knowledge=γνώση dictionary=λεξικό experience=εμπειρία invitation=πρόσκληση comfortable=άνετος',
-].map((s) => s.split(' '));
+/** Η σημασία των έτοιμων αγγλικών λέξεων: αγγλική λέξη χωρίς «=» παίρνει αυτήν. */
 export const SPELL_MEANING = new Map(SPELL_READY_EN.flat().map((e) => e.split('=') as [string, string]));
 /** Λέξη ή πρόταση όπως συγκρίνεται, ελληνική ή αγγλική: πεζά με τους τόνους τους, χωρίς στίξη (μένει η απόστροφος) και διπλά κενά. */
 export function spellNorm(text: string, max = SPELL_LEN): string {

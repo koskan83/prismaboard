@@ -10,6 +10,7 @@
 import type { StampDef } from '../stamps';
 import { syllableStarts } from '../syllabify';
 import { BLUE, FONT, GOOD, kid, RED, rrect, text } from './common';
+import { readyWords } from './ready-words';
 
 /** Ένα πήδημα του βατράχου (ms)· το ίδιο και στους ήχους (fx.ts, «frog|…»). */
 export const SYL_HOP = 700;
@@ -21,13 +22,6 @@ const NEW_PAD = 99, PAD = 100;
 /** Στόχος «πάτημα στη στοίβα χωρίς σύρσιμο»: μπαίνει ένα νούφαρο στο τέλος. */
 const APPEND = 999;
 
-/** Λέξεις για το 🎲: γνωστές στα παιδιά, από 2 ως 5 συλλαβές. */
-const SYL_WORDS = [
-  'μήλο', 'ψάρι', 'σπίτι', 'γάτα', 'σκύλος', 'μπάλα', 'κούκλα', 'τρένο', 'νερό', 'φωτιά', 'δέντρο', 'άστρο', 'ήλιος', 'γιαγιά', 'παιδιά', 'πουλιά',
-  'βάτραχος', 'θάλασσα', 'καρέκλα', 'κουμπί', 'φεγγάρι', 'μολύβι', 'χελώνα', 'καρπούζι', 'ντομάτα', 'σύννεφο', 'ουρανός', 'λιοντάρι', 'αλεπού',
-  'δελφίνι', 'μπανάνα', 'παγωτό', 'κρεβάτι', 'σταφύλι', 'αχλάδι', 'κεράσι', 'σχολείο', 'δάσκαλος', 'βιβλίο', 'λουλούδι', 'φράουλα', 'καράβι', 'ρολόι',
-  'τετράδιο', 'πεταλούδα', 'παπαγάλος', 'ποδήλατο', 'σοκολάτα', 'ελέφαντας', 'πορτοκάλι', 'αεροπλάνο', 'αυτοκίνητο',
-];
 
 export interface SylState {
   run: number;
@@ -553,8 +547,9 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
       if (y < g.by || y > g.by + g.bh) return null;
       if (x >= g.bx[0] && x <= g.bx[0] + g.bw) {
         const cur = s.letters.join('');
-        let word = SYL_WORDS[Math.floor(Math.random() * SYL_WORDS.length)];
-        if (word === cur) word = SYL_WORDS[(SYL_WORDS.indexOf(word) + 1) % SYL_WORDS.length];
+        const pool = readyWords('syllables');
+        let word = pool[Math.floor(Math.random() * pool.length)];
+        if (word.replace(/-/g, '') === cur && pool.length > 1) word = pool[(pool.indexOf(word) + 1) % pool.length];
         return sylStart(word, s);
       }
       if (x >= g.bx[2] && x <= g.bx[2] + g.bw && s.letters.length) return sylPack({ ...s, ...sylCheck(s), run: s.run + 1 });

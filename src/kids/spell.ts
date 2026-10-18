@@ -2,7 +2,8 @@
 import type { KidAsk, StampDef } from '../stamps';
 import { BLUE, type C, fitText, FONT, GOOD, GREEN, kid, ORANGE, PURPLE, RED, rrect, sum, text, YELLOW } from './common';
 import { monster } from './monster';
-import { type Spell, SPELL_EMPTY, SPELL_MAX, SPELL_PICK, SPELL_READY_EN, spellIsEn, spellList, spellNorm, spellPack, spellStart, spellState } from './spell-words';
+import { readyWords } from './ready-words';
+import { type Spell, SPELL_EMPTY, SPELL_MAX, SPELL_PICK, spellIsEn, spellList, spellNorm, spellPack, spellStart, spellState } from './spell-words';
 
 /**
  * Τα πλήκτρα όπως σε κανονικό πληκτρολόγιο (ελληνικό ή QWERTY), για να μαθαίνουν τα παιδιά και τη διάταξη:
@@ -29,15 +30,6 @@ export function spellKeyboard(g: { kx: number; ky: number; kw: number; kh: numbe
 /** Πόσο κρατά το φάγωμα ενός λάθους (ms) και πότε αρχίζει το πρώτο. */
 const SPELL_STEP = 800, SPELL_T0 = 350, SPELL_SNIFF = 300;
 const SPELL_GRADES = ['Α΄', 'Β΄', 'Γ΄', 'Δ΄', 'Ε΄', 'ΣΤ΄'];
-/** Έτοιμες λέξεις ανά τάξη· κάθε παιχνίδι παίρνει στην τύχη SPELL_PICK από αυτές. */
-const SPELL_READY = [
-  'μαμά νερό παιδί γάτα σπίτι ήλιος μήλο καλός τόπι φως χέρι πόδι λεμόνι ψωμί γάλα',
-  'σχολείο δάσκαλος βιβλίο θάλασσα παιχνίδι καλημέρα οικογένεια μολύβι τετράδιο ποδήλατο ουρανός λουλούδι κήπος αυτοκίνητο',
-  'άνθρωπος γειτονιά ταξίδι χειμώνας καλοκαίρι άνοιξη φθινόπωρο εικόνα ζωγραφιά μαθητής παράθυρο κουζίνα ειρήνη αεροπλάνο',
-  'συγγραφέας εφημερίδα υπολογιστής περιβάλλον θερμοκρασία εγγονός άγγελος συννεφιά αγκαλιά ευχαριστώ πρωινό βιβλιοθήκη γυμναστική',
-  'δημοκρατία επανάσταση πολιτισμός εκπαίδευση συνάντηση αλληλεγγύη ανακύκλωση εμπιστοσύνη πληροφορία ειλικρίνεια υποχρέωση εξαίρεση',
-  'κοινοβούλιο συνείδηση αξιοπρέπεια ευαισθησία παρεξήγηση επιχείρηση συμπεριφορά διεύθυνση ατμόσφαιρα δικαιοσύνη ευθύνη αποτέλεσμα σύγκρουση εξυπηρέτηση',
-].map((s) => s.split(' '));
 /**
  * Αντιστοιχίζει ό,τι γράφτηκε με το σωστό, γράμμα προς γράμμα: `a` αυτό που έγραψε ο μαθητής, `b` το σωστό.
  * Λάθος γράμμα έχει και τα δύο διαφορετικά· γράμμα που περισσεύει δεν έχει `b`· γράμμα που λείπει δεν έχει `a`.
@@ -531,7 +523,7 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         if (y >= h * 0.385 && y <= h * 0.47 && x >= w * 0.3 && x <= w * 0.7) return s.en === x > w * 0.5 ? null : spellPack({ ...s, en: !s.en });
         const k = Math.floor((x / w - 0.06) / 0.15);
         if (y < h * 0.5 || y > h * 0.64 || k < 0 || k > 5 || x > w * (0.06 + 0.15 * k + 0.13)) return null;
-        const pool = [...(s.en ? SPELL_READY_EN : SPELL_READY)[k]], picked: string[][] = [];
+        const pool = [...readyWords(`spell-${s.en ? 'en' : 'el'}-${k}`)], picked: string[][] = [];
         while (picked.length < SPELL_PICK && pool.length) picked.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0].split('='));
         return spellPack(spellStart(s, picked.map((e) => e[0]), true, picked.map((e) => e[1] ?? '')));
       }

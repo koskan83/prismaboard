@@ -8,6 +8,8 @@ import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
 import { ask, notice } from './dialog';
 import { openBuildView } from './build-view';
+import { openGameView, playsFull } from './game-view';
+import { loadReady } from './ready-ui';
 import { confetti, loadFx, playFx, saveFx, say } from './fx';
 import { NEWS, VERSION, newsPending } from './news';
 import { $, HL_PALETTE, MORE_COLORS, PALETTE, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast } from './app';
@@ -313,7 +315,11 @@ export function refreshUi(): void {
   layoutBar();
 }
 board.onUi = refreshUi;
-board.onKidFull = (it) => openBuildView(board, it.id, (ev) => kidFx(ev), it.name);
+board.onKidFull = (it) => {
+  // Συλλαβές, Ορθογραφία, Κρεμάλα: όλο το παιχνίδι σε όλη την οθόνη· κυβάκια: ο καμβάς τους με τη σειρά των υλικών
+  if (playsFull(it)) openGameView(board, it.id, (ev, at) => kidFx(ev, at.x, at.y, at, it.name));
+  else openBuildView(board, it.id, (ev) => kidFx(ev), it.name);
+};
 board.onAsk = (q) => (q.lists ? askSpellWords({ title: q.title, voice: q.voice ?? 'el-GR', download }) : ask(q.title, { hint: q.hint, secret: q.secret, max: q.max ?? 24, voice: q.voice, value: q.value, picks: q.picks }));
 board.onMergeAxes = (target, dropped) => {
   const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
@@ -536,6 +542,9 @@ gadgetMenu.addEventListener('click', (e) => {
     refreshUi();
     // τα κυβάκια ανοίγουν κατευθείαν σε όλη την οθόνη· η πόρτα στο τέλος των υλικών γυρίζει στον πίνακα
     if (kidTool === 'build' && board.selectionIds[0]) openBuildView(board, board.selectionIds[0], (ev) => kidFx(ev));
+    // τα παιχνίδια (Συλλαβές, Ορθογραφία, Κρεμάλα) επίσης· η πόρτα πάνω δεξιά γυρίζει στον πίνακα
+    const added = board.page.items.find((x) => x.id === board.selectionIds[0]);
+    if (added && added.kind === 'stamp' && playsFull(added)) openGameView(board, added.id, (ev, at) => kidFx(ev, at.x, at.y, at, added.name));
     return;
   }
   const shape = t.closest<HTMLElement>('[data-shape]')?.dataset.shape;
@@ -889,6 +898,8 @@ board.onKidFx = (ev, it) => {
 };
 // τα εργαλεία του Δημοτικού φτάνουν λίγο μετά το άνοιγμα (βλ. kids/lazy.ts): ό,τι υπάρχει ήδη στον πίνακα ξαναζωγραφίζεται
 onKidsLoaded(() => board.redraw());
+// οι έτοιμες λέξεις των παιχνιδιών όπως τις άλλαξε ο δάσκαλος (📋 Λέξεις στην πλήρη οθόνη)
+void loadReady();
 // ...και όταν φτάσει η γραμματοσειρά τους (ο καμβάς δεν ξαναζωγραφίζεται μόνος του όπως το HTML)
 void Promise.all(['400', '600', '800'].map((w) => document.fonts.load(`${w} 20px "Playpen Sans"`, 'αγΑ1'))).then(() => board.redraw(), () => {});
 function setLevel(pri: boolean, save = true): void {

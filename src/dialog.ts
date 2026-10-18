@@ -624,3 +624,116 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
     ta.focus();
   });
 }
+
+/** Μια λίστα στο παράθυρο των έτοιμων λέξεων: `custom` αν την έχει αλλάξει ο δάσκαλος. */
+export interface ReadyEdit { id: string; name: string; words: string[]; custom: boolean }
+
+/**
+ * Οι έτοιμες λέξεις ενός παιχνιδιού: φαίνονται όλες, × αφαιρεί μία, το πεδίο από κάτω προσθέτει (και πολλές μαζί, με κόμμα),
+ * και το «↺ Αρχικές» φέρνει πίσω τις λέξεις της εφαρμογής. Κάθε αλλαγή φυλάγεται αμέσως με το `save` (null = οι αρχικές),
+ * που επιστρέφει τη λίστα όπως έμεινε.
+ */
+export function editReady(o: {
+  title: string;
+  hint: string;
+  lists: ReadyEdit[];
+  /** Οι λέξεις που βγαίνουν από ό,τι γράφτηκε, και όσες δεν μπορούν να μπουν (π.χ. μία μόνο συλλαβή). */
+  parse(text: string): { ok: string[]; bad: string[] };
+  /** Πώς φαίνεται μια λέξη στη λίστα (π.χ. apple = μήλο). */
+  show?(word: string): string;
+  save(id: string, words: string[] | null): Promise<ReadyEdit>;
+}): Promise<void> {
+  return new Promise((res) => {
+    const { back, box } = shell(o.title, o.hint);
+    box.classList.add('wordsBox');
+    let lists = o.lists.slice(), cur = 0;
+    const tabs = document.createElement('div');
+    tabs.className = 'askPicks wordLists';
+    const words = document.createElement('div');
+    words.className = 'readyWords';
+    const info = document.createElement('small');
+    const row = document.createElement('div');
+    row.className = 'askIn';
+    const input = document.createElement('input');
+    input.className = 'askText';
+    input.placeholder = 'Νέες λέξεις, χωρισμένες με κόμμα';
+    input.spellcheck = false;
+    const add = button('＋ Πρόσθεσε', 'readyAdd');
+    row.append(input, add);
+    const acts = document.createElement('div');
+    acts.className = 'askActs';
+    const reset = button('↺ Αρχικές', 'no'), yes = button('Κλείσιμο', 'go');
+    acts.append(reset, yes);
+    if (lists.length > 1) box.append(tabs);
+    box.append(words, info, row, acts);
+
+    const store = (next: string[] | null, msg: string): void => {
+      const l = lists[cur];
+      void o.save(l.id, next).then((saved) => {
+        lists = lists.map((x) => (x.id === saved.id ? saved : x));
+        draw();
+        info.textContent = msg;
+      });
+    };
+    const draw = (): void => {
+      tabs.replaceChildren(...lists.map((l, i) => {
+        const b = button(l.custom ? `${l.name} ✎` : l.name, 'wordChip');
+        b.classList.toggle('on', i === cur);
+        b.onclick = () => { cur = i; draw(); };
+        return b;
+      }));
+      const l = lists[cur];
+      words.replaceChildren(...l.words.map((w) => {
+        const chip = document.createElement('span');
+        chip.className = 'readyWord';
+        chip.textContent = o.show ? o.show(w) : w;
+        const x = document.createElement('button');
+        x.className = 'wordDel';
+        x.textContent = '×';
+        x.title = 'Αφαίρεση';
+        x.onclick = () => {
+          if (l.words.length <= 1) {
+            info.textContent = 'Μένει τουλάχιστον μία λέξη· πρόσθεσε πρώτα άλλη.';
+            return;
+          }
+          store(l.words.filter((y) => y !== w), `Βγήκε η «${chip.firstChild!.textContent}».`);
+        };
+        chip.append(x);
+        return chip;
+      }));
+      info.textContent = `${l.words.length === 1 ? '1 λέξη' : `${l.words.length} λέξεις`} · ${l.custom ? 'με τις δικές σου αλλαγές' : 'οι αρχικές της εφαρμογής'}`;
+      reset.disabled = !l.custom;
+    };
+    const addWords = (): void => {
+      const l = lists[cur], { ok, bad } = o.parse(input.value);
+      const fresh = ok.filter((w) => !l.words.includes(w));
+      if (!fresh.length && !bad.length) {
+        info.textContent = ok.length ? 'Αυτές οι λέξεις υπάρχουν ήδη.' : 'Γράψε πρώτα μια λέξη.';
+        return;
+      }
+      input.value = bad.join(', ');
+      const msg = `${fresh.length ? (fresh.length === 1 ? 'Μπήκε 1 λέξη.' : `Μπήκαν ${fresh.length} λέξεις.`) : ''}${bad.length ? ` Δεν μπαίνουν: ${bad.join(', ')}.` : ''}`.trim();
+      if (fresh.length) store([...l.words, ...fresh], msg);
+      else info.textContent = msg;
+    };
+    add.onclick = addWords;
+    reset.onclick = () => store(null, 'Ξαναμπήκαν οι αρχικές λέξεις.');
+    const done = (): void => {
+      if (open !== done) return;
+      open = null;
+      back.remove();
+      res();
+    };
+    open = done;
+    yes.onclick = done;
+    input.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') addWords();
+      if (e.key === 'Escape') done();
+    });
+    back.addEventListener('pointerdown', (e) => {
+      if (e.target === back) done();
+    });
+    draw();
+  });
+}

@@ -1,17 +1,10 @@
 /** Κρεμάλα. */
 import type { StampDef } from '../stamps';
 import { bit, BLUE, GREEN, kid, RED, rrect, text } from './common';
+import { readyWords } from './ready-words';
 
 const ABC = 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ';
 const HANG_MAX = 6;
-/** Λέξεις για την τυχαία επιλογή: γνωστές σε παιδιά Δημοτικού, χωρίς παγίδες στην ορθογραφία του τονισμού. */
-const HANG_WORDS = [
-  'ΣΧΟΛΕΙΟ', 'ΔΑΣΚΑΛΑ', 'ΜΟΛΥΒΙ', 'ΤΕΤΡΑΔΙΟ', 'ΒΙΒΛΙΟ', 'ΘΡΑΝΙΟ', 'ΠΙΝΑΚΑΣ', 'ΤΣΑΝΤΑ', 'ΓΟΜΟΛΑΣΤΙΧΑ', 'ΔΙΑΛΕΙΜΜΑ',
-  'ΠΕΤΑΛΟΥΔΑ', 'ΕΛΕΦΑΝΤΑΣ', 'ΚΑΜΗΛΟΠΑΡΔΑΛΗ', 'ΔΕΛΦΙΝΙ', 'ΧΕΛΩΝΑ', 'ΒΑΤΡΑΧΟΣ', 'ΛΙΟΝΤΑΡΙ', 'ΑΛΕΠΟΥ', 'ΣΚΙΟΥΡΟΣ', 'ΠΑΠΑΓΑΛΟΣ',
-  'ΚΑΡΠΟΥΖΙ', 'ΠΟΡΤΟΚΑΛΙ', 'ΦΡΑΟΥΛΑ', 'ΜΠΑΝΑΝΑ', 'ΣΟΚΟΛΑΤΑ', 'ΜΑΚΑΡΟΝΙΑ', 'ΠΑΓΩΤΟ', 'ΝΤΟΜΑΤΑ',
-  'ΘΑΛΑΣΣΑ', 'ΟΥΡΑΝΟΣ', 'ΦΕΓΓΑΡΙ', 'ΣΥΝΝΕΦΟ', 'ΒΡΟΧΗ', 'ΑΝΟΙΞΗ', 'ΚΑΛΟΚΑΙΡΙ', 'ΧΕΙΜΩΝΑΣ', 'ΦΘΙΝΟΠΩΡΟ',
-  'ΠΟΔΗΛΑΤΟ', 'ΑΕΡΟΠΛΑΝΟ', 'ΚΑΡΑΒΙ', 'ΑΥΤΟΚΙΝΗΤΟ', 'ΠΑΙΧΝΙΔΙ', 'ΟΙΚΟΓΕΝΕΙΑ', 'ΓΙΟΡΤΗ', 'ΜΟΥΣΙΚΗ', 'ΖΩΓΡΑΦΙΑ', 'ΥΠΟΛΟΓΙΣΤΗΣ',
-];
 /** Κεφαλαία χωρίς τόνους και διαλυτικά: «Σχολείο» → «ΣΧΟΛΕΙΟ». */
 export function hangNorm(word: string): string {
   return word.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^Α-Ω ]/g, '').trim().slice(0, 16);
@@ -139,8 +132,9 @@ export const HANGMAN_KIDS: Record<string, StampDef> = {
       const st = hangState(v), g = hangGeom(w, h);
       if (y >= g.by && y <= g.by + g.bh) {
         if (x >= g.bx[0] && x <= g.bx[0] + g.bw) {
-          let word = HANG_WORDS[Math.floor(Math.random() * HANG_WORDS.length)];
-          if (word === st.word) word = HANG_WORDS[(HANG_WORDS.indexOf(word) + 1) % HANG_WORDS.length];
+          const pool = readyWords('hangman');
+          let word = pool[Math.floor(Math.random() * pool.length)];
+          if (hangNorm(word) === st.word && pool.length > 1) word = pool[(pool.indexOf(word) + 1) % pool.length];
           return hangStart(word);
         }
         return null;
