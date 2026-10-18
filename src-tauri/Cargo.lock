@@ -1621,19 +1621,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "grafida"
-version = "0.2.0"
-dependencies = [
- "image",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "xcap",
-]
-
-[[package]]
 name = "gtk"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3271,6 +3258,19 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "prismaboard"
+version = "0.2.0"
+dependencies = [
+ "image",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "xcap",
+]
 
 [[package]]
 name = "proc-macro-crate"

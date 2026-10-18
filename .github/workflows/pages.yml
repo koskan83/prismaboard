@@ -1,4 +1,10 @@
-name: Web app (GitHub Pages)
+name: Web app (GitHub Pages + Cloudflare Pages)
+
+# Η ίδια έκδοση ανεβαίνει σε δύο διευθύνσεις:
+#  - prismaboard.klabs.gr (Cloudflare Pages): η κανονική διεύθυνση της εφαρμογής.
+#  - koskan83.github.io/prismaboard (GitHub Pages): η παλιά· μένει για να μεταφέρουν οι δάσκαλοι τα μαθήματά τους (βλ. src/move.ts).
+# Για το Cloudflare χρειάζονται τα secrets CLOUDFLARE_API_TOKEN (δικαίωμα «Cloudflare Pages: Edit») και CLOUDFLARE_ACCOUNT_ID.
+# Χωρίς αυτά το βήμα παραλείπεται.
 
 on:
   workflow_dispatch:
@@ -17,6 +23,8 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,3 +45,19 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
+      # το έργο φτιάχνεται την πρώτη φορά· αν υπάρχει ήδη, η εντολή αποτυγχάνει χωρίς πρόβλημα
+      - name: Cloudflare Pages – έργο
+        if: env.HAS_CF == 'true'
+        continue-on-error: true
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages project create prismaboard --production-branch=main
+      - name: Cloudflare Pages – δημοσίευση
+        if: env.HAS_CF == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=prismaboard --branch=main

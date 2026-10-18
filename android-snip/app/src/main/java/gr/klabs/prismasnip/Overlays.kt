@@ -1,4 +1,4 @@
-package gr.grafida.prismasnip
+package gr.klabs.prismasnip
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory

@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PrismaBoard",
   "version": "../package.json",
-  "identifier": "gr.grafida.whiteboard",
+  "identifier": "gr.klabs.prismaboard",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:5173",

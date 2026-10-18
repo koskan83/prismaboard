@@ -1,6 +1,8 @@
 # PrismaBoard
 
-Διαδραστικός πίνακας για γραφίδα, αφή και ποντίκι (BenQ Board, Windows, browser).
+Διαδραστικός πίνακας για γραφίδα, αφή και ποντίκι (διαδραστικές οθόνες Android, Windows, browser).
+
+Διεύθυνση: https://prismaboard.klabs.gr · Επικοινωνία: support@klabs.gr
 
 ## Ανάπτυξη (browser)
 

@@ -1,4 +1,4 @@
-package gr.grafida.prismasnip
+package gr.klabs.prismasnip
 
 import android.app.Activity
 import android.content.Intent

@@ -595,7 +595,7 @@ test('Αποστολή με επιλογή σελίδων: το QR εμφανί�
   await page.click('#ppOk');
   await page.waitForSelector('#sendMenu:not(.hidden) #sendOut:not(.hidden) #sendQr', { timeout: 15000 });
   assert(drive.uploads >= 1 && drive.perms >= 1, 'δεν έγινε ανέβασμα και κοινή χρήση');
-  assert((await page.textContent('#sendUrl')).endsWith('/prismaboard/m.html#file1'), 'λείπει ο σύνδεσμος');
+  assert((await page.textContent('#sendUrl')) === 'https://prismaboard.klabs.gr/m.html#file1', 'λείπει ο σύνδεσμος');
   await page.click('#sendClose');
 });
 

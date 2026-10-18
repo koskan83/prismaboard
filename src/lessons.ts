@@ -834,7 +834,8 @@ export class Lessons {
     else this.host.toast(msg, 15000, { label: 'Αντίγραφο σε αρχείο', run: () => void this.backup() });
   }
 
-  private async backup(): Promise<void> {
+  /** Όλα τα μαθήματα, τα τμήματα και οι λίστες λέξεων σε ένα αρχείο (ανοίγει με «Επαναφορά από αρχείο»). */
+  async backup(): Promise<void> {
     const out: Backup = { grafida: 'backup', v: 1, lessons: [], rosters: this.rosters, spellLists: await loadLists() };
     for (const meta of this.index) {
       const doc = await loadLesson(meta.id);

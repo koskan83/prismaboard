@@ -1,11 +1,11 @@
 [package]
-name = "grafida"
+name = "prismaboard"
 version = "0.2.0"
 description = "PrismaBoard - διαδραστικός πίνακας"
 edition = "2021"
 
 [lib]
-name = "grafida_lib"
+name = "prismaboard_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

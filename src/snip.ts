@@ -48,5 +48,5 @@ export function toggleSnip(): void {
     /* χωρίς αποθήκευση */
   }
   mark();
-  location.href = `intent://${on ? 'on' : 'off'}#Intent;scheme=prismasnip;package=gr.grafida.prismasnip;S.browser_fallback_url=${encodeURIComponent(SNIP_APK)};end`;
+  location.href = `intent://${on ? 'on' : 'off'}#Intent;scheme=prismasnip;package=gr.klabs.prismasnip;S.browser_fallback_url=${encodeURIComponent(SNIP_APK)};end`;
 }

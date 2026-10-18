@@ -128,7 +128,7 @@ export function pickPages(title: string, okText: string, n: number, thumb: (i: n
 }
 
 /** Η δημόσια διεύθυνση της εφαρμογής: εκεί ζει η σελίδα του μαθητή όταν ο πίνακας τρέχει τοπικά ή ως πρόγραμμα. */
-const SITE = 'https://koskan83.github.io/prismaboard/';
+const SITE = 'https://prismaboard.klabs.gr/';
 
 /**
  * Ο σύνδεσμος που σκανάρουν οι μαθητές: η δική μας σελίδα (λογότυπο, προβολή για κινητό, κουμπί λήψης) που δείχνει το αρχείο του Drive.

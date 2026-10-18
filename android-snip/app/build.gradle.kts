@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "gr.grafida.prismasnip"
+    namespace = "gr.klabs.prismasnip"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "gr.grafida.prismasnip"
+        applicationId = "gr.klabs.prismasnip"
         minSdk = 30 // AccessibilityService.takeScreenshot
         targetSdk = 34
         versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()

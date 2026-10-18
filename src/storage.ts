@@ -232,3 +232,30 @@ export async function kvGetRaw<T>(key: string): Promise<T | null> {
     return null;
   }
 }
+
+/** Όλες οι τιμές κειμένου της αποθήκευσης (για τη μεταφορά σε νέα διεύθυνση· βλ. move.ts). */
+export async function kvAll(): Promise<[string, string][]> {
+  const db = await open();
+  const out = await new Promise<[string, string][]>((res, rej) => {
+    const st = db.transaction(STORE).objectStore(STORE);
+    const keys = st.getAllKeys(), vals = st.getAll();
+    vals.onsuccess = () => res((keys.result as IDBValidKey[]).map((k, i) => [String(k), vals.result[i]] as [string, unknown]).filter((e): e is [string, string] => typeof e[1] === 'string'));
+    vals.onerror = () => rej(vals.error);
+  });
+  db.close();
+  return out;
+}
+
+/** Γράφει πολλές τιμές κειμένου μαζί, σε μία συναλλαγή. */
+export async function kvPutMany(entries: [string, string][]): Promise<void> {
+  const db = await open();
+  await new Promise<void>((res, rej) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    const st = tx.objectStore(STORE);
+    for (const [k, v] of entries) st.put(v, k);
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error);
+  });
+  db.close();
+}

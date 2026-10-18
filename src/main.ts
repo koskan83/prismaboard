@@ -29,6 +29,7 @@ import { loadKids, onKidsLoaded } from './kids/lazy';
 import { canPickFolder, chooseFolder, classFileName, driveCopy, folderLabel, saveClassFile, setDriveCopy } from './class-files';
 import { driveClientId, drivePreload } from './drive';
 import { catchErrors, openReport } from './errors';
+import { isMoveTarget, isOldSite, movedNotice, offerMove, receiveMove } from './move';
 
 // σφάλματα που δεν πιάστηκαν: μήνυμα με κουμπί «Αναφορά» αντί για σιωπή
 catchErrors(toast);
@@ -1075,6 +1076,8 @@ async function sharedFiles(): Promise<File[]> {
 }
 
 void (async () => {
+  // η νέα διεύθυνση άνοιξε από την παλιά: πρώτα παίρνει τα μαθήματα, μετά ξαναφορτώνει (βλ. move.ts)
+  if (isMoveTarget && lessons) return void (await receiveMove());
   await lessons?.init().catch((err) => console.error(err));
   refreshUi();
   initToolbar();
@@ -1082,6 +1085,10 @@ void (async () => {
   // ο κώδικας των εργαλείων του Δημοτικού, όταν η εφαρμογή ησυχάσει από το άνοιγμα
   if ('requestIdleCallback' in window) requestIdleCallback(() => void loadKids(), { timeout: 2000 });
   else setTimeout(() => void loadKids(), 500);
+  // στην παλιά διεύθυνση, σε κάθε άνοιγμα: «Το PrismaBoard μετακόμισε» με κουμπί για μεταφορά των μαθημάτων
+  if (isOldSite && lessons) return void offerMove(() => lessons!.flush(true), () => lessons!.backup());
+  // μόλις ήρθαν τα μαθήματα από την παλιά διεύθυνση: μόνο το μήνυμα της μεταφοράς, χωρίς γνωριμία ή «Τι νέο»
+  if (movedNotice()) return;
   // την πρώτη φορά σε κάθε συσκευή, μια σύντομη γνωριμία
   let seen = true;
   try { seen = localStorage.getItem(WELCOME) === '1'; } catch { /* χωρίς αποθήκευση: δεν ενοχλούμε */ }
