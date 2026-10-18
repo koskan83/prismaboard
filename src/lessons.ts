@@ -48,6 +48,8 @@ interface SafeState {
   file?: number;
   /** Πότε φάνηκε τελευταία η υπενθύμιση για αντίγραφο. */
   told?: number;
+  /** Πότε φάνηκε τελευταία το μήνυμα ότι γέμισε ο χώρος. */
+  full?: number;
 }
 const SAFE = 'grafida.safe';
 const GROUP = 'grafida.group';
@@ -93,6 +95,8 @@ export class Lessons {
   private timer = 0;
   private dirty = false;
   private thumbAt = 0;
+  /** Πότε φάνηκε το μήνυμα για αποτυχημένη αποθήκευση (1: μία αποτυχία χωρίς μήνυμα ακόμα). */
+  private failAt = 0;
   private el: HTMLElement;
   private label: HTMLElement;
   /** Όσο φορτώνουμε πίνακα, οι «αλλαγές» του δεν μετράνε ως επεξεργασία. */
@@ -174,6 +178,7 @@ export class Lessons {
   async init(): Promise<void> {
     // ζητάμε από τον browser να μη σβήσει τα δεδομένα όταν γεμίσει ο δίσκος
     void navigator.storage?.persist?.().catch(() => false);
+    void this.checkSpace();
     this.index = (await kvGet<LessonMeta[]>(INDEX)) ?? [];
     this.rosters = (await kvGet<Record<string, string[]>>(ROSTERS)) ?? {};
     if (this.index.length === 0) {
@@ -276,7 +281,30 @@ export class Lessons {
 
   /** Αποθήκευση στο παρασκήνιο: αν αποτύχει, δεν μένει σφάλμα «στον αέρα» και η επόμενη αλλαγή ξαναδοκιμάζει. */
   private flushSoon(withThumb: boolean): void {
-    this.flush(withThumb).catch((err) => console.warn('Η αποθήκευση δεν ολοκληρώθηκε', err));
+    this.flush(withThumb).then(() => { this.failAt = 0; }, (err) => {
+      console.warn('Η αποθήκευση δεν ολοκληρώθηκε', err);
+      // μία αποτυχία μπορεί να είναι τυχαία· αν η επόμενη προσπάθεια αποτύχει ξανά, το λέμε (το πολύ κάθε 5 λεπτά)
+      if (!this.failAt) return void (this.failAt = 1);
+      if (Date.now() - this.failAt < 5 * 60000) return;
+      this.failAt = Date.now();
+      this.host.toast('Το μάθημα δεν αποθηκεύεται σε αυτή τη συσκευή (ίσως γέμισε ο χώρος). Κράτησε τώρα αντίγραφο σε αρχείο.', 0, { label: 'Αντίγραφο σε αρχείο', run: () => this.rescue() });
+    });
+  }
+
+  /** Όταν η αποθήκευση αποτυγχάνει: κατεβάζει το ανοιχτό μάθημα όπως είναι στην οθόνη, χωρίς να περάσει από τον αποθηκευτικό χώρο. */
+  private rescue(): void {
+    const meta = this.current;
+    if (!meta) return;
+    this.host.download(this.lessonBlob(meta, this.host.getDoc()), classFileName(meta.name, meta.group, 'json'));
+  }
+
+  /** Μήνυμα αν ο χώρος του browser για την εφαρμογή έχει σχεδόν γεμίσει (μία φορά τη μέρα). */
+  private async checkSpace(): Promise<void> {
+    const e = await navigator.storage?.estimate?.().catch(() => undefined);
+    if (!e?.quota || !e.usage || e.usage / e.quota < 0.85 || Date.now() - (this.safe.full ?? 0) < DAY) return;
+    this.safe.full = Date.now();
+    this.saveSafe();
+    this.host.toast(`Ο χώρος για τα μαθήματα σε αυτή τη συσκευή έχει γεμίσει κατά ${Math.round((e.usage / e.quota) * 100)}%. Κράτησε αντίγραφο και σβήσε μαθήματα που δεν χρειάζεσαι.`, 0, { label: 'Αντίγραφο σε αρχείο', run: () => void this.backup() });
   }
 
   /** Γράφει τώρα το ανοιχτό μάθημα στη συσκευή. */

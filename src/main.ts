@@ -28,6 +28,10 @@ import { initDiag, initText } from './text-ui';
 import { loadKids, onKidsLoaded } from './kids/lazy';
 import { canPickFolder, chooseFolder, classFileName, driveCopy, folderLabel, saveClassFile, setDriveCopy } from './class-files';
 import { driveClientId, drivePreload } from './drive';
+import { catchErrors, openReport } from './errors';
+
+// σφάλματα που δεν πιάστηκαν: μήνυμα με κουμπί «Αναφορά» αντί για σιωπή
+catchErrors(toast);
 
 // ---------- εισαγωγή ----------
 
@@ -727,6 +731,8 @@ const onMenu = async (e: Event): Promise<void> => {
     openWelcome();
   } else if (act === 'test') {
     window.open('./dokimi.html', '_blank');
+  } else if (act === 'report') {
+    void openReport(toast);
   } else if (act === 'licenses') {
     window.open('./adeies.html', '_blank');
   } else if (act === 'open') {
