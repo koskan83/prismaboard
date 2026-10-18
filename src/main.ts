@@ -727,6 +727,8 @@ const onMenu = async (e: Event): Promise<void> => {
     openWelcome();
   } else if (act === 'test') {
     window.open('./dokimi.html', '_blank');
+  } else if (act === 'licenses') {
+    window.open('./adeies.html', '_blank');
   } else if (act === 'open') {
     ($('fileOpen') as HTMLInputElement).click();
   } else if (act === 'save') {
@@ -866,7 +868,7 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): 
     void say(text, lang).then((heard) => {
       if (heard || noVoice.has(lang)) return;
       noVoice.add(lang);
-      toast(`Δεν μπόρεσα να πω τη λέξη: η συσκευή δεν έχει ${lang.startsWith('el') ? 'ελληνική' : 'αγγλική'} φωνή και δεν βρήκα φωνή στο ίντερνετ. Πες τη εσύ, ή δείξε τη με το 👁.`, 8000);
+      toast(`Δεν μπόρεσα να πω τη λέξη: η συσκευή δεν έχει ${lang.startsWith('el') ? 'ελληνική' : 'αγγλική'} φωνή. Πες τη εσύ, ή δείξε τη με το 👁.`, 8000);
     });
     return;
   }

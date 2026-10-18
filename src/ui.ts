@@ -135,6 +135,7 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="test"', I.check, 'Λίστα δοκιμής στην τάξη')}
     ${mi('data-act="usage"', I.check, 'Τι χρησιμοποιώ')}
     ${mi('data-act="news"', I.spark, 'Τι νέο')}
+    ${mi('data-act="licenses"', I.doc, 'Απόρρητο και άδειες τρίτων')}
     <div id="verLine"></div>
   </div>
   <div id="whereMenu" class="popup hidden">

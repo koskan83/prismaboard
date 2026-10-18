@@ -163,33 +163,16 @@ export function playFx(ev: string, prefs: FxPrefs): void {
   SOUNDS[ev]?.();
 }
 
-/**
- * Κρυφό πλαίσιο από το οποίο ζητείται η φωνή του διαδικτύου: η υπηρεσία απαντά μόνο σε αιτήματα χωρίς «Referer»,
- * και αυτό ορίζεται ανά έγγραφο· έτσι δεν αλλάζει τίποτα για τα υπόλοιπα αιτήματα της εφαρμογής.
- */
-let voiceFrame: HTMLIFrameElement | null = null;
-function netAudio(url: string): HTMLAudioElement | null {
-  if (!voiceFrame) {
-    voiceFrame = document.createElement('iframe');
-    voiceFrame.hidden = true;
-    voiceFrame.srcdoc = '<meta name="referrer" content="no-referrer">';
-    document.body.append(voiceFrame);
-    return null;
-  }
-  const win = voiceFrame.contentWindow as (Window & { Audio?: typeof Audio }) | null;
-  return win?.Audio ? new win.Audio(url) : null;
-}
-let speaking: HTMLAudioElement | null = null, sayNo = 0;
+let sayNo = 0;
 /**
  * Λέει δυνατά ένα κείμενο (ορθογραφία: η λέξη που πρέπει να γραφτεί). `lang` π.χ. 'el-GR'.
- * Με τη φωνή της συσκευής αν έχει για αυτή τη γλώσσα· αλλιώς (συχνό σε Linux και σε Chrome χωρίς ελληνικά) με φωνή από το διαδίκτυο.
- * false αν δεν ακούστηκε με κανέναν από τους δύο τρόπους.
+ * Με τη φωνή της συσκευής, αν έχει για αυτή τη γλώσσα (συχνά δεν έχει σε Linux και σε Chrome χωρίς ελληνικά).
+ * false αν δεν ακούστηκε.
  */
 export async function say(text: string, lang: string): Promise<boolean> {
   const synth = typeof speechSynthesis === 'undefined' ? null : speechSynthesis, no = ++sayNo;
   const is = (v: SpeechSynthesisVoice, l: string): boolean => v.lang.replace('_', '-').toLowerCase().startsWith(l.toLowerCase());
   const voices = synth?.getVoices() ?? [], voice = voices.find((v) => is(v, lang)) ?? voices.find((v) => is(v, lang.slice(0, 2)));
-  speaking?.pause();
   if (synth && (voice || !voices.length)) {
     synth.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -197,7 +180,7 @@ export async function say(text: string, lang: string): Promise<boolean> {
     if (voice) u.voice = voice;
     u.rate = 0.8;
     // άδεια λίστα φωνών: ή δεν έχει φορτώσει ακόμη (η συσκευή διαλέγει από τη γλώσσα) ή η συσκευή δεν έχει καμία·
-    // αν δεν αρχίσει να μιλά σε λίγο, η λέξη ζητείται από το διαδίκτυο
+    // αν δεν αρχίσει να μιλά σε λίγο, η συσκευή δεν έχει φωνή για τη γλώσσα
     const started = voice ? null : new Promise<boolean>((done) => {
       u.onstart = () => done(true);
       u.onerror = () => done(false);
@@ -209,19 +192,10 @@ export async function say(text: string, lang: string): Promise<boolean> {
     if (no !== sayNo) return true;
     synth.cancel();
   }
-  const audio = netAudio(`https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${lang.startsWith('en') ? 'en-GB' : lang.slice(0, 2)}&q=${encodeURIComponent(text)}`);
-  if (!audio) return false;
-  speaking = audio;
-  try {
-    await audio.play();
-    return true;
-  } catch {
-    return false;
-  }
+  return false;
 }
-// οι φωνές της συσκευής και το πλαίσιο της φωνής του διαδικτύου ετοιμάζονται από νωρίς
+// οι φωνές της συσκευής ετοιμάζονται από νωρίς
 if (typeof speechSynthesis !== 'undefined') speechSynthesis.getVoices();
-if (typeof document !== 'undefined') netAudio('');
 
 const COLORS = ['#f43f5e', '#f59e0b', '#fde047', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
 

@@ -61,7 +61,7 @@ export function initDiag(): void {
   <pre id="diagText">Άγγιξε ή γράψε στον πίνακα…</pre>
   <label>Όριο παλάμης (px): <span id="palmV"></span>
     <input id="palm" type="range" min="10" max="120" step="1" /></label>
-  <small>Αν η γραφίδα του BenQ εμφανίζεται ως «touch», το μέγεθος επαφής ξεχωρίζει στυλό από παλάμη.
+  <small>Αν η γραφίδα του πίνακα εμφανίζεται ως «touch», το μέγεθος επαφής ξεχωρίζει στυλό από παλάμη.
   Επαφές μεγαλύτερες από το όριο λειτουργούν ως γόμα.</small>`;
   const palm = diag.querySelector<HTMLInputElement>('#palm')!;
   palm.value = String(board.palmThreshold);

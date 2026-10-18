@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc --noEmit && vite build && node scripts/odigies-pdf.mjs",
+    "build": "tsc --noEmit && node scripts/adeies.mjs && vite build && node scripts/odigies-pdf.mjs",
     "preview": "vite preview --host",
     "tauri": "tauri",
     "app:dev": "tauri dev",

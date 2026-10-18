@@ -549,6 +549,25 @@ const easeBounce = (t: number): number => {
   return n * (t -= 2.625 / d) * t + 0.984375;
 };
 
+/** Το καπελάκι κάθε χαρακτήρα όταν δεν φορά άλλο καπέλο: σκούρος θόλος με γείσο και κουμπάκι στο χρώμα του (cx, βάση y, u = πλάτος κεφαλιού). */
+function ncCap(c: C, cx: number, y: number, u: number, col: string): void {
+  c.save();
+  c.fillStyle = '#1f2937';
+  c.beginPath();
+  c.ellipse(cx, y, u * 0.34, u * 0.24, 0, Math.PI, 0);
+  c.fill();
+  rrect(c, cx - u * 0.46, y - u * 0.035, u * 0.92, u * 0.07, u * 0.035);
+  c.fill();
+  c.fillStyle = col;
+  c.strokeStyle = '#1f2937';
+  c.lineWidth = Math.max(1, u * 0.025);
+  c.beginPath();
+  c.arc(cx, y - u * 0.25, u * 0.06, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+  c.restore();
+}
+
 /** Μικρό αστεράκι τεσσάρων ακτίνων. */
 function sparkle(c: C, x: number, y: number, r: number, col: string): void {
   c.beginPath();
@@ -581,8 +600,8 @@ function ncAnims(prev: number[], cur: NCube[], t: number): (NcAnim | null)[] {
 
 function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden: boolean, an: NcAnim | null = null): void {
   const S = g.S, C2 = ncCols(e), H = e.h, head = ncAcc(e.acc, 0), face = ncAcc(e.acc, 1), extra = ncAcc(e.acc, 2);
-  // το σώμα πατά σε δύο ποδαράκια· πάνω σε πατίνι ή σκέιτ ανεβαίνει λίγο ακόμα
-  const ground = g.oy + (e.y / 10) * S, by = ground - S * 0.26 - (extra === 1 || extra === 2 ? S * 0.36 : 0);
+  // το σώμα πατά στο έδαφος· πάνω σε πατίνι ή σκέιτ ανεβαίνει λίγο
+  const ground = g.oy + (e.y / 10) * S, by = ground - S * 0.04 - (extra === 1 || extra === 2 ? S * 0.36 : 0);
   const bx = g.ox + (e.x / 10 - C2 / 2) * S, top = by - H * S;
   const fc = Math.max(1, Math.floor(e.n / H)), fw = Math.min(fc, 3) * S, fcx = bx + fw / 2;
   const k = Math.min(fw / S, 2), hu = S * Math.min(k, 1.6);
@@ -635,42 +654,11 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
     ncCape(c, bx + S * 0.12, bx + fw - S * 0.12, top + S * 0.8, by + S * 0.05, S, trick === 24 ? Math.sin(q * Math.PI * 8) * S * 0.25 * bell - bell * S * 0.6 : 0);
     c.restore();
   }
-  // χέρια: στο δεύτερο κυβάκι από πάνω (στο μοναδικό, όταν το σχήμα έχει ύψος ένα)
+  // χωρίς χέρια: το μπαλόνι δένεται στο πλάι του σώματος, στο δεύτερο κυβάκι από πάνω (στο μοναδικό, όταν το σχήμα έχει ύψος ένα)
   const ay = top + S * (H > 1 ? 1.4 : 0.62), arow = H - 1 - Math.floor((ay - top) / S);
   let rc = 0;
   for (let i = 0; i < C2; i++) if (Math.min(H, e.n - i * H) > arow) rc = i;
-  const armCol = ncColour(e, Math.min(e.n - 1, H - 1))[1], ax = bx + (rc + 1) * S;
-  // στο πέταγμα με το μπαλόνι ή την κάπα το χέρι σηκώνεται ψηλά
-  const up = extra === 3 || trick === 24;
-  const hands: [number, number][] = [[bx - S * 0.32, ay + S * 0.3], [ax + S * 0.32, ay + (up ? -S * 0.3 : S * 0.3)]];
-  c.strokeStyle = armCol;
-  c.fillStyle = armCol;
-  c.lineWidth = Math.max(2, S * 0.11);
-  c.beginPath();
-  c.moveTo(bx, ay);
-  c.lineTo(...hands[0]);
-  c.moveTo(ax, ay);
-  c.lineTo(...hands[1]);
-  c.stroke();
-  for (const [hx, hy] of hands) {
-    c.beginPath();
-    c.arc(hx, hy, S * 0.1, 0, Math.PI * 2);
-    c.fill();
-  }
-  // ποδαράκια, στο χρώμα του κάτω κυβακίου
-  const foot = ncColour(e, 0)[1], fx0 = bx + Math.min(C2, 2) * S / 2, fd = Math.min(C2, 2) * S * 0.24;
-  c.fillStyle = foot;
-  c.strokeStyle = foot;
-  c.lineWidth = Math.max(2.5, S * 0.11);
-  for (const sx of [-1, 1]) {
-    c.beginPath();
-    c.moveTo(fx0 + sx * fd, by - S * 0.05);
-    c.lineTo(fx0 + sx * fd, by + S * 0.16);
-    c.stroke();
-    c.beginPath();
-    c.ellipse(fx0 + sx * (fd + S * 0.07), by + S * 0.18, S * 0.19, S * 0.09, 0, 0, Math.PI * 2);
-    c.fill();
-  }
+  const ax = bx + (rc + 1) * S;
   // τα κυβάκια
   c.lineWidth = Math.max(1.5, S * 0.06);
   for (let i = 0; i < e.n; i++) {
@@ -682,31 +670,40 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
     c.strokeStyle = line;
     c.stroke();
   }
-  // πρόσωπο στην πάνω σειρά, πάνω σε όσες γεμάτες στήλες χωρούν (ως τρεις)
-  const er = S * 0.15 * Math.sqrt(k), ey = top + S * 0.42, ex = Math.min(fw, 2 * S) * 0.2;
-  // τα γυαλιά γλιστράνε λίγο και ξανανεβαίνουν· το μουστάκι κουνιέται πάνω κάτω
+  // πρόσωπο στην πάνω σειρά, πάνω σε όσες γεμάτες στήλες χωρούν (ως τρεις): δύο μεγάλα οβάλ μάτια, κολλητά,
+  // χωρίς στόμα· στη χαρά (ένωση, νέο αξεσουάρ) κλείνουν σε δύο τοξάκια
+  const er = S * 0.17 * Math.sqrt(k), ey = top + S * 0.5, ex = er * 1.05;
   const happy = an?.pop || q >= 0;
+  c.strokeStyle = '#111827';
+  c.lineWidth = Math.max(1.5, S * 0.05);
   for (const sx of [-1, 1]) {
+    const x = fcx + sx * ex;
+    if (happy) {
+      c.lineWidth = Math.max(2, S * 0.08);
+      c.beginPath();
+      c.arc(x, ey + er * 0.35, er * 0.7, Math.PI * 1.15, Math.PI * 1.85);
+      c.stroke();
+      continue;
+    }
     c.fillStyle = '#ffffff';
     c.beginPath();
-    c.ellipse(fcx + sx * ex, ey, er * 0.85, er, 0, 0, Math.PI * 2);
+    c.ellipse(x, ey, er, er * 1.3, 0, 0, Math.PI * 2);
     c.fill();
+    c.stroke();
     c.fillStyle = '#111827';
     c.beginPath();
-    c.arc(fcx + sx * ex + er * 0.12, ey + er * 0.18, er * 0.48, 0, Math.PI * 2);
+    c.arc(x - sx * er * 0.15, ey + er * 0.4, er * 0.5, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#ffffff';
+    c.beginPath();
+    c.arc(x - sx * er * 0.3, ey + er * 0.22, er * 0.16, 0, Math.PI * 2);
     c.fill();
   }
-  c.strokeStyle = '#111827';
-  c.lineWidth = Math.max(1.5, S * 0.06);
-  c.beginPath();
-  c.moveTo(fcx - ex * 0.55, top + S * 0.7);
-  c.quadraticCurveTo(fcx, top + S * (happy ? 0.95 : 0.86), fcx + ex * 0.55, top + S * 0.7);
-  c.stroke();
   c.save();
   c.translate(0, fall(1) + (trick === 11 ? bell * S * 0.22 : 0));
   if (face === 1) ncGlasses(c, fcx, ey, ex, er * 1.3, S);
   else if (face === 3) {
-    const my = top + S * 0.66;
+    const my = top + S * 0.86;
     c.translate(fcx, my);
     if (trick === 13) c.rotate(Math.sin(q * Math.PI * 8) * 0.12 * bell);
     c.translate(0, trick === 13 ? -Math.abs(Math.sin(q * Math.PI * 8)) * S * 0.06 : 0);
@@ -718,8 +715,9 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
   const L = Math.max(C2 * S * 1.15, S * 1.5);
   if (extra === 1) ncScooter(c, cx0, ground, L, S, Math.max(top + S * 0.9, ay));
   else if (extra === 2) ncSkate(c, cx0, ground, L, S);
-  else if (extra === 3) ncBalloon(c, ax + S * 0.75, top - S * 0.75 - bell * S * 0.3, S, ...hands[1]);
+  else if (extra === 3) ncBalloon(c, ax + S * 0.75, top - S * 0.75 - bell * S * 0.3, S, ax, ay);
   c.restore();
+  if (!head) ncCap(c, fcx, top + S * 0.04, hu, ncColour(e, Math.min(e.n - 1, H - 1))[0]);
   if (head) {
     // 🎩 χαιρετισμός · 🧢 στροφή · 🎓 πετιέται στον αέρα και πέφτει πίσω στο κεφάλι
     c.save();
@@ -730,16 +728,17 @@ function ncDraw(c: C, g: { S: number; ox: number; oy: number }, e: NCube, hidden
     ncHat(c, head, 0, 0, hu);
     c.restore();
   }
-  // ο αριθμός, πάνω από το κεφάλι (και πάνω από το καπέλο)
-  const ny = top - S * 0.5 - (head ? hu * NC_HAT_H[head] : 0), nr = S * 0.36;
-  c.beginPath();
-  c.arc(fcx, ny, nr, 0, Math.PI * 2);
-  c.fillStyle = '#ffffff';
-  c.fill();
-  c.strokeStyle = '#334155';
-  c.lineWidth = Math.max(1.5, S * 0.05);
-  c.stroke();
-  text(c, hidden ? '?' : String(e.n), fcx, ny + 1, nr * (e.n > 9 && !hidden ? 1.05 : 1.25), '#1f2937', 800);
+  // ο αριθμός, στην κάτω σειρά κάτω από το πρόσωπο· όταν το σχήμα έχει ύψος ένα (εκεί είναι τα μάτια), δίπλα στο σώμα
+  const label = hidden ? '?' : String(e.n), ns = S * (label.length > 1 ? 0.46 : 0.56);
+  const nx = H > 1 ? fcx : bx + C2 * S + S * 0.38, ny = by - S * (H > 1 ? 0.48 : 0.4);
+  c.font = `800 ${ns}px ${FONT}`;
+  c.textAlign = 'center';
+  c.textBaseline = 'middle';
+  c.lineWidth = Math.max(2.5, S * 0.12);
+  c.strokeStyle = '#ffffff';
+  c.strokeText(label, nx, ny + 1);
+  c.fillStyle = '#1f2937';
+  c.fillText(label, nx, ny + 1);
   // 🥳 κομφετί από την κορυφή του καπέλου
   if (trick === 6) {
     const tx = fcx + hu * 0.03, ty = top - hu;
