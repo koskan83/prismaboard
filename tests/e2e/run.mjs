@@ -778,7 +778,7 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   await page.click('#menuBtn');
   await page.click('#menu [data-act="more"]');
   // η έκδοση του package.json και η μέρα του build, στις ρυθμίσεις και στο κάτω μέρος του ☰
-  const ver = `Έκδοση ${JSON.parse(readFileSync('package.json', 'utf8')).version} · `;
+  const ver = `Έκδοση ${JSON.parse(readFileSync('package.json', 'utf8')).version}${process.env.VITE_CHANNEL === 'beta' ? ' beta' : ''} · `;
   assert(new RegExp(`^${ver}\\d{4}-\\d\\d-\\d\\d$`).test(await page.textContent('#verLine')), `δεν φαίνεται η έκδοση στις ρυθμίσεις: ${await page.textContent('#verLine')}`);
   assert((await page.textContent('#verMain')).startsWith(ver), 'δεν φαίνεται η έκδοση στο ☰');
   await page.click('#setMenu [data-act="news"]');
