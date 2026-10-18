@@ -1,8 +1,11 @@
 /** Έκδοση (ημερομηνία του build) και τα νέα της, για το «Τι νέο» μετά από ενημέρωση. */
 
 declare const __BUILD__: string;
+declare const __APP__: string;
 
-export const VERSION: string = typeof __BUILD__ === 'string' ? __BUILD__ : 'δοκιμαστική';
+export const VERSION: string = typeof __BUILD__ === 'string'
+  ? `${typeof __APP__ === 'string' ? __APP__ : ''}${import.meta.env.VITE_CHANNEL === 'beta' ? ' beta' : ''} · ${__BUILD__}`.replace(/^ · /, '')
+  : 'δοκιμαστική';
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
 export const NEWS_ID = '2026-10-19a';

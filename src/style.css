@@ -597,7 +597,7 @@ body.primary #gadgetMenu .tiles[data-tab] { animation: tabIn .14s ease-out; }
 #subbar .sep { width: 1px; align-self: stretch; margin: 4px 3px; background: var(--bar-2); }
 #toolbar.vertical #subbar .sep { width: auto; height: 1px; margin: 3px 4px; }
 #menu .gHead { padding: 8px 12px 2px; }
-#verLine { padding: 8px 12px 2px; font-size: 14px; opacity: .55; }
+.verLine { padding: 8px 12px 2px; font-size: 14px; opacity: .55; }
 .askBox { max-height: calc(100vh - 14vh - 24px); }
 .askBox ul { min-height: 0; overflow-y: auto; margin: 0; padding-left: 22px; font-size: 18px; line-height: 1.4; display: flex; flex-direction: column; gap: 6px; }
 

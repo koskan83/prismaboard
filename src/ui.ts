@@ -120,6 +120,7 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="report"', I.chat, 'Πρόβλημα ή πρόταση; Γράψε μας')}
     ${mi('data-act="more"', I.target, 'Ρυθμίσεις και αρχεία…')}
     ${mi('data-act="exit" id="exitAct" class="hidden"', I.exit, 'Έξοδος')}
+    <div id="verMain" class="verLine"></div>
   </div>
   <div id="setMenu" class="popup hidden">
     <div class="gHead">Ρυθμίσεις</div>
@@ -138,7 +139,7 @@ export function mountUi(app: HTMLElement): void {
     ${mi('data-act="usage"', I.check, 'Τι χρησιμοποιώ')}
     ${mi('data-act="news"', I.spark, 'Τι νέο')}
     ${mi('data-act="licenses"', I.doc, 'Απόρρητο και άδειες τρίτων')}
-    <div id="verLine"></div>
+    <div id="verLine" class="verLine"></div>
   </div>
   <div id="whereMenu" class="popup hidden">
     <div class="gHead" data-for="save">Αποθήκευση του μαθήματος</div>

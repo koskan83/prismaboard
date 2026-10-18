@@ -1004,7 +1004,7 @@ function showUsage(): Promise<void> {
 
 // μόνο τα τρία τελευταία νέα· τα υπόλοιπα με ένα πάτημα
 const showNews = (): Promise<void> => notice('Τι νέο στο PrismaBoard', NEWS.slice(0, 3), { hint: `Έκδοση ${VERSION}`, more: NEWS.slice(3) });
-$('verLine').textContent = `Έκδοση ${VERSION}`;
+$('verLine').textContent = $('verMain').textContent = `Έκδοση ${VERSION}`;
 // οι οδηγίες ως σελίδα, με κινούμενα κλιπ· το PDF μένει για εκτύπωση
 $('wHelp').onclick = () => window.open('./odigies.html', '_blank');
 $('welcome').addEventListener('pointerdown', (e) => {
