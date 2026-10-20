@@ -46,6 +46,20 @@ function shell(title: string, hint: string | undefined): { back: HTMLDivElement;
     s.textContent = hint;
     box.append(s);
   }
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-modal', 'true');
+  box.setAttribute('aria-label', title);
+  // με το πληκτρολόγιο το Tab μένει μέσα στο παράθυρο, δεν φεύγει στον πίνακα από πίσω
+  back.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = [...box.querySelectorAll<HTMLElement>('button, input, textarea, select, [tabindex]')].filter((el) => !el.hasAttribute('disabled') && el.offsetParent !== null);
+    if (!f.length) return;
+    const first = f[0], last = f[f.length - 1], at = document.activeElement;
+    if (!box.contains(at) || (e.shiftKey && at === first) || (!e.shiftKey && at === last)) {
+      e.preventDefault();
+      (e.shiftKey ? last : first).focus();
+    }
+  });
   back.append(box);
   document.body.append(back);
   return { back, box };

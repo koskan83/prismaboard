@@ -144,8 +144,10 @@ export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise
   const data = await toBase64(png);
   const model = s.models[s.provider];
   let res: Response;
+  // ο browser λέει «Failed to fetch» (αγγλικά, χωρίς εξήγηση) όταν δεν υπάρχει δίκτυο
+  const send = (url: string, init: RequestInit): Promise<Response> => fetch(url, init).catch(() => Promise.reject(new Error('χωρίς σύνδεση στο ίντερνετ')));
   if (s.provider === 'gemini') {
-    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+    res = await send(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
@@ -154,7 +156,7 @@ export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise
       }),
     });
   } else {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
+    res = await send('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',

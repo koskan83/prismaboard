@@ -12,7 +12,7 @@ import { openGameView, playsFull } from './game-view';
 import { loadReady } from './ready-ui';
 import { confetti, loadFx, playFx, saveFx, say } from './fx';
 import { NEWS, VERSION, newsPending } from './news';
-import { $, HL_PALETTE, MORE_COLORS, PALETTE, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast } from './app';
+import { $, HL_PALETTE, MORE_COLORS, PALETTE, colorName, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast } from './app';
 import { fitY, renderFns, resetFnDraft, resetFnMoved, scaleText, toggleAnalysis } from './axes-ui';
 import { clearMeasShape } from './measure-ui';
 import { ai, autoKind, openAi } from './recognize-ui';
@@ -93,10 +93,10 @@ function renderColors(): void {
   if (key === colorsKey) return;
   colorsKey = key;
   colorsEl.innerHTML =
-    list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${c}"></button>`).join('') +
+    list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('') +
     '<button id="colorBtn" title="Περισσότερα χρώματα" aria-label="Περισσότερα χρώματα"><span data-em="🎨"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>';
 }
-$('colorGrid').innerHTML = MORE_COLORS.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${c}"></button>`).join('');
+$('colorGrid').innerHTML = MORE_COLORS.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('');
 
 const widthsEl = $('widths');
 SIZE_NAME.forEach((name, i) => {
@@ -782,7 +782,9 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'fit') {
     board.fitView();
   } else if (act === 'clear') {
+    if (board.page.items.length === 0) return;
     board.clearPage();
+    toast('Σβήστηκαν όλα στη σελίδα', 9000, { label: 'Αναίρεση', run: () => board.undo() });
   } else if (act === 'delpage') {
     // χωρίς ερώτηση: η σελίδα σβήνει αμέσως και το μήνυμα έχει «Αναίρεση» για λίγα δευτερόλεπτα
     const gone = board.deletePage();
@@ -1007,8 +1009,9 @@ const showNews = (): Promise<void> => notice('Τι νέο στο PrismaBoard', N
 $('verLine').textContent = $('verMain').textContent = `Έκδοση ${VERSION}`;
 // οι οδηγίες ως σελίδα, με κινούμενα κλιπ· το PDF μένει για εκτύπωση
 $('wHelp').onclick = () => window.open('./odigies.html', '_blank');
+// άγγιγμα έξω από την κάρτα (π.χ. παλάμη ή μανίκι στον πίνακα): κλείνει για τώρα, αλλά η γνωριμία ξαναβγαίνει στο επόμενο άνοιγμα· μόνο το «Ξεκίνα» τη σημειώνει ως ειδωμένη
 $('welcome').addEventListener('pointerdown', (e) => {
-  if (e.target === $('welcome')) closeWelcome();
+  if (e.target === $('welcome')) $('welcome').classList.add('hidden');
 });
 
 // ---------- zoom και ονόματα εικονιδίων ----------

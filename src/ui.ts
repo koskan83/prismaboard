@@ -108,8 +108,8 @@ export function mountUi(app: HTMLElement): void {
       <button data-act="a4-h" class="a4Sw h" title="Αχνό περίγραμμα Α4 πλάγιας: για στοίχιση, και το PDF βγαίνει ακριβώς Α4"><i></i></button>
     </div>
     ${mi('data-act="fit"', I.fit, 'Προσαρμογή προβολής')}
-    ${mi('data-act="clear"', I.clear, 'Καθαρισμός σελίδας')}
-    ${mi('data-act="delpage"', I.delpage, 'Διαγραφή σελίδας')}
+    ${mi('data-act="clear" class="danger sep"', I.clear, 'Καθαρισμός σελίδας')}
+    ${mi('data-act="delpage" class="danger"', I.delpage, 'Διαγραφή σελίδας')}
     <div class="gHead">Εφαρμογή</div>
     ${mi('data-act="full"', I.full, 'Πλήρης οθόνη')}
     ${mi('data-act="overlay" id="overlayAct" class="hidden"', I.screen, 'Γράψιμο πάνω από άλλα προγράμματα')}
@@ -329,7 +329,7 @@ export function mountUi(app: HTMLElement): void {
       ${tile('data-shape="ellipse"', I.ellipse, 'Κύκλος', 'Κύκλος ή έλλειψη')}
       ${tile('data-shape="triangle"', I.triangle, 'Τρίγωνο')}
       ${tile('data-shape="rhombus"', I.rhombus, 'Ρόμβος')}
-      ${tile('data-shape="para"', I.para, 'Παραλ/μο', 'Παραλληλόγραμμο')}
+      ${tile('data-shape="para"', I.para, 'Παραλληλό&shy;γραμμο', 'Παραλληλόγραμμο')}
       ${tile('data-shape="angle"', I.angle, 'Γωνία', 'Γωνία με μοίρες')}
       ${tile('data-ins="table"', I.table, 'Πίνακας…', 'Πίνακας, ορίζουσα ή μήτρα: διαλέγεις γραμμές και στήλες')}
     </div>
@@ -351,7 +351,7 @@ export function mountUi(app: HTMLElement): void {
     <div class="gHead" data-tab="shape"><span data-lv="sec">Όργανα και φυσική</span><span data-lv="pri">Όργανα</span></div>
     <div class="tiles" data-tab="shape">
       ${tile('data-gadget="ruler"', I.ruler, 'Χάρακας')}
-      ${tile('data-gadget="protractor"', I.protractor, 'Μοιρογν.', 'Μοιρογνωμόνιο')}
+      ${tile('data-gadget="protractor"', I.protractor, 'Μοιρογνω&shy;μόνιο', 'Μοιρογνωμόνιο')}
       ${tile('data-gadget="compass"', I.compass, 'Διαβήτης')}
       ${tile('data-ins="stamps" data-lv="sec"', I.physics, 'Φυσική…', 'Σχήματα φυσικής')}
       ${tile('data-kid="poll" data-lv="sec"', I.poll, 'Ψηφοφορία', 'Ψηφοφορία της τάξης: Α Β Γ Δ ή ναι/όχι, με ραβδόγραμμα στο τέλος')}
@@ -381,10 +381,10 @@ export function mountUi(app: HTMLElement): void {
     <div class="gHead" data-tab="shape">Παρουσίαση</div>
     <div class="tiles" data-tab="shape">
       ${tile('data-gadget="timer" data-lv="sec"', I.timer, 'Χρονόμετρο')}
-      ${tile('data-view="curtainTop"', I.curtainTop, 'Κουρτ. πάνω', 'Κουρτίνα από πάνω (γράφεις και πάνω της)')}
-      ${tile('data-view="curtain"', I.curtain, 'Κουρτ. κάτω', 'Κουρτίνα από κάτω (γράφεις και πάνω της)')}
+      ${tile('data-view="curtainTop"', I.curtainTop, 'Κουρτίνα πάνω', 'Κουρτίνα από πάνω (γράφεις και πάνω της)')}
+      ${tile('data-view="curtain"', I.curtain, 'Κουρτίνα κάτω', 'Κουρτίνα από κάτω (γράφεις και πάνω της)')}
       ${tile('data-view="spot"', I.spot, 'Προβολέας')}
-      ${tile('data-view="replay"', I.play, 'Αναπαραγωγή', 'Αναπαραγωγή της σελίδας')}
+      ${tile('data-view="replay"', I.play, 'Αναπαρα&shy;γωγή', 'Αναπαραγωγή της σελίδας')}
     </div>
   </div>
 
@@ -492,7 +492,7 @@ export function mountUi(app: HTMLElement): void {
     </div>
   </div>
   <div id="diag" class="hidden"></div>
-  <div id="toast" class="hidden"></div>
+  <div id="toast" class="hidden" role="status" aria-live="polite"></div>
   <div id="drop" class="hidden">Άφησε το αρχείο εδώ (εικόνα, PDF ή Word)</div>
   <input id="fileImport" type="file" accept="image/*,.png,.jpg,.jpeg,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple hidden />
   <input id="fileOpen" type="file" accept=".json,application/json" hidden />

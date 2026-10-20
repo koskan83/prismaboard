@@ -45,7 +45,7 @@ export function usageReport(): string {
   const label = new Map<string, string>();
   document.querySelectorAll<HTMLElement>('button').forEach((b) => {
     const k = keyOf(b);
-    if (k && !label.has(k)) label.set(k, (b.textContent?.trim() || b.title || b.dataset.l || '').replace(/\s+/g, ' ').slice(0, 60));
+    if (k && !label.has(k)) label.set(k, (b.textContent?.trim() || b.title || b.dataset.l || '').replace(/­/g, '').replace(/\s+/g, ' ').slice(0, 60));
   });
   const keys = [...new Set([...Object.keys(usage.n), ...label.keys()])].sort((a, b) => (usage.n[b]?.[0] ?? 0) - (usage.n[a]?.[0] ?? 0) || a.localeCompare(b));
   const row = (k: string): string => `${String(usage.n[k]?.[0] ?? 0).padStart(6)}  ${usage.n[k]?.[1] ?? '    —     '}  ${k.padEnd(22)}  ${label.get(k) ?? ''}`;
@@ -58,7 +58,7 @@ const FEATURE = '#toolbar button[data-l], #gadgetMenu .tiles:not(#recentTiles) .
 /** Το σύντομο όνομα ενός κουμπιού: η ετικέτα του, η λεζάντα του πλακιδίου ή το κείμενό του χωρίς τα εικονίδια. */
 function nameOf(b: HTMLElement): string {
   const own = [...b.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent).join('');
-  return (b.dataset.l || b.querySelector('small')?.textContent || own.trim() || b.title || b.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  return (b.dataset.l || b.querySelector('small')?.textContent || own.trim() || b.title || b.textContent || '').replace(/­/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
 }
 
 /** Τα ονόματα των κουμπιών-λειτουργιών, όπως φαίνονται. */

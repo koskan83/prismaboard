@@ -142,13 +142,13 @@ body.inking #toolbar { pointer-events: none; }
 .popup button { text-align: left; padding: 14px 16px; border-radius: 10px; font-size: 17px; }
 .popup button:hover { background: var(--bar-2); }
 .popup hr { width: 100%; border: 0; border-top: 1px solid var(--bar-2); margin: 4px 0; }
-.popup .hint { font-size: 14px; opacity: .7; padding: 6px 12px 4px; max-width: 300px; }
+.popup .hint { font-size: 15px; opacity: .85; padding: 6px 12px 4px; max-width: 300px; }
 
 .hidden { display: none !important; }
 
 #toast {
   position: fixed; left: 50%; top: 18px; transform: translateX(-50%); z-index: 97;
-  background: #111827; color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 16px; max-width: 80vw;
+  background: #111827; color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 19px; max-width: 80vw;
   box-shadow: 0 6px 20px rgba(0,0,0,.35);
 }
 #toast button { margin-left: 14px; padding: 8px 16px; border: 0; border-radius: 9px; background: var(--go); color: #06262b; font: inherit; font-weight: 700; cursor: pointer; }
@@ -710,3 +710,10 @@ canvas.mascot { position: static; display: block; touch-action: auto; }
   cursor: pointer;
   opacity: 0.9;
 }
+/* οι εντολές που σβήνουν: κόκκινες και λίγο χωριστά από τις καθημερινές, για να μην πατιούνται κατά λάθος */
+.popup button.danger { color: var(--danger); }
+body.dark .popup button.danger { color: var(--danger-bg); }
+.popup button.sep { margin-top: 10px; border-top: 1px solid var(--bar-2); border-radius: 0 0 10px 10px; }
+/* οι κουκκίδες των χρωμάτων μένουν μικρές, αλλά πιάνονται από 44px ύψος: με το δάχτυλο, όρθιος στον πίνακα */
+#toolbar button.color { position: relative; }
+#toolbar button.color::after { content: ''; position: absolute; inset: -8px -2px; }

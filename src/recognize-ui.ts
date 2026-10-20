@@ -81,10 +81,10 @@ board.onRead = async (ids) => {
   try {
     const out = (await recognize(img.blob, 'letters', ai)).split('\n')[0].trim();
     if (out) $('toast').classList.add('hidden');
-    else toast('Δεν μπόρεσα να το διαβάσω: συγκρίνετέ το εσείς με τη σωστή λέξη.', 5000);
+    else toast('Δεν μπόρεσα να το διαβάσω: σύγκρινέ το εσύ με τη σωστή λέξη.', 5000);
     return out;
   } catch (err) {
-    toast(`Η ανάγνωση απέτυχε (${(err as Error).message}): συγκρίνετέ το εσείς με τη σωστή λέξη.`, 6000);
+    toast(`Η ανάγνωση απέτυχε (${(err as Error).message}): σύγκρινέ το εσύ με τη σωστή λέξη.`, 6000);
     return '';
   } finally {
     aiBusy--;
@@ -161,7 +161,7 @@ async function selectionText(join: string): Promise<string | null> {
   const typed = picked.filter((it): it is TextItem => it.kind === 'text').map((t) => t.text).join(join);
   if (typed) return typed;
   if (!ai.keys[ai.provider]) {
-    toast('Για χειρόγραφο χρειάζεται το κλειδί της αναγνώρισης. Κείμενο γραμμένο με το «Κείμενο» διαβάζεται χωρίς κλειδί.', 6000);
+    toast('Για χειρόγραφο χρειάζεται το κλειδί της αναγνώρισης. Κείμενο γραμμένο με το «Κείμενο» διαβάζεται χωρίς κλειδί.', 9000, { label: 'Ρύθμιση κλειδιού', run: openAi });
     return null;
   }
   const img = board.hasRegion ? await board.regionImage() : await board.inkImage(board.selectionIds);

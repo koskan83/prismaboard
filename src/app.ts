@@ -19,6 +19,18 @@ export const PALETTE = {
   light: ['#111111', '#e11d48', '#2563eb', '#16a34a'],
   dark: ['#ffffff', '#fb7185', '#7dd3fc', '#86efac'],
 };
+/** Ελληνικό όνομα για ένα χρώμα #rrggbb (για αναγνώστες οθόνης και tooltip), από την απόχρωση και τη φωτεινότητά του. */
+export function colorName(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return 'Χρώμα';
+  const [r, g, b] = [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
+  if (d < 0.12) return l < 0.2 ? 'Μαύρο' : l > 0.9 ? 'Λευκό' : l > 0.65 ? 'Ανοιχτό γκρι' : 'Γκρι';
+  const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  const base = h < 15 || h >= 345 ? 'κόκκινο' : h < 40 ? (l < 0.4 ? 'καφέ' : 'πορτοκαλί') : h < 65 ? 'κίτρινο' : h < 165 ? 'πράσινο' : h < 195 ? 'τιρκουάζ' : h < 255 ? 'μπλε' : h < 290 ? 'μωβ' : 'ροζ';
+  const name = l > 0.7 ? `ανοιχτό ${base}` : l < 0.3 ? `σκούρο ${base}` : base;
+  return name[0].toUpperCase() + name.slice(1);
+}
 /** Χρώματα του υπογραμμιστικού (ίδια σε κάθε φόντο). */
 export const HL_PALETTE = ['#fde047', '#86efac', '#f9a8d4', '#7dd3fc'];
 export const MORE_COLORS = [
@@ -57,14 +69,23 @@ if (isOverlay) {
 // ---------- helpers ----------
 
 let toastTimer = 0;
+/** Ως πότε φαίνεται μήνυμα με κουμπί: ένα απλό μήνυμα που έρχεται στο μεταξύ (π.χ. αποθήκευση) δεν σβήνει την «Αναίρεση», περιμένει. */
+let actionUntil = 0;
 /** Σύντομο μήνυμα πάνω στη μέση. `action`: κουμπί δίπλα στο μήνυμα (π.χ. «Αναίρεση»). */
 export function toast(msg: string, ms = 3000, action?: { label: string; run: () => void }): void {
+  const wait = actionUntil - Date.now();
+  if (!action && wait > 0) {
+    window.setTimeout(() => toast(msg, ms), wait);
+    return;
+  }
+  actionUntil = action && ms > 0 ? Date.now() + ms : 0;
   const t = $('toast');
   t.textContent = msg;
   if (action) {
     const b = document.createElement('button');
     b.textContent = action.label;
     b.onclick = () => {
+      actionUntil = 0;
       t.classList.add('hidden');
       action.run();
     };
