@@ -63,7 +63,7 @@ body.inking #toolbar { pointer-events: none; }
 }
 .group { display: flex; align-items: center; gap: 2px; padding-right: 6px; border-right: 1px solid var(--bar-2); }
 .group:last-child { border-right: 0; padding-right: 0; }
-#toolbar button { width: 42px; height: 42px; border-radius: 10px; padding: 0; font-size: 0;
+#toolbar button { width: 44px; height: 44px; border-radius: 10px; padding: 0; font-size: 0;
   display: flex; align-items: center; justify-content: center; }
 #toolbar button span { font-size: 21px; line-height: 1; }
 #toolbar button span svg { display: block; width: 26px; height: 26px; }
@@ -366,7 +366,7 @@ body.inking #lessonName { pointer-events: none; }
 /* ---------- zoom ---------- */
 #zoomCtl { position: fixed; right: 14px; top: 14px; z-index: 10; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 14px;
   background: var(--bar); color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,.28); opacity: .85; transition: opacity .15s; }
-#zoomCtl button { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+#zoomCtl button { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 #zoomCtl button svg { width: 22px; height: 22px; }
 #zoomCtl #zoomFit { width: 58px; font-size: 14px; font-weight: 600; }
 #zoomCtl button:hover { background: var(--bar-2); }

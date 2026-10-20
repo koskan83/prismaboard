@@ -14,13 +14,29 @@ export function cleanMeta(m: Partial<LessonMeta> | undefined): LessonMeta | null
 const DB = 'grafida';
 const STORE = 'kv';
 
+/** Μία σύνδεση για όλη την εφαρμογή· ξανανοίγει αν την κλείσει ο browser ή μια νεότερη έκδοση σε άλλη καρτέλα. */
+let conn: Promise<IDBDatabase> | null = null;
 function open(): Promise<IDBDatabase> {
-  return new Promise((res, rej) => {
+  conn ??= new Promise<IDBDatabase>((res, rej) => {
     const r = indexedDB.open(DB, 1);
     r.onupgradeneeded = () => r.result.createObjectStore(STORE);
-    r.onsuccess = () => res(r.result);
+    r.onsuccess = () => {
+      const db = r.result;
+      db.onversionchange = () => {
+        db.close();
+        conn = null;
+      };
+      db.onclose = () => {
+        conn = null;
+      };
+      res(db);
+    };
     r.onerror = () => rej(r.error);
+  }).catch((err) => {
+    conn = null;
+    throw err;
   });
+  return conn;
 }
 
 export async function saveDoc(doc: Doc): Promise<void> {
@@ -31,7 +47,6 @@ export async function saveDoc(doc: Doc): Promise<void> {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
-  db.close();
 }
 
 export async function loadDoc(): Promise<Doc | null> {
@@ -42,7 +57,6 @@ export async function loadDoc(): Promise<Doc | null> {
       r.onsuccess = () => res(r.result as string | undefined);
       r.onerror = () => rej(r.error);
     });
-    db.close();
     return s ? (JSON.parse(s) as Doc) : null;
   } catch {
     return null;
@@ -121,7 +135,6 @@ export async function saveLesson(id: string, doc: Doc): Promise<void> {
     tx.onerror = () => rej(tx.error);
     tx.onabort = () => rej(tx.error);
   });
-  db.close();
 }
 
 /**
@@ -158,7 +171,6 @@ export async function loadLesson(id: string, forEdit = false): Promise<Doc | nul
       tx.onerror = () => rej(tx.error);
       tx.onabort = () => rej(tx.error);
     });
-    db.close();
     return doc;
   } catch (err) {
     // για επεξεργασία το σφάλμα δεν γίνεται «δεν υπάρχει»: αλλιώς ανοίγει κενό και η πρώτη αποθήκευση το σβήνει
@@ -180,7 +192,6 @@ export async function deleteLesson(id: string): Promise<void> {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
-  db.close();
 }
 
 /** Γενική αποθήκευση τιμής (π.χ. πρότυπα σελίδων). */
@@ -192,7 +203,6 @@ export async function kvSet(key: string, value: unknown): Promise<void> {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
-  db.close();
 }
 
 export async function kvGet<T>(key: string): Promise<T | null> {
@@ -203,7 +213,6 @@ export async function kvGet<T>(key: string): Promise<T | null> {
       r.onsuccess = () => res(r.result as string | undefined);
       r.onerror = () => rej(r.error);
     });
-    db.close();
     return s ? (JSON.parse(s) as T) : null;
   } catch {
     return null;
@@ -218,7 +227,6 @@ export async function kvDel(key: string): Promise<void> {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
-  db.close();
 }
 
 /** Τιμή που δεν γίνεται JSON (π.χ. ο φάκελος που διάλεξε ο χρήστης για τα αρχεία): φυλάγεται ως έχει. */
@@ -230,7 +238,6 @@ export async function kvPutRaw(key: string, value: unknown): Promise<void> {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
-  db.close();
 }
 
 export async function kvGetRaw<T>(key: string): Promise<T | null> {
@@ -241,7 +248,6 @@ export async function kvGetRaw<T>(key: string): Promise<T | null> {
       r.onsuccess = () => res(r.result as T | undefined);
       r.onerror = () => rej(r.error);
     });
-    db.close();
     return v ?? null;
   } catch {
     return null;
@@ -257,7 +263,6 @@ export async function kvAll(): Promise<[string, string][]> {
     vals.onsuccess = () => res((keys.result as IDBValidKey[]).map((k, i) => [String(k), vals.result[i]] as [string, unknown]).filter((e): e is [string, string] => typeof e[1] === 'string'));
     vals.onerror = () => rej(vals.error);
   });
-  db.close();
   return out;
 }
 
@@ -272,5 +277,4 @@ export async function kvPutMany(entries: [string, string][]): Promise<void> {
     tx.onerror = () => rej(tx.error);
     tx.onabort = () => rej(tx.error);
   });
-  db.close();
 }

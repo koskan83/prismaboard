@@ -5,7 +5,7 @@ import { Params, compile, fnOf, paramsOf } from './expr';
 import { crossings, enclosing, fitScaleY } from './analysis';
 import { axesRange, itemBounds } from './model';
 import { ask } from './dialog';
-import { $, board, toast } from './app';
+import { $, board, esc, toast } from './app';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, placeNear, savePrefs, togglePopup } from './main';
 
@@ -145,7 +145,6 @@ const FN_KEYS = [
 ];
 const FN_INSERT: Record<string, string> = { 'x²': '²', '÷': '/', '×': '·', '−': '-' };
 $('fnKeys').innerHTML = FN_KEYS.map((k) => `<button data-key="${k}"${/^[0-9,]$/.test(k) ? ' class="num"' : ''}>${k}</button>`).join('');
-export const esc = (t: string): string => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
 /** Ποια συνάρτηση της λίστας διορθώνεται (null = γράφεται καινούργια). */
 let fnEdit: number | null = null;
 /** Ο χρήστης έσυρε το πλαίσιο: δεν το ξανατοποθετούμε μόνοι μας. */

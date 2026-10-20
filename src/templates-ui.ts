@@ -4,8 +4,7 @@ import { Item } from './model';
 import { kvGet, kvSet } from './storage';
 import { ask } from './dialog';
 import { BUILTIN, type Template } from './pages';
-import { $, board, toast } from './app';
-import { esc } from './axes-ui';
+import { $, board, esc, toast } from './app';
 import { closePopups } from './main';
 
 let templates: Template[] = [];

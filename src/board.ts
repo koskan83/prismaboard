@@ -388,6 +388,8 @@ export class Board {
 
   push(op: Op): void {
     this.undoStack.push(op);
+    // όριο για τη μνήμη σε μάθημα που μένει ανοιχτό όλη μέρα· οι πιο παλιές κινήσεις δεν αναιρούνται πια
+    if (this.undoStack.length > 500) this.undoStack.shift();
     this.redoStack = [];
     if (this.syncLinks()) this.redraw();
     this.onChange();
@@ -939,6 +941,13 @@ export class Board {
     const hidden = this.dragPreviewIds();
     const rp = this.replay;
     const items = this.page.items;
+    // ό,τι είναι ολόκληρο έξω από την οθόνη δεν ζωγραφίζεται· μόνο για είδη με ακριβές περίγραμμα (τα σχήματα έχουν και ετικέτες γύρω τους)
+    const pad = 40 / v.k;
+    const off = (it: Item): boolean => {
+      if (it.kind !== 'stroke' && it.kind !== 'image' && it.kind !== 'stamp' && it.kind !== 'text') return false;
+      const b = itemBounds(it);
+      return b.x1 < x0 - pad || b.x0 > x1 + pad || b.y1 < y0 - pad || b.y0 > y1 + pad;
+    };
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (hidden.has(it.id)) continue;
@@ -947,6 +956,7 @@ export class Board {
         if (rp.prog > 0) this.r.drawStroke(c, { ...it, pts: it.pts.slice(0, rp.prog) });
         break;
       }
+      if (off(it)) continue;
       this.r.drawItem(c, it);
       if (it.kind === 'shape' && it.meas) this.r.drawMeasures(c, it);
     }

@@ -110,6 +110,9 @@ export function download(blob: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
+/** Κείμενο που μπαίνει σε HTML. */
+export const esc = (t: string): string => t.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+
 /** Όνομα κατάλληλο για αρχείο. */
 export function fileName(s: string): string {
   return s.replace(/[\\/:*?"<>|]/g, '_').trim() || 'pinakas';

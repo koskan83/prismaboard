@@ -123,7 +123,19 @@ async function api<T>(url: string, init: RequestInit, tk: string): Promise<T> {
 /** Το όνομα μέσα σε ερώτημα του Drive: τα ' και \ θέλουν διαφυγή. */
 const quoted = (s: string): string => s.replace(/['\\]/g, (c) => `\\${c}`);
 
-async function folderId(tk: string, name = FOLDER, parent?: string): Promise<string> {
+/** Αναζητήσεις φακέλων που τρέχουν τώρα: δύο ανεβάσματα μαζί περιμένουν την ίδια, αντί να φτιάξει το καθένα δικό του φάκελο. */
+const finding = new Map<string, Promise<string>>();
+function folderId(tk: string, name = FOLDER, parent?: string): Promise<string> {
+  const key = `${parent ?? ''}/${name}`;
+  let p = finding.get(key);
+  if (!p) {
+    p = findOrMakeFolder(tk, name, parent).finally(() => finding.delete(key));
+    finding.set(key, p);
+  }
+  return p;
+}
+
+async function findOrMakeFolder(tk: string, name: string, parent?: string): Promise<string> {
   const q = `name='${quoted(name)}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parent ? ` and '${parent}' in parents` : ''}`;
   const found = await api<{ files: { id: string }[] }>(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id)`, {}, tk);
   if (found.files[0]) return found.files[0].id;

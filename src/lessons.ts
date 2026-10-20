@@ -632,10 +632,12 @@ export class Lessons {
         });
         done++;
       }
+      // ό,τι πήγε στον κάδο του Drive (ή δεν ήταν εκεί) φεύγει από τη λίστα· όσα απέτυχαν ξαναδοκιμάζονται την επόμενη φορά
       for (const id of gone.slice()) {
         const r = remote.find((x) => x.id === id);
-        if (r) await trashBackup(r.fileId).catch(() => undefined);
+        if (r && !(await trashBackup(r.fileId).then(() => true, () => false))) continue;
         delete this.safe.ids[id];
+        this.safe.gone = this.safe.gone.filter((g) => g !== id);
       }
       this.safe.at = Date.now();
       this.safe.done = true;
@@ -695,6 +697,8 @@ export class Lessons {
   private async put(raw: LessonMeta, doc: Doc): Promise<'new' | 'upd' | null> {
     const meta = cleanMeta(raw);
     if (!meta) return null;
+    // ό,τι γράφτηκε στο ανοιχτό μάθημα τα τελευταία δευτερόλεπτα σώζεται πριν τη σύγκριση και το ξαναφόρτωμα
+    if (meta.id === this.cur) await this.flush(false);
     try {
       doc = readDoc(doc);
     } catch {
