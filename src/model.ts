@@ -275,6 +275,33 @@ const UPGRADE: Record<number, (d: Record<string, unknown>) => Record<string, unk
  * ελέγχει τη μορφή, φέρνει παλιές μορφές στη σημερινή και διορθώνει ό,τι λείπει, χωρίς να πετάει δουλειά.
  * Πετάει σφάλμα με κατανοητό μήνυμα αν το αρχείο δεν είναι πίνακας ή είναι από νεότερη έκδοση.
  */
+// μόνο το σχήμα των δεδομένων: ένα NaN δεν ρίχνει το ζωγράφισμα, και δεν σβήνουμε γραμμές από υπάρχοντα μαθήματα γι' αυτό
+const isPts = (p: unknown): boolean => Array.isArray(p) && p.every((q) => Array.isArray(q));
+
+/**
+ * Τα πεδία που, σε λάθος μορφή, θα έριχναν το ζωγράφισμα σε κάθε άνοιγμα του μαθήματος (π.χ. `pts` που δεν είναι λίστα).
+ * Αρχεία από έξω (συνάδελφος, Drive) δεν είναι έμπιστα· ό,τι δεν περνά, απλώς δεν μπαίνει.
+ */
+function itemOk(it: Item): boolean {
+  switch (it.kind) {
+    case 'stroke':
+      return isPts(it.pts);
+    case 'image':
+      return typeof it.src === 'string';
+    case 'shape':
+      return typeof it.shape === 'string' && (it.pts === undefined || isPts(it.pts));
+    case 'text':
+      return typeof it.text === 'string';
+    case 'axes':
+      return it.fns === undefined || (Array.isArray(it.fns) && it.fns.every((f) => !!f && typeof f.expr === 'string'));
+    case 'stamp':
+      // όχι «constructor», «toString» κ.λπ., που θα έβρισκε το STAMPS[name] σε κάθε αντικείμενο
+      return typeof it.name === 'string' && !(it.name in Object.prototype);
+    default:
+      return true;
+  }
+}
+
 export function readDoc(raw: unknown): Doc {
   const r = raw as Record<string, unknown> | null;
   if (!r || typeof r !== 'object' || typeof r.v !== 'number' || !Array.isArray(r.pages)) throw new Error('Μη έγκυρο αρχείο πίνακα');
@@ -289,7 +316,7 @@ export function readDoc(raw: unknown): Doc {
     const pg = (p && typeof p === 'object' ? p : {}) as Partial<Page>;
     const v = pg.view;
     const view = v && [v.x, v.y, v.k].every(Number.isFinite) && v.k > 0 ? v : { x: 0, y: 0, k: 1 };
-    const items = (Array.isArray(pg.items) ? pg.items : []).filter((it): it is Item => !!it && typeof it === 'object' && KINDS.has((it as Item).kind));
+    const items = (Array.isArray(pg.items) ? pg.items : []).filter((it): it is Item => !!it && typeof it === 'object' && KINDS.has((it as Item).kind) && itemOk(it as Item));
     for (const it of items) if (typeof it.id !== 'string' || !it.id) it.id = uid();
     return { ...pg, items, view };
   });

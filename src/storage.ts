@@ -1,4 +1,15 @@
 import { Doc, uid } from './model';
+import type { LessonMeta } from './lessons';
+
+/** Τα στοιχεία μαθήματος από αρχείο ή Drive δεν είναι έμπιστα: κρατά μόνο ό,τι έχει τη σωστή μορφή, αλλιώς null. */
+export function cleanMeta(m: Partial<LessonMeta> | undefined): LessonMeta | null {
+  if (!m || typeof m.id !== 'string' || !/^[\w-]{1,64}$/.test(m.id) || typeof m.name !== 'string') return null;
+  if (!Number.isFinite(m.updated) || !Number.isInteger(m.pages)) return null;
+  const out: LessonMeta = { id: m.id, name: m.name, updated: m.updated!, pages: m.pages! };
+  if (typeof m.group === 'string') out.group = m.group;
+  if (typeof m.thumb === 'string' && /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(m.thumb)) out.thumb = m.thumb;
+  return out;
+}
 
 const DB = 'grafida';
 const STORE = 'kv';
@@ -149,8 +160,12 @@ export async function loadLesson(id: string, forEdit = false): Promise<Doc | nul
     });
     db.close();
     return doc;
-  } catch {
-    if (forEdit) opened = { id, ids: new Map() };
+  } catch (err) {
+    // για επεξεργασία το σφάλμα δεν γίνεται «δεν υπάρχει»: αλλιώς ανοίγει κενό και η πρώτη αποθήκευση το σβήνει
+    if (forEdit) {
+      opened = { id, ids: new Map() };
+      throw err;
+    }
     return null;
   }
 }

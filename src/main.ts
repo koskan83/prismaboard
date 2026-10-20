@@ -1120,8 +1120,9 @@ void (async () => {
 
 if (!isOverlay) trackUsage();
 
+declare const __BUILD_ID__: string;
 if (import.meta.env.PROD && !isNative && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.register(`./sw.js?v=${__BUILD_ID__}`).catch(() => {});
 }
 
 // Πρόγραμμα των Windows: λίγο μετά το άνοιγμα και μετά μία φορά τη μέρα, ψάχνει νέα έκδοση στα GitHub Releases.

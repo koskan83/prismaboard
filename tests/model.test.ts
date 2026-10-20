@@ -266,6 +266,18 @@ describe('ανάγνωση αποθηκευμένου πίνακα', () => {
     expect(d.pages[0].view).toEqual({ x: 0, y: 0, k: 1 });
     expect(readDoc({ v: 1, pages: [] }).pages).toHaveLength(1);
   });
+  it('πετά αντικείμενα που θα έριχναν το ζωγράφισμα (αρχείο από έξω)', () => {
+    const bad = [
+      { kind: 'stroke', id: 'a', pts: 'x', color: '#000', width: 2, hl: false },
+      { kind: 'text', id: 'b', x: 0, y: 0, text: 5, size: 20, color: '#000' },
+      { kind: 'image', id: 'c', x: 0, y: 0, w: 1, h: 1 },
+      { kind: 'stamp', id: 'd', name: 'constructor', x: 0, y: 0, w: 1, h: 1, color: '#000', width: 2 },
+      { kind: 'axes', id: 'e', x: 0, y: 0, unit: 40, mode: 'full', nx: 5, ny: 5, color: '#000', fns: [{ expr: 1 }] },
+    ];
+    const good = { kind: 'stroke', id: 'f', pts: [[0, 0], [1, NaN]], color: '#000', width: 2, hl: false };
+    const d = readDoc({ v: 1, pages: [{ items: [...bad, rect(), good] }] });
+    expect(d.pages[0].items.map((it) => it.id)).toEqual([rect().id, 'f']);
+  });
   it('κρατά το περίγραμμα Α4 και πετά ό,τι άγνωστο', () => {
     expect(readDoc({ v: 1, pages: [], a4: 'h' }).a4).toBe('h');
     expect(readDoc({ v: 1, pages: [], a4: 'A3' }).a4).toBeUndefined();

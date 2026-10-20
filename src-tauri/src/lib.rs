@@ -50,8 +50,8 @@ async fn save_file(app: AppHandle, request: Request<'_>) -> Result<bool, String>
         .headers()
         .get("x-file-name")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or("pinakas")
-        .to_string();
+        .map(percent_decode)
+        .unwrap_or_else(|| "pinakas".into());
     let ext = name.rsplit('.').next().unwrap_or("").to_string();
 
     let mut dialog = app.dialog().file().set_file_name(&name);
@@ -106,6 +106,11 @@ async fn save_in_folder(app: AppHandle, request: Request<'_>) -> Result<String, 
     if name.is_empty() {
         return Err("Χωρίς όνομα αρχείου".into());
     }
+    // μόνο ό,τι σώζει η εφαρμογή: ποτέ .exe, .bat, .lnk κ.λπ. μέσα στα Έγγραφα
+    let ext = name.rsplit_once('.').map(|(_, e)| e.to_lowercase()).unwrap_or_default();
+    if !matches!(ext.as_str(), "json" | "pdf" | "png" | "jpg" | "jpeg") {
+        return Err(format!("Δεν επιτρέπεται αρχείο .{ext}"));
+    }
     let folder = safe_part(&header("x-folder"));
     let mut dir = app.path().document_dir().map_err(|e| e.to_string())?.join("PrismaBoard");
     if !folder.is_empty() {
@@ -118,8 +123,15 @@ async fn save_in_folder(app: AppHandle, request: Request<'_>) -> Result<String, 
 }
 
 /// Ανοίγει την Εξερεύνηση αρχείων στον φάκελο, με το αρχείο επιλεγμένο.
+/// Μόνο αρχεία του «Έγγραφα\PrismaBoard»: ένα άλλο path (π.χ. `\\server\...`) θα έκανε τον Explorer να συνδεθεί όπου του πουν.
+/// Ο έλεγχος γίνεται στο κείμενο της διαδρομής, πριν αγγίξει οτιδήποτε τον δίσκο ή το δίκτυο.
 #[tauri::command]
-fn show_file(path: String) -> Result<(), String> {
+fn show_file(app: AppHandle, path: String) -> Result<(), String> {
+    let root = app.path().document_dir().map_err(|e| e.to_string())?.join("PrismaBoard");
+    let p = std::path::Path::new(&path);
+    if !p.starts_with(&root) || p.components().any(|c| c == std::path::Component::ParentDir) {
+        return Err("Μόνο αρχεία του φακέλου PrismaBoard".into());
+    }
     #[cfg(windows)]
     std::process::Command::new("explorer").arg(format!("/select,{path}")).spawn().map_err(|e| e.to_string())?;
     #[cfg(not(windows))]

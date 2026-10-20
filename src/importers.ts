@@ -90,7 +90,8 @@ export async function openDocx(file: File): Promise<OpenPdf> {
   const body = document.createElement('div');
   host.append(styles, body);
   try {
-    await docx.renderAsync(file, body, styles, { breakPages: true, useBase64URL: true, experimental: true, ignoreLastRenderedPageBreak: false });
+    // renderAltChunks: το ενσωματωμένο HTML θα έτρεχε ως iframe χωρίς sandbox, με την προέλευση της εφαρμογής
+    await docx.renderAsync(file, body, styles, { breakPages: true, useBase64URL: true, experimental: true, ignoreLastRenderedPageBreak: false, renderAltChunks: false });
   } catch (err) {
     host.remove();
     throw err;

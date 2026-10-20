@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Doc, Item } from '../src/model';
-import { docRefs, fillDoc, slimDoc } from '../src/storage';
+import { cleanMeta, docRefs, fillDoc, slimDoc } from '../src/storage';
 
 const big = (c: string): string => 'data:image/jpeg;base64,' + c.repeat(10000);
 const pic = (id: string, src: string): Item => ({ kind: 'image', id, x: 0, y: 0, w: 100, h: 100, src });
@@ -47,5 +47,23 @@ describe('εικόνες χωριστά από το μάθημα', () => {
     fillDoc(back, imgs);
     expect((back.pages[0].items[0] as { src: string }).src).toBe('idb:' + lost);
     expect((back.pages[0].items[1] as { src: string }).src).toBe(big('B'));
+  });
+});
+
+describe('στοιχεία μαθήματος από αρχείο', () => {
+  const ok = { id: 'lq3k9x0abcd', name: 'Κλάσματα', updated: 1700000000000, pages: 3, group: 'Β2', thumb: 'data:image/jpeg;base64,AAAA' };
+  it('κρατά ένα σωστό μάθημα όπως είναι', () => {
+    expect(cleanMeta(ok)).toEqual(ok);
+  });
+  it('απορρίπτει id ή αριθμούς σε λάθος μορφή', () => {
+    expect(cleanMeta({ ...ok, id: 'x" onclick="a()' })).toBeNull();
+    expect(cleanMeta({ ...ok, name: 5 as unknown as string })).toBeNull();
+    expect(cleanMeta({ ...ok, updated: undefined })).toBeNull();
+    expect(cleanMeta({ ...ok, pages: '3<img>' as unknown as number })).toBeNull();
+    expect(cleanMeta(undefined)).toBeNull();
+  });
+  it('πετά μικρογραφία που δεν είναι εικόνα', () => {
+    expect(cleanMeta({ ...ok, thumb: 'x" onerror="alert(1)' })?.thumb).toBeUndefined();
+    expect(cleanMeta({ ...ok, thumb: 'javascript:alert(1)' })?.thumb).toBeUndefined();
   });
 });

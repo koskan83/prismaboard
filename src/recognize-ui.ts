@@ -229,6 +229,9 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
     return;
   }
   const page = board.cur;
+  // και το μάθημα: σε άλλο μάθημα η σελίδα μπορεί να έχει τον ίδιο αριθμό, αλλά το αποτέλεσμα δεν ανήκει εκεί
+  const doc = board.doc;
+  const moved = (): boolean => board.cur !== page || board.doc !== doc;
   // λύση και έλεγχος βλέπουν ό,τι υπάρχει στην κυκλωμένη περιοχή (και κομμάτι εικόνας από Word ή PDF)· η αναγνώριση μόνο τα επιλεγμένα χειρόγραφα
   const img = kind !== 'text' && kind !== 'math' && board.hasRegion ? await board.regionImage() : await board.inkImage(ids);
   if (!img) return;
@@ -237,13 +240,13 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   try {
     const out = await recognize(img.blob, kind, ai);
     if (kind === 'graph') {
-      if (board.cur !== page) toast('Άλλαξες σελίδα· η γραφική παράσταση δεν μπήκε');
+      if (moved()) toast('Άλλαξες σελίδα ή μάθημα· η γραφική παράσταση δεν μπήκε');
       else plotReply(out);
       return;
     }
     if (kind === 'figure') {
       const cmds = out ? parseFigureReply(out) : [];
-      if (board.cur !== page) toast('Άλλαξες σελίδα· το σχήμα δεν μπήκε');
+      if (moved()) toast('Άλλαξες σελίδα ή μάθημα· το σχήμα δεν μπήκε');
       else if (cmds === null) toast('Αυτή η εκφώνηση δεν χρειάζεται σχήμα.', 5000);
       else if (!cmds.length) toast('Δεν μπόρεσα να φτιάξω σχήμα για αυτή την εκφώνηση');
       else {
@@ -260,8 +263,8 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
       toast(kind === 'solve' ? 'Δεν βρήκα κάτι να λύσω' : kind === 'check' ? 'Δεν βρήκα λύση να ελέγξω' : 'Δεν μπόρεσα να το διαβάσω');
       return;
     }
-    if (board.cur !== page) {
-      toast(kind === 'solve' ? 'Άλλαξες σελίδα· η λύση δεν μπήκε' : kind === 'check' ? 'Άλλαξες σελίδα· ο έλεγχος δεν μπήκε' : 'Άλλαξες σελίδα· η αναγνώριση δεν εφαρμόστηκε');
+    if (moved()) {
+      toast(kind === 'solve' ? 'Άλλαξες σελίδα ή μάθημα· η λύση δεν μπήκε' : kind === 'check' ? 'Άλλαξες σελίδα ή μάθημα· ο έλεγχος δεν μπήκε' : 'Άλλαξες σελίδα ή μάθημα· η αναγνώριση δεν εφαρμόστηκε');
       return;
     }
     const { box, color } = img;

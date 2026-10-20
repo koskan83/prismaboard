@@ -2,7 +2,7 @@
 
 import { Doc, newDoc, readDoc, uid } from './model';
 import { backupLesson, driveClientId, driveConnect, driveReady, listDriveLessons, listLessonBackups, readBackup, trashBackup, type RemoteLesson } from './drive';
-import { deleteLesson, kvGet, kvSet, loadDoc, loadLesson, saveLesson } from './storage';
+import { cleanMeta, deleteLesson, kvGet, kvSet, loadDoc, loadLesson, saveLesson } from './storage';
 import { ask, askLines, chooseBox, confirmBox, type Choice, type WordList } from './dialog';
 import { classFileName, safeName, saveClassFile } from './class-files';
 import { loadLists, mergeLists } from './spell-lists';
@@ -232,12 +232,12 @@ export class Lessons {
       .slice(0, 6)
       .map(({ g, m }) => `<div class="row"><span class="grp">${esc(g)}</span>
         <button data-st="new" data-g="${esc(g)}">＋ Νέο μάθημα</button>
-        ${m.id === cur.id ? '' : `<button data-st="open" data-id="${m.id}" class="last"><small>Τελευταίο · ${new Date(m.updated).toLocaleDateString('el', { day: 'numeric', month: 'numeric' })}</small>${esc(m.name)}</button>`}</div>`)
+        ${m.id === cur.id ? '' : `<button data-st="open" data-id="${esc(m.id)}" class="last"><small>Τελευταίο · ${new Date(m.updated).toLocaleDateString('el', { day: 'numeric', month: 'numeric' })}</small>${esc(m.name)}</button>`}</div>`)
       .join('');
     this.startEl.querySelector('#stBox')!.innerHTML = `
       <div id="stHead"><b>${new Date().getHours() < 12 ? 'Καλημέρα' : 'Καλησπέρα'}! Τι κάνουμε σήμερα;</b><span>${when(Date.now())}</span></div>
       <button id="stCont" data-st="cont">
-        <span class="th">${cur.thumb ? `<img src="${cur.thumb}" alt="" />` : ''}</span>
+        <span class="th">${cur.thumb ? `<img src="${esc(cur.thumb)}" alt="" />` : ''}</span>
         <span class="tx"><small>Συνέχισε από εκεί που έμεινες</small><b>${cur.group ? `<i class="grp">${esc(cur.group)}</i>` : ''}${esc(cur.name)}</b><small>${when(cur.updated)} · ${cur.pages} ${cur.pages === 1 ? 'σελίδα' : 'σελίδες'}</small></span>
       </button>
       ${rows ? `<div id="stGroups">${rows}</div>` : ''}
@@ -350,24 +350,34 @@ export class Lessons {
     return meta;
   }
 
-  private async show(id: string): Promise<void> {
-    const doc = (await loadLesson(id, true)) ?? newDoc();
+  /** `fresh`: μόλις φτιάχτηκε κενό, δεν χρειάζεται (ούτε ρισκάρει) ανάγνωση από την αποθήκη. */
+  private async show(id: string, fresh = false): Promise<void> {
+    let doc: Doc | null;
+    try {
+      doc = fresh ? null : await loadLesson(id, true);
+    } catch (err) {
+      return this.showFailed(id, err);
+    }
     this.loading = true;
     try {
-      this.host.setDoc(doc);
+      this.host.setDoc(doc ?? newDoc());
       this.cur = id;
     } catch (err) {
-      // δεν διαβάζεται (π.χ. από νεότερη έκδοση): μένει ανέγγιχτο, και ανοίγει άλλο μάθημα ή ένα νέο, ώστε να μη γραφτεί ποτέ από πάνω του
       this.loading = false;
-      this.host.toast(`Το «${this.index.find((m) => m.id === id)?.name ?? ''}» δεν άνοιξε: ${err instanceof Error ? err.message : err}`, 8000);
-      this.failed.add(id);
-      const other = this.index.find((m) => !this.failed.has(m.id));
-      return other ? this.show(other.id) : this.show((await this.add(newDoc(), this.defaultName())).id);
+      return this.showFailed(id, err);
     }
     this.loading = false;
     this.dirty = false;
     await kvSet(CURRENT, id);
     this.renderLabel();
+  }
+
+  /** Δεν διαβάζεται (π.χ. από νεότερη έκδοση ή σφάλμα της αποθήκης): μένει ανέγγιχτο, και ανοίγει άλλο μάθημα ή ένα νέο, ώστε να μη γραφτεί ποτέ από πάνω του. */
+  private async showFailed(id: string, err: unknown): Promise<void> {
+    this.host.toast(`Το «${this.index.find((m) => m.id === id)?.name ?? ''}» δεν άνοιξε: ${err instanceof Error ? err.message : err}`, 8000);
+    this.failed.add(id);
+    const other = this.index.find((m) => !this.failed.has(m.id));
+    return other ? this.show(other.id) : this.show((await this.add(newDoc(), this.defaultName())).id, true);
   }
 
   private async rename(meta: LessonMeta | undefined): Promise<void> {
@@ -414,6 +424,22 @@ export class Lessons {
     const doc = await loadLesson(meta.id);
     if (!doc) throw new Error('το μάθημα δεν διαβάστηκε');
     if (remote === undefined) remote = (await listLessonBackups()).find((r) => r.id === meta.id) ?? null;
+    // άλλαξε στο Drive από άλλη συσκευή μετά το τελευταίο ανέβασμα από εδώ: εκείνη η μορφή μένει ως χωριστό μάθημα πριν τη γράψουμε από πάνω
+    if (remote && remote.updated > (this.safe.ids[meta.id] ?? meta.updated)) {
+      const text = await readBackup(remote.fileId);
+      let theirs: Doc | null = null;
+      try {
+        theirs = readDoc((JSON.parse(text) as Backup).lessons[0].doc);
+      } catch {
+        // χαλασμένο αντίγραφο: δεν έχει κάτι να κρατήσουμε
+      }
+      if (theirs) {
+        const copy = await this.add(theirs, `${meta.name} (από άλλη συσκευή)`);
+        copy.group = meta.group;
+        await kvSet(INDEX, this.index);
+        this.host.toast(`Το «${meta.name}» είχε αλλάξει και σε άλλη συσκευή: εκείνη η μορφή κρατήθηκε ως «${copy.name}»`, 8000);
+      }
+    }
     const where = await backupLesson(meta.id, safeName(meta.name), meta.updated, this.lessonBlob(meta, doc), meta.group ? safeName(meta.group) : undefined, remote ?? undefined);
     this.safe.ids[meta.id] = meta.updated;
     this.safe.gone = this.safe.gone.filter((g) => g !== meta.id);
@@ -666,8 +692,9 @@ export class Lessons {
    * Βάζει στη συσκευή ένα μάθημα από αντίγραφο, αν λείπει ή αν το αντίγραφο είναι νεότερο.
    * Επιστρέφει 'new', 'upd', ή null αν έμεινε όπως ήταν. Το ευρετήριο το γράφει όποιος την καλεί.
    */
-  private async put(meta: LessonMeta, doc: Doc): Promise<'new' | 'upd' | null> {
-    if (!meta?.id) return null;
+  private async put(raw: LessonMeta, doc: Doc): Promise<'new' | 'upd' | null> {
+    const meta = cleanMeta(raw);
+    if (!meta) return null;
     try {
       doc = readDoc(doc);
     } catch {
@@ -731,8 +758,8 @@ export class Lessons {
       .map((m) => {
         const d = new Date(m.updated);
         const when = `${d.toLocaleDateString('el')} ${d.toLocaleTimeString('el', { hour: '2-digit', minute: '2-digit' })}`;
-        return `<div class="card${m.id === this.cur ? ' on' : ''}" data-id="${m.id}">
-          <div class="th">${m.thumb ? `<img src="${m.thumb}" alt="" />` : ''}</div>
+        return `<div class="card${m.id === this.cur ? ' on' : ''}" data-id="${esc(m.id)}">
+          <div class="th">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" />` : ''}</div>
           <div class="nm">${m.group ? `<span class="grp">${esc(m.group)}</span>` : ''}${esc(m.name)}</div>
           <div class="info">${when} · ${m.pages} ${m.pages === 1 ? 'σελίδα' : 'σελίδες'}${this.cloud(m) ? ` · <span class="cl ${this.cloud(m)}">${CLOUD[this.cloud(m)]}</span>` : ''}</div>
           <div class="acts">

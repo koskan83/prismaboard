@@ -17,7 +17,8 @@ export async function nativeScreenshot(): Promise<Blob> {
 /** Παράθυρο «Αποθήκευση ως». Επιστρέφει false αν ο χρήστης ακύρωσε. */
 export async function nativeSave(blob: Blob, name: string): Promise<boolean> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
-  return core!.invoke<boolean>('save_file', bytes, { headers: { 'x-file-name': name } });
+  // οι κεφαλίδες δέχονται μόνο Latin-1· τα ελληνικά ονόματα πάνε κωδικοποιημένα (βλ. percent_decode στο lib.rs)
+  return core!.invoke<boolean>('save_file', bytes, { headers: { 'x-file-name': encodeURIComponent(name) } });
 }
 
 /** true όταν τρέχουμε στο διαφανές παράθυρο «γράψιμο πάνω από άλλα προγράμματα». */

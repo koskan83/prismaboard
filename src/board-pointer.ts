@@ -418,8 +418,16 @@ export function move(bd: Board, e: PointerEvent): void {
   bd.onPointerInfo(e, bd.ptrs.size);
   const evs = e.getCoalescedEvents?.() ?? [];
   const list = evs.length ? evs : [e];
-  for (const ev of list) bd.moveOne(ps, ev);
-  bd.renderLive();
+  // γραφίδες και πίνακες στα 120–240 Hz δίνουν πολλά events ανά frame: ολόκληρη η σελίδα ζωγραφίζεται μία φορά στο τέλος
+  bd.redrawWanted = false;
+  bd.holdRedraw = true;
+  try {
+    for (const ev of list) bd.moveOne(ps, ev);
+  } finally {
+    bd.holdRedraw = false;
+  }
+  if (bd.redrawWanted) bd.redraw();
+  else bd.renderLive();
 }
 
 export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {

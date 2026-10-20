@@ -16,7 +16,12 @@ function precacheList(): Plugin {
 export default defineConfig({
   base: './',
   // η έκδοση (από το package.json) και η μέρα του build: φαίνονται στο ☰, για να ξέρεις τι έχει φορτώσει
-  define: { __BUILD__: JSON.stringify(new Date().toLocaleDateString('sv')), __APP__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version) },
+  define: {
+    __BUILD__: JSON.stringify(new Date().toLocaleDateString('sv')),
+    __APP__: JSON.stringify(JSON.parse(readFileSync('package.json', 'utf8')).version),
+    // μοναδικό ανά build: αλλάζει το URL του service worker, άρα κάθε build ξαναγεμίζει την offline cache (βλ. sw.js)
+    __BUILD_ID__: JSON.stringify(Date.now().toString(36)),
+  },
   build: { target: 'es2022' },
   server: { port: 5173, strictPort: true },
   clearScreen: false,

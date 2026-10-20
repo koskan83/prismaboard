@@ -83,14 +83,41 @@ async function getToken(): Promise<string> {
   });
 }
 
-async function api<T>(url: string, init: RequestInit, tk: string): Promise<T> {
-  const res = await fetch(url, { ...init, headers: { ...(init.headers as Record<string, string>), authorization: `Bearer ${tk}` } });
+/**
+ * Αίτημα στο Drive. Αν η σύνδεση έληξε (401), παίρνει νέα και ξαναδοκιμάζει μία φορά.
+ * Τα σφάλματα γίνονται μηνύματα για τον εκπαιδευτικό, όχι τα αγγλικά της Google ή του browser (αυτά πάνε στην κονσόλα).
+ */
+async function request(url: string, init: RequestInit, tk: string, retry = true): Promise<Response> {
+  let res: Response;
+  try {
+    res = await fetch(url, { ...init, headers: { ...(init.headers as Record<string, string>), authorization: `Bearer ${tk}` } });
+  } catch (err) {
+    console.error(err);
+    throw new Error('Χωρίς σύνδεση στο ίντερνετ');
+  }
+  if (res.status === 401 && retry) {
+    token = null;
+    return request(url, init, await getToken(), false);
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => null);
+    const reason: string = body?.error?.errors?.[0]?.reason ?? '';
+    console.error('Drive', res.status, body?.error?.message);
     if (res.status === 401) token = null;
-    throw new Error(body?.error?.message ?? `Σφάλμα ${res.status}`);
+    throw new Error(
+      reason === 'storageQuotaExceeded' ? 'Ο χώρος στο Google Drive γέμισε'
+        : res.status === 401 ? 'Η σύνδεση με τη Google έληξε· πάτα ξανά'
+        : res.status === 403 ? 'Η Google δεν επέτρεψε την ενέργεια (δικαιώματα ή όριο χρήσης)'
+        : res.status === 404 ? 'Το αρχείο δεν βρέθηκε στο Google Drive'
+        : res.status === 429 || res.status >= 500 ? 'Το Google Drive δεν απαντά τώρα· δοκίμασε σε λίγο'
+        : `Σφάλμα ${res.status} από το Google Drive`
+    );
   }
-  return res.json() as Promise<T>;
+  return res;
+}
+
+async function api<T>(url: string, init: RequestInit, tk: string): Promise<T> {
+  return (await request(url, init, tk)).json() as Promise<T>;
 }
 
 /** Το όνομα μέσα σε ερώτημα του Drive: τα ' και \ θέλουν διαφυγή. */
@@ -263,9 +290,7 @@ export async function backupLesson(id: string, name: string, updated: number, bl
 /** Κατεβάζει το περιεχόμενο ενός αντιγράφου. */
 export async function readBackup(fileId: string): Promise<string> {
   const tk = await getToken();
-  const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, { headers: { authorization: `Bearer ${tk}` } });
-  if (!res.ok) throw new Error(`Σφάλμα ${res.status}`);
-  return res.text();
+  return (await request(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {}, tk)).text();
 }
 
 /** Στέλνει ένα αντίγραφο στον κάδο του Drive (όταν το μάθημα σβήστηκε από τη συσκευή). */

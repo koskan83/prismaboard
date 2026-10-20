@@ -296,6 +296,8 @@ export class Board {
     this.multi = [];
     this.undoStack = [];
     this.redoStack = [];
+    // οι εικόνες του προηγούμενου μαθήματος δεν χρειάζονται πια· αλλιώς μένουν στη μνήμη όλη τη μέρα
+    this.imgs.clear();
     this.redraw();
     this.onChange();
     this.onUi();
@@ -916,7 +918,15 @@ export class Board {
   /** Σταματά την ταλάντωση του επιλεγμένου ελατηρίου· το σώμα γυρίζει στη θέση ισορροπίας. */
   stopSpring(): void { O.stopSpring(this); }
 
+  /** Όσο ισχύει, το redraw() μόνο σημειώνει ότι χρειάζεται (`redrawWanted`): μία κίνηση με πολλά coalesced events ζωγραφίζεται μία φορά (βλ. board-pointer move). */
+  holdRedraw = false;
+  redrawWanted = false;
+
   redraw(): void {
+    if (this.holdRedraw) {
+      this.redrawWanted = true;
+      return;
+    }
     const c = this.bctx;
     const v = this.page.view;
     c.setTransform(1, 0, 0, 1, 0, 0);

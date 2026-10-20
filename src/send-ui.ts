@@ -243,7 +243,11 @@ export async function endLesson(): Promise<void> {
     void lessons?.cloudBackup(true);
   } catch (err) {
     console.error(err);
-    toast(`Δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 8000);
+    // χωρίς Drive (π.χ. έπεσε το Wi-Fi στο κουδούνι) το μάθημα φεύγει τουλάχιστον ως PDF στη συσκευή
+    toast(`Δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 15000, {
+      label: 'PDF στη συσκευή',
+      run: () => void lessonPdf(true).then((pdf) => pdf && download(pdf, name)),
+    });
   }
 }
 function showBigQr(): void {

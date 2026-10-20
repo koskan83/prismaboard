@@ -1,6 +1,7 @@
 // Offline cache: στην εγκατάσταση αποθηκεύονται όλα τα αρχεία της εφαρμογής·
 // μετά, network-first με fallback στην cache.
-const CACHE = 'grafida-v2';
+// μία cache ανά build (το ?v= το βάζει το main.ts): τα αρχεία του προηγούμενου σβήνονται στο activate
+const CACHE = 'grafida-' + (new URL(self.location.href).searchParams.get('v') || 'v2');
 const SHARED = 'grafida-shared';
 
 self.addEventListener('install', (e) => {
@@ -25,8 +26,12 @@ self.addEventListener('activate', (e) => {
 // «Κοινοποίηση» από άλλη εφαρμογή της συσκευής (π.χ. στιγμιότυπο οθόνης → Κοινοποίηση → PrismaBoard, βλ. share_target στο manifest):
 // τα αρχεία φυλάγονται εδώ και η εφαρμογή ανοίγει και τα βάζει στη σελίδα (βλ. main.ts).
 async function receiveShare(req) {
+  // η Κοινοποίηση της συσκευής έρχεται χωρίς προέλευση («none»)· μια φόρμα άλλου site δεν πρέπει να βάζει αρχεία στην εφαρμογή
+  const site = req.headers.get('sec-fetch-site');
+  if (site === 'cross-site' || site === 'same-site') return Response.redirect(new URL('./', self.registration.scope).href, 303);
   try {
-    const files = (await req.formData()).getAll('files').filter((f) => f instanceof File);
+    // μόνο ό,τι δηλώνει το manifest (εικόνες, PDF): όχι .docx/.json, που ανοίγουν με περισσότερη λογική
+    const files = (await req.formData()).getAll('files').filter((f) => f instanceof File && (f.type.startsWith('image/') || f.type === 'application/pdf'));
     await caches.delete(SHARED);
     const c = await caches.open(SHARED);
     await Promise.all(files.map((f, i) => c.put(`./shared/${i}`, new Response(f, { headers: { 'content-type': f.type || 'application/octet-stream', 'x-name': encodeURIComponent(f.name) } }))));

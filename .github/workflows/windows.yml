@@ -17,11 +17,22 @@ permissions:
   contents: write
 
 jobs:
+  # τα ίδια σενάρια με το pages.yml: αν κάποιο αποτύχει, δεν φτάνει ενημέρωση σε κανέναν υπολογιστή
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node tests/e2e/run.mjs
+
   build:
+    needs: e2e
     runs-on: windows-latest
-    env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
     defaults:
       run:
         shell: bash
@@ -44,11 +55,18 @@ jobs:
           want="v$(node -p "require('./package.json').version")"
           [ "$want" = "${GITHUB_REF_NAME}" ] || { echo "::error::Το tag ${GITHUB_REF_NAME} δεν ταιριάζει με την έκδοση $want του package.json"; exit 1; }
       - name: Έλεγχος κλειδιού υπογραφής
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] || { echo "::error::Λείπει το secret TAURI_SIGNING_PRIVATE_KEY"; exit 1; }
           [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ] || echo "::warning::Το secret TAURI_SIGNING_PRIVATE_KEY_PASSWORD είναι κενό"
       # οι τελευταίες γραμμές ενός σφάλματος γράφονται και ως annotations, που φαίνονται και χωρίς σύνδεση στο GitHub
+      # το κλειδί υπογραφής μόνο στα βήματα που το χρειάζονται: όχι στο npm ci, στα tests και στα actions τρίτων
       - name: Χτίσιμο
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -o pipefail
           npx tauri build --ci 2>&1 | tee build.log || {
