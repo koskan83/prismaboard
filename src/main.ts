@@ -271,7 +271,7 @@ export function refreshUi(): void {
   // η αναγνώριση έχει νόημα μόνο όταν στην επιλογή υπάρχει χειρόγραφο
   const ink = board.selectionHasInk;
   const writing = board.selectionHasWriting;
-  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.speak || b.dataset.spellwords ? !(writing || region) : b.dataset.rec === 'text' || b.dataset.rec === 'math' ? !ink : !(writing || region)));
+  document.querySelectorAll<HTMLElement>('#selOpts .rec').forEach((b) => b.classList.toggle('hidden', b.dataset.speak || b.dataset.spellwords ? !(writing || region) : b.dataset.rec === 'text' ? !(ink || region) : b.dataset.rec === 'math' ? !ink : !(writing || region)));
   $('selOpts').querySelector('.recSep')!.classList.toggle('hidden', !(writing || region) || !board.hasSelection);
   show('sumBtn', !!board.resultantSource);
   show('tidyBtn', board.selectedInk().length >= 2);
@@ -605,6 +605,16 @@ gadgetMenu.addEventListener('click', (e) => {
   refreshUi();
 });
 
+const IMG_TYPES = 'image/*,.png,.jpg,.jpeg';
+const DOC_TYPES = 'application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+// Android (π.χ. διαδραστικοί BenQ): όταν η λίστα έχει και εικόνες, ο Chrome ανοίγει μόνο τις Φωτογραφίες,
+// οπότε τα PDF και Word παίρνουν δικό τους κουμπί, που ανοίγει τα αρχεία της συσκευής
+const android = /Android/i.test(navigator.userAgent);
+if (android) {
+  const img = impMenu.querySelector<HTMLElement>('[data-imp="file"]')!;
+  img.lastChild!.textContent = 'Εικόνα από αρχείο…';
+  impMenu.querySelector('[data-imp="doc"]')!.classList.remove('hidden');
+}
 impMenu.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   const ins = t.closest<HTMLElement>('[data-ins]')?.dataset.ins;
@@ -615,8 +625,11 @@ impMenu.addEventListener('click', (e) => {
     renderTemplates();
     tplMenu.classList.remove('hidden');
     placeNear(tplMenu, $('importBtn'));
-  } else if (b!.dataset.imp === 'file') ($('fileImport') as HTMLInputElement).click();
-  else if (b!.dataset.imp === 'shot') void doScreenshot();
+  } else if (b!.dataset.imp === 'file' || b!.dataset.imp === 'doc') {
+    const input = $('fileImport') as HTMLInputElement;
+    input.accept = b!.dataset.imp === 'doc' ? DOC_TYPES : android ? IMG_TYPES : `${IMG_TYPES},${DOC_TYPES}`;
+    input.click();
+  } else if (b!.dataset.imp === 'shot') void doScreenshot();
   else void doPaste();
 });
 ($('fileImport') as HTMLInputElement).onchange = (e) => {

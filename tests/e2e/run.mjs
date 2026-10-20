@@ -59,6 +59,7 @@ await ctx.route('https://generativelanguage.googleapis.com/**', (r) => {
   const ask = body.contents[0].parts[1].text;
   const text = ask.includes('will be plotted') ? 'F: 10-2x\nD: 0 ; 5\nX: t\nY: υ'
     : ask.includes('will draw the figure') ? 'L 5 50 95 50\nR 35 34 59 50\nT 47 42 m = 2 kg\nA 59 42 85 42 red\nT 74 36 F = 10 N\nP 10 50 40 20 40 50 10 50'
+    : ask.includes('printed text') ? 'Άσκηση 1: Να λύσετε την εξίσωση'
     : '✓ Σωστή επιλογή: το 2';
   return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ candidates: [{ content: { parts: [{ text }] } }] }) });
 });
@@ -637,6 +638,13 @@ test('Λάσο πάνω σε σελίδα από PDF ή Word: το AI βλέπε
   assert(aiCalls.length === 1 && aiCalls[0].image > 500, 'δεν στάλθηκε εικόνα της περιοχής');
   const it = await items(pi);
   assert(it.length === n0 + 1 && it.at(-1).kind === 'text' && it.at(-1).text.startsWith('✓'), 'η απάντηση δεν γράφτηκε κάτω από την περιοχή');
+  // «Σε κείμενο» σε τυπωμένο κείμενο της σελίδας: η σελίδα μένει ίδια και το κείμενο μπαίνει από κάτω
+  await lasso(420, 200, 640, 320);
+  assert(await visible('#selOpts [data-rec="text"]'), 'δεν εμφανίστηκε το «Σε κείμενο» για περιοχή πάνω σε εικόνα');
+  await page.click('#selOpts [data-rec="text"]');
+  await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Το κείμενο μπήκε'), null, { timeout: 10000 });
+  const it2 = await items(pi);
+  assert(it2.length === n0 + 2 && it2.some((x) => x.kind === 'image') && it2.at(-1).text === 'Άσκηση 1: Να λύσετε την εξίσωση', 'το κείμενο της σελίδας δεν μπήκε');
 });
 
 test('Λάσο σε συνάρτηση → «Γραφική»: μπαίνουν άξονες που ταιριάζουν στο πεδίο ορισμού', async () => {
@@ -995,6 +1003,44 @@ test('Αντίγραφο μαθημάτων στο Drive', async () => {
   await page.click('#lib [data-lib="close"]');
 });
 
+test('Drive: μάθημα που άλλαξε και σε άλλη συσκευή κρατιέται ως αντίγραφο πριν γραφτεί από πάνω', async () => {
+  const backupAll = async () => {
+    await page.click('#libOpen');
+    await page.waitForSelector('#lib:not(.hidden)');
+    await page.click('#lib [data-lib="cloud"]');
+    await page.waitForFunction(() => document.getElementById('libSafeMsg').textContent.startsWith('Όλα τα μαθήματα έχουν αντίγραφο'), null, { timeout: 20000 });
+  };
+  await page.click('#libOpen');
+  const id = await page.getAttribute('#libGrid .card.on', 'data-id');
+  await page.click('#lib [data-lib="close"]');
+  // «άλλη συσκευή» ανέβασε νεότερη μορφή μετά το δικό μας αντίγραφο
+  const f = [...drive.files.values()].find((x) => x.appProperties.pbLesson === id && !x.trashed);
+  assert(f, 'το ανοιχτό μάθημα δεν είναι στο Drive');
+  f.appProperties.pbUpdated = String(Date.now());
+  // και εδώ μια αλλαγή, που θα γραφτεί από πάνω
+  await pen();
+  await drag(320, 420, 520, 460);
+  await page.waitForFunction(() => document.querySelector('#lessonName .cl')?.textContent === '☁ ↑', null, { timeout: 8000 });
+  // πρώτο ανέβασμα: η μορφή της άλλης συσκευής γίνεται νέο μάθημα (που ανεβαίνει την επόμενη φορά)
+  const up = drive.uploads;
+  await page.click('#libOpen');
+  await page.waitForSelector('#lib:not(.hidden)');
+  await page.click('#lib [data-lib="cloud"]');
+  for (let i = 0; i < 100 && drive.uploads === up; i++) await sleep(200);
+  await sleep(500);
+  await page.click('#lib [data-lib="close"]');
+  await page.click('#libOpen');
+  await page.click('#libGroups [data-group=""]');
+  const names = await page.$$eval('#libGrid .card .nm', (els) => els.map((e) => e.textContent));
+  assert(names.some((n) => n.includes('(από άλλη συσκευή)')), `δεν κρατήθηκε η μορφή της άλλης συσκευής (${names})`);
+  await page.click('#lib [data-lib="close"]');
+  // η γραμμή φεύγει και ξανανεβαίνει, για να μείνει το μάθημα «☁ ✓» για τα επόμενα σενάρια
+  await page.click('#undo');
+  await page.waitForFunction(() => document.querySelector('#lessonName .cl')?.textContent === '☁ ↑', null, { timeout: 8000 });
+  await backupAll();
+  await page.click('#lib [data-lib="close"]');
+});
+
 test('☁ Αποθήκευση στο Drive και ☁ Άνοιγμα από το Drive (μάθημα από άλλη συσκευή)', async () => {
   // κάθε μάθημα πάει στον φάκελο του τμήματός του, με το τμήμα στις ετικέτες του
   const b2 = driveFolder('Β2');
@@ -1099,6 +1145,31 @@ test('Δύο δάχτυλα: το σύρσιμο δεν αλλάζει το zoom
   assert(z1 === z0, `το σύρσιμο με δύο δάχτυλα άλλαξε το zoom από ${z0} σε ${z1}`);
   assert(parseInt(z2) > parseInt(z1), `το άνοιγμα των δαχτύλων δεν μεγέθυνε (${z1} → ${z2})`);
   assert(z4 === z3, `το σύρσιμο με δάχτυλα που ανοίγουν σιγά σιγά άλλαξε το zoom από ${z3} σε ${z4}`);
+});
+
+test('Παλάμη πάνω στον πίνακα: σβήνει αντί να γράφει', async () => {
+  const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
+  await pen();
+  await drag(300, 500, 700, 500);
+  await sleep(300);
+  const was = await items(pi);
+  const before = JSON.stringify(was);
+  // ένα φαρδύ άγγιγμα (ακτίνα 40 → πλάτος 80, πάνω από το όριο της παλάμης) περνά κάθετα πάνω από τη γραμμή
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], id) => ({ x, y, id, radiusX: 40, radiusY: 40, force: 1 })) });
+  await touch('touchStart', [[500, 400]]);
+  for (let i = 1; i <= 20; i++) await touch('touchMove', [[500, 400 + i * 10]]);
+  await touch('touchEnd', []);
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+  await cdp.detach();
+  await sleep(300);
+  const after = await items(pi);
+  const span = (s, k) => Math.max(...s.pts.map((p) => p[k])) - Math.min(...s.pts.map((p) => p[k]));
+  assert(!after.some((it) => it.kind === 'stroke' && !was.some((w) => w.id === it.id) && span(it, 1) > 5 * span(it, 0) + 1), 'η παλάμη έγραψε γραμμή');
+  assert(JSON.stringify(after) !== before, 'η παλάμη δεν έσβησε τη γραμμή');
+  await page.click('#undo');
+  await page.click('#undo');
 });
 
 test('Όλο το χέρι (5 δάχτυλα) πάνω στον πίνακα: το στρίψιμο περιστρέφει το επιλεγμένο', async () => {

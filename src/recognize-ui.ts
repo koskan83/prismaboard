@@ -233,7 +233,9 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   const doc = board.doc;
   const moved = (): boolean => board.cur !== page || board.doc !== doc;
   // λύση και έλεγχος βλέπουν ό,τι υπάρχει στην κυκλωμένη περιοχή (και κομμάτι εικόνας από Word ή PDF)· η αναγνώριση μόνο τα επιλεγμένα χειρόγραφα
-  const img = kind !== 'text' && kind !== 'math' && board.hasRegion ? await board.regionImage() : await board.inkImage(ids);
+  // «Σε κείμενο» σε κυκλωμένο κομμάτι σελίδας χωρίς χειρόγραφο (π.χ. από PDF ή Word): διαβάζεται η εικόνα της περιοχής
+  const fromPage = kind === 'text' && !board.selectionHasInk && board.hasRegion;
+  const img = board.hasRegion && ((kind !== 'text' && kind !== 'math') || fromPage) ? await board.regionImage() : await board.inkImage(ids);
   if (!img) return;
   aiBusy++;
   toast(kind === 'spell' ? '✨ Ορθογραφία…' : kind === 'graph' ? '✨ Γραφική παράσταση…' : kind === 'figure' ? '✨ Σχήμα…' : kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
@@ -290,6 +292,13 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
       const pic = await texToImage(out, board.ink(color), Math.max(26, Math.min(160, Math.max(Math.min(bh * 0.4, 60), 30 / zk))));
       board.addItem({ kind: 'image', id: uid(), x: box.x0, y: box.y1 + 20 / zk, w: pic.w, h: pic.h, src: pic.src });
       toast(lines > 1 ? 'Η λύση μπήκε κάτω από την άσκηση. Έλεγξέ την πριν τη δείξεις.' : 'Η απάντηση μπήκε κάτω από την άσκηση. Έλεγξέ την.', 5000);
+      return;
+    }
+    if (fromPage) {
+      // η σελίδα μένει όπως είναι· το κείμενο μπαίνει από κάτω, σε μέγεθος που διαβάζεται στο τρέχον zoom
+      const zk = board.page.view.k;
+      board.addItem({ kind: 'text', id: uid(), x: box.x0, y: box.y1 + 20 / zk, text: out, size: 28 / zk, color });
+      toast('Το κείμενο μπήκε κάτω από την περιοχή. Διόρθωσέ το με διπλό πάτημα.', 5000);
       return;
     }
     if (kind === 'text') {

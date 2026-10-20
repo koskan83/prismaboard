@@ -41,8 +41,8 @@ export function saveAi(s: AiSettings): void {
 
 const PROMPT: Record<AiTask, string> = {
   text:
-    'The image shows handwriting from a classroom whiteboard, usually in Greek (sometimes English). ' +
-    'Transcribe exactly what is written. Do not translate, correct, complete or comment. ' +
+    'The image shows handwriting from a classroom whiteboard or printed text from a page of a book or worksheet, usually in Greek (sometimes English). ' +
+    'Transcribe exactly what is written, keeping Greek accents and polytonic marks as they appear. Do not translate, correct, complete or comment. ' +
     'Keep line breaks. Write simple inline maths with Unicode (x², √, ·, ≤). ' +
     'Reply with the transcription only, no quotes. If nothing is readable reply with an empty message.',
   math:

@@ -636,7 +636,7 @@ describe('κυβάκια και αριθμοί', () => {
     expect(at(13, 10).at(-1)).toEqual([1, 2]);
     // 23 σε πέντε στήλες: 4 σειρές των 5 και τα 3 που περισσεύουν από πάνω αριστερά
     expect(at(23, 5).slice(-3)).toEqual([[0, 4], [1, 4], [2, 4]]);
-    expect([3, 5, 7, 9, 4, 10].map(ncStartH)).toEqual([2, 3, 4, 3, 4, 10]);
+    expect([3, 5, 7, 9, 4, 10, 23].map(ncStartH)).toEqual([3, 5, 7, 9, 4, 10, 10]);
   });
 
   it('σύρεις το 2 πάνω στο 3 και γίνονται 5', () => {
@@ -647,26 +647,46 @@ describe('κυβάκια και αριθμοί', () => {
     expect(ncState(r.v).cubes.map((e) => [e.x, e.n, e.f])).toEqual([[150, 5, 0]]);
   });
 
-  it('ενώνονται και όταν αφήνεις τον έναν πάνω στο κεφάλι του άλλου, όχι όταν είναι απλώς δίπλα', () => {
+  it('ενώνονται μόνο όταν αφήνεις τον έναν αρκετά πάνω στον άλλον, όχι λίγο πάνω από το κεφάλι του ή δίπλα', () => {
     const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 1), cube(150, 4)] });
     const s = ncState(v);
-    // το 1 αφήνεται με τα πόδια του λίγο πάνω από το κεφάλι του 4 (που φτάνει ως το 9 από το 13)
-    const r = drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 8.5 * S])!;
+    // το 4 φτάνει ως το 9 από το 13: το 1 με τα πόδια του στο 9,6 (πάνω στο σώμα του) ενώνεται
+    const r = drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 9.1 * S])!;
     expect(r.ev).toBe('num|pop|5');
+    // με τα πόδια λίγο πάνω από το κεφάλι του (στο 8,5) ή μισό έξω στο πλάι, όχι
+    expect(ncState(drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 8 * S])!.v).cubes.length).toBe(2);
+    expect(ncState(drag(v, mid(s.cubes[0]), [ox + 15.7 * S, oy + 11 * S])!.v).cubes.length).toBe(2);
     const side = drag(v, mid(s.cubes[0]), [ox + 16.2 * S, oy + 12.5 * S])!;
     expect(ncState(side.v).cubes.map((e) => e.n)).toEqual([4, 1]);
   });
 
-  it('ενώνονται ως το 100· πάνω από 100 όχι, και ο κάδος σβήνει', () => {
-    const ok = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 12), cube(150, 10)] });
+  it('ενώνονται ως το 1000· πάνω από 1000 όχι, και ο κάδος σβήνει', () => {
+    const ok = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 60), cube(220, 50)] });
     const so = ncState(ok);
-    expect(drag(ok, mid(so.cubes[0]), mid(so.cubes[1]))!.ev).toBe('num|pop|22');
+    expect(drag(ok, mid(so.cubes[0]), mid(so.cubes[1]))!.ev).toBe('num|pop|110');
+    // μεγάλοι αριθμοί: ο ένας αφήνεται ακριβώς πάνω στον άλλον (με zoom out, για να χωρούν)
+    const held = (n: number): NCube => ({ ...cube(300, n), f: 1 });
+    expect(ncDrop(ncPack({ mode: 0, sel: 0, flags: 12, cubes: [cube(300, 600), held(400)] }))!.ev).toBe('num|pop|1000');
+    expect(ncDrop(ncPack({ mode: 0, sel: 0, flags: 12, cubes: [cube(300, 600), held(500)] }))!.ev).toBe('bad');
     const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 60), cube(220, 50)] });
     const s = ncState(v);
-    expect(drag(v, mid(s.cubes[0]), mid(s.cubes[1]))!.ev).toBe('bad');
     const r = drag(v, mid(s.cubes[0]), [W * (8.5 / 10), H * 0.95])!;
     expect(r.ev).toBe('wipe');
     expect(ncState(r.v).cubes.map((e) => e.n)).toEqual([50]);
+  });
+
+  it('πάνω από το 100: οι εκατοντάδες γίνονται τετράγωνα 10 × 10, ως πέντε στη σειρά, και η σκηνή κάνει μόνη της zoom out', () => {
+    const big = (n: number): NCube => ({ ...cube(0, n), h: 10 });
+    // 1000 = 5 × 2 τετράγωνα: 50 στήλες, 20 σειρές, κάθε κυβάκι σε δική του θέση
+    const cells = Array.from({ length: 1000 }, (_, i) => ncCell(big(1000), i).join());
+    expect(new Set(cells).size).toBe(1000);
+    expect(ncCell(big(1000), 999)).toEqual([49, 19]);
+    // 234: δύο τετράγωνα, τρεις δεκάδες και οι μονάδες δίπλα τους
+    expect([ncCell(big(234), 199), ncCell(big(234), 200), ncCell(big(234), 233)]).toEqual([[19, 9], [20, 0], [23, 3]]);
+    // 60 + 50 = 110 χωρά· 600 + 300 = 900 χρειάζεται zoom out
+    const r = ncDrop(ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(140, 600), { ...cube(140, 300), f: 1 }] }))!;
+    expect(r.ev).toBe('num|pop|900');
+    expect(ncState(r.v).flags & 12).toBeGreaterThan(0);
   });
 
   it('zoom out με − και + μόνο στη μεγάλη οθόνη· στο zoom in όσοι έμειναν έξω μπαίνουν μέσα', () => {
@@ -713,10 +733,10 @@ describe('κυβάκια και αριθμοί', () => {
     expect([e.n, e.y]).toEqual([9, 130]);
     const tap = (bx: number, by: number): void => { v = d.paint!(v, bx, by, W, H, {}, true)!; };
     tap(W * (2.5 / 10), H * 0.95); // 🔄
-    // το 9 μπαίνει τετράγωνο 3 × 3· με το 🔄 γίνεται πύργος
-    expect(ncState(v).cubes[1].h).toBe(3);
-    tap(...mid(ncState(v).cubes[1]));
+    // το 9 μπαίνει όρθιο· με το 🔄 γίνεται δύο στήλες (5 + 4)
     expect(ncState(v).cubes[1].h).toBe(9);
+    tap(...mid(ncState(v).cubes[1]));
+    expect(ncState(v).cubes[1].h).toBe(5);
     tap(W * (3.5 / 10), H * 0.95); // 🎩
     expect(ncState(v).mode).toBe(4);
     tap(W * (2.5 / 13), H * 0.83); // κορώνα
@@ -752,23 +772,26 @@ describe('κυβάκια και αριθμοί', () => {
     expect(ncState(v).cubes.map((e) => [e.f, e.y])).toEqual([[0, 130], [0, 130], [0, 130]]);
   });
 
-  it('+ = εξίσωση: οι χαρακτήρες κάθονται στις θέσεις, το = βγάζει το αποτέλεσμα ή ελέγχει την απάντηση', () => {
+  it('+ = εξίσωση ψηλά στον ουρανό: όποιος αφήνεται σε θέση κάθεται εκεί, το = βγάζει το αποτέλεσμα ή ελέγχει την απάντηση', () => {
     const eqBtn: [number, number] = [W * (7.5 / 10), H * 0.95];
-    const sign = (k: number): [number, number] => [ox + (k ? 18.5 : 9.5) * S, oy + 10.8 * S];
+    const sign = (k: number): [number, number] => [ox + (k ? 18.5 : 9.5) * S, oy + 4.9 * S];
     let v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 3), cube(140, 2), cube(260, 1)] });
     v = d.paint!(v, ...eqBtn, W, H, {}, true)!;
     let s = ncState(v);
     expect(s.flags & 16).toBe(16);
-    // το 3 και το 2 κάθονται στις δύο πρώτες θέσεις· το 1, πάνω από την τρίτη, κάθεται κι αυτό εκεί
-    expect(s.cubes.map((e) => [e.x, e.f])).toEqual([[50, 16], [140, 16], [230, 16]]);
-    // το 1 φεύγει από την απάντηση και αφήνεται στην άκρη
-    const out = drag(v, mid(s.cubes[2]), [ox + 27 * S, oy + 3 * S])!;
+    // όσοι είναι στο γρασίδι μένουν εκεί: οι θέσεις είναι στον ουρανό
+    expect(s.cubes.map((e) => [e.y, e.f])).toEqual([[130, 0], [130, 0], [130, 0]]);
+    // το 3 και το 2 ανεβαίνουν στις δύο πρώτες θέσεις
+    v = drag(v, mid(s.cubes[0]), [ox + 5.5 * S, oy + 6 * S])!.v;
+    s = ncState(v);
+    const out = drag(v, mid(s.cubes.find((e) => e.n === 2)!), [ox + 13 * S, oy + 6.4 * S])!;
     v = out.v;
-    expect(ncState(v).cubes[2].f).toBe(0);
+    // όποιος σύρθηκε πάει στο τέλος της λίστας
+    expect(ncState(v).cubes.map((e) => [e.n, e.x, e.y, e.f])).toEqual([[1, 260, 130, 0], [3, 50, 65, 16], [2, 140, 65, 16]]);
     // = : στην άδεια τρίτη θέση εμφανίζεται το 5
     v = d.paint!(v, ...sign(1), W, H, {}, true)!;
     s = ncState(v);
-    expect(s.cubes.at(-1)).toMatchObject({ x: 230, n: 5, f: 16 });
+    expect(s.cubes.at(-1)).toMatchObject({ x: 230, y: 65, n: 5, f: 16 });
     expect(d.fx!(out.v, v)).toBe('num|pop|5');
     // + → −: 3 − 2, και η απάντηση 5 είναι λάθος
     v = d.paint!(v, ...sign(0), W, H, {}, true)!;
@@ -780,7 +803,7 @@ describe('κυβάκια και αριθμοί', () => {
     s = ncState(v);
     v = drag(v, mid(s.cubes[3]), [ox + 1 * S, oy + 3 * S])!.v;
     s = ncState(v);
-    v = drag(v, mid(s.cubes.find((e) => e.n === 1)!), [ox + 23 * S, oy + 12.5 * S])!.v;
+    v = drag(v, mid(s.cubes.find((e) => e.n === 1)!), [ox + 23 * S, oy + 6 * S])!.v;
     const ready = v;
     v = d.paint!(v, ...sign(1), W, H, {}, true)!;
     expect(ncState(v).flags & (64 | 128)).toBe(64);

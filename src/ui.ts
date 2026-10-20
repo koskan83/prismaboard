@@ -265,6 +265,7 @@ export function mountUi(app: HTMLElement): void {
 
   <div id="importMenu" class="popup hidden">
     ${mi('data-imp="file"', I.folder, 'Εικόνα, PDF ή Word από αρχείο…')}
+    ${mi('data-imp="doc" class="hidden"', I.doc, 'PDF ή Word από αρχείο…')}
     ${mi('data-imp="shot"', I.screen, 'Στιγμιότυπο οθόνης')}
     ${mi('data-imp="paste"', I.paste, 'Επικόλληση από το πρόχειρο')}
     <hr />
