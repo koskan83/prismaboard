@@ -3,7 +3,12 @@ name: Windows installer
 # Σε κάθε tag v* (π.χ. v0.2.0): χτίζει το πρόγραμμα εγκατάστασης, το υπογράφει για την αυτόματη ενημέρωση
 # και το ανεβάζει σε GitHub Release μαζί με το latest.json, που το διαβάζουν τα εγκατεστημένα προγράμματα
 # (βλ. plugins.updater στο src-tauri/tauri.conf.json).
-# Χειροκίνητα από την καρτέλα Actions: μόνο χτίσιμο, χωρίς release (το .exe κατεβαίνει από τα Artifacts).
+# Χειροκίνητα από την καρτέλα Actions ή με push στο main που αλλάζει το src-tauri/: μόνο χτίσιμο, χωρίς release
+# (το .exe και το .msix κατεβαίνουν από τα Artifacts).
+#
+# Το .msix είναι για το Microsoft Store: το υπογράφει το ίδιο το Store και δεν ενημερώνεται μόνο του
+# (βλ. from_store στο src-tauri/src/lib.rs). Η ταυτότητά του (MSSTORE_* πιο κάτω) είναι από το Partner Center →
+# Product identity. Όσο είναι κενή, βγαίνει πακέτο με δοκιμαστική ταυτότητα, που δεν ανεβαίνει στο Store.
 #
 # Χρειάζονται τα secrets του αποθετηρίου TAURI_SIGNING_PRIVATE_KEY και TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 # (το κλειδί από το «tauri signer generate»). Χωρίς αυτά το χτίσιμο αποτυγχάνει.
@@ -12,6 +17,8 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+    branches: [main]
+    paths: ['src-tauri/**', '.github/workflows/windows.yml']
 
 permissions:
   contents: read
@@ -33,6 +40,11 @@ jobs:
   build:
     needs: e2e
     runs-on: windows-latest
+    env:
+      # Partner Center → PrismaBoard → Product identity: Package/Identity/Name, Package/Identity/Publisher, Package/Properties/PublisherDisplayName
+      MSSTORE_NAME: ''
+      MSSTORE_PUBLISHER: ''
+      MSSTORE_PUBLISHER_NAME: ''
     # για το GitHub Release
     permissions:
       contents: write
@@ -79,6 +91,27 @@ jobs:
             echo "::error::$(grep -v '^\s*Compiling ' build.log | tail -n 40 | cut -c1-300 | sed 's/%/%25/g; s/\r//g' | awk '{printf "%s%%0A", $0}')"
             exit 1
           }
+      - name: Πακέτο MSIX για το Microsoft Store
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          exe=$(cd src-tauri/target/release && ls *.exe | head -1)
+          layout=$RUNNER_TEMP/msix
+          mkdir -p "$layout/Assets" out
+          cp "src-tauri/target/release/$exe" "$layout/"
+          cp src-tauri/icons/{StoreLogo,Square44x44Logo,Square150x150Logo}.png "$layout/Assets/"
+          # το Store θέλει έκδοση με 4 αριθμούς και 0 στον τελευταίο
+          sed -e "s|__NAME__|${MSSTORE_NAME:-PrismaBoard.Dokimi}|" \
+              -e "s|__PUBLISHER__|${MSSTORE_PUBLISHER:-CN=PrismaBoardDokimi}|" \
+              -e "s|__PUBLISHER_NAME__|${MSSTORE_PUBLISHER_NAME:-PrismaBoard}|" \
+              -e "s|__VERSION__|$ver.0|" -e "s|__EXE__|$exe|" \
+              src-tauri/msix/AppxManifest.xml > "$layout/AppxManifest.xml"
+          makeappx=$(ls "/c/Program Files (x86)/Windows Kits/10/bin/"*/x64/makeappx.exe | sort -V | tail -1)
+          "$makeappx" pack -o -d "$(cygpath -w "$layout")" -p "$(cygpath -w "out/PrismaBoard-$ver.msix")"
+          [ -n "$MSSTORE_NAME" ] || echo "::warning::Δοκιμαστική ταυτότητα στο .msix: συμπλήρωσε τα MSSTORE_* από το Partner Center"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: prismaboard-msix
+          path: out/*.msix
       - name: Release και latest.json
         if: startsWith(github.ref, 'refs/tags/v')
         env:

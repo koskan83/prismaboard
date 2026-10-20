@@ -185,12 +185,30 @@ fn exit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Εγκατάσταση από το Microsoft Store (πακέτο MSIX): εκεί τις ενημερώσεις τις κάνει μόνο το Store.
+#[cfg(windows)]
+fn from_store() -> bool {
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn GetCurrentPackageFullName(len: *mut u32, name: *mut u16) -> i32;
+    }
+    let mut len = 0u32;
+    // χωρίς πακέτο: APPMODEL_ERROR_NO_PACKAGE (15700)
+    unsafe { GetCurrentPackageFullName(&mut len, std::ptr::null_mut()) != 15700 }
+}
+#[cfg(not(windows))]
+fn from_store() -> bool {
+    false
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        // αυτόματη ενημέρωση από τα GitHub Releases (βλ. plugins.updater στο tauri.conf.json)
-        .plugin(tauri_plugin_updater::Builder::new().build())
+    let mut builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    // αυτόματη ενημέρωση από τα GitHub Releases (βλ. plugins.updater στο tauri.conf.json), όχι στην έκδοση του Store
+    if !from_store() {
+        builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+    }
+    builder
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![capture_screen, save_file, open_overlay, close_overlay, exit_app, save_in_folder, show_file])
         .run(tauri::generate_context!())
