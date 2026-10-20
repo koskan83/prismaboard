@@ -4,6 +4,8 @@
  * Το διακριτικό πρόσβασης μένει στη μνήμη της καρτέλας και στέλνεται μόνο σε κεφαλίδες.
  */
 
+import { isAndroidApp } from './platform';
+
 const KEY = 'grafida.drive';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const FOLDER = 'PrismaBoard';
@@ -65,6 +67,7 @@ export async function driveConnect(): Promise<void> {
 
 async function getToken(): Promise<string> {
   if (token && Date.now() < token.until) return token.value;
+  if (isAndroidApp) return androidToken();
   const clientId = driveClientId();
   if (!clientId) throw new Error('Δεν έχει οριστεί Client ID');
   const g = await loadGis();
@@ -81,6 +84,18 @@ async function getToken(): Promise<string> {
     });
     client.requestAccessToken({ prompt: '' });
   });
+}
+
+/**
+ * Στην εφαρμογή Android η Google δεν επιτρέπει τη σύνδεση μέσα στη σελίδα: το token το δίνουν οι υπηρεσίες Google
+ * της συσκευής (DriveAuthPlugin.java). Κρατά περίπου μία ώρα· μετά ξαναζητιέται, χωρίς παράθυρο αν η πρόσβαση έχει δοθεί.
+ */
+async function androidToken(): Promise<string> {
+  const { registerPlugin } = await import('@capacitor/core');
+  const auth = registerPlugin<{ authorize(o: { interactive: boolean }): Promise<{ accessToken: string }> }>('DriveAuth');
+  const { accessToken } = await auth.authorize({ interactive: true });
+  token = { value: accessToken, until: Date.now() + 50 * 60000 };
+  return accessToken;
 }
 
 /**
@@ -227,7 +242,7 @@ export function driveReady(): boolean {
 
 /** Φορτώνει από πριν τη σύνδεση της Google, ώστε το παράθυρό της να ανοίξει αμέσως με το πάτημα (αλλιώς ο browser το μπλοκάρει). */
 export function drivePreload(): void {
-  if (driveClientId()) loadGis().catch(() => {});
+  if (driveClientId() && !isAndroidApp) loadGis().catch(() => {});
 }
 
 export interface RemoteLesson {

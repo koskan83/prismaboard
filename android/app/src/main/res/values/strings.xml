@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PrismaBoard</string>
+    <string name="title_activity_main">PrismaBoard</string>
+    <string name="package_name">gr.klabs.prismaboard</string>
+    <string name="custom_url_scheme">gr.klabs.prismaboard</string>
+</resources>

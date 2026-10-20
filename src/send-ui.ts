@@ -2,6 +2,8 @@
 
 import { driveBuiltIn, driveClientId, driveConnect, setDriveClientId, uploadToDrive } from './drive';
 import { isNative } from './native';
+import { isAndroidApp } from './platform';
+import { androidShare } from './android';
 import { buildPdf } from './pdf';
 import { $, board, download, toast } from './app';
 import { closePopups, lessons } from './main';
@@ -264,7 +266,8 @@ $('sendShare').onclick = async () => {
     if (!pdf) return;
     const file = new File([pdf], name, { type: 'application/pdf' });
     // σε Android το φύλλο κοινοποίησης έχει και το Drive· αλλού απλώς κατεβαίνει
-    if (!isNative && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
+    if (isAndroidApp) await androidShare(file, name);
+    else if (!isNative && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
     else download(file, name);
   } catch (err) {
     if ((err as Error)?.name !== 'AbortError') toast('Η κοινοποίηση απέτυχε', 5000);

@@ -3,7 +3,7 @@
  *
  * - Εφαρμογή Windows: κατευθείαν στο «Έγγραφα\PrismaBoard\Β2», χωρίς ερώτηση.
  * - Chrome/Edge σε υπολογιστή: σε φάκελο που διαλέγει ο χρήστης μία φορά· μέσα του φτιάχνεται «PrismaBoard\Β2».
- * - Android (BenQ) και όπου αλλού δεν γίνονται φάκελοι: στις Λήψεις, με το τμήμα στην αρχή του ονόματος.
+ * - Android (π.χ. διαδραστικοί πίνακες) και όπου αλλού δεν γίνονται φάκελοι: στις Λήψεις, με το τμήμα στην αρχή του ονόματος.
  * - Και, αν είναι αναμμένο, αντίγραφο στο Google Drive, στο «PrismaBoard/Β2».
  *
  * Το όνομα είναι παντού το ίδιο: «Β2 – Κλάσματα 17-10-2026.pdf». Ίδιο μάθημα την ίδια μέρα γράφεται από πάνω.
@@ -11,6 +11,8 @@
 
 import { kvGetRaw, kvPutRaw } from './storage';
 import { isNative, nativeSave, nativeSaveIn, nativeShowFile } from './native';
+import { isAndroidApp } from './platform';
+import { androidShareUri, androidWrite } from './android';
 import { driveClientId, driveConnect, driveReady, saveToDrive } from './drive';
 import { confirmBox } from './dialog';
 import { classFileName, safeName } from './class-name';
@@ -117,7 +119,14 @@ export async function saveClassFile(blob: Blob, name: string, group: string | un
   let where = '';
   let action: { label: string; run: () => void } | undefined;
   try {
-    if (isNative) {
+    if (isAndroidApp) {
+      // εφαρμογή Android: στα Έγγραφα/PrismaBoard/<τμήμα> της συσκευής, με «Κοινοποίηση»
+      const sub = group ? safeName(group) : '';
+      const { uri, docs } = await androidWrite(blob, name, false, sub);
+      where = docs ? `στα «Έγγραφα/${ROOT}${sub ? `/${sub}` : ''}»` : '';
+      action = { label: 'Κοινοποίηση', run: () => void androidShareUri(uri, name).catch(() => {}) };
+      if (!docs) await androidShareUri(uri, name);
+    } else if (isNative) {
       try {
         const path = await nativeSaveIn(group ? safeName(group) : '', blob, name);
         where = `στο «Έγγραφα\\${ROOT}${group ? `\\${safeName(group)}` : ''}»`;

@@ -4,6 +4,7 @@ import { Lessons } from './lessons';
 import { GadgetKind } from './gadgets';
 import { isNative, isOverlay, nativeCheckUpdate, nativeExit, nativeRelaunch, openOverlay, type NativeUpdate } from './native';
 import { initSnip, toggleSnip } from './snip';
+import { isAndroid, isAndroidApp, openPage } from './platform';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
 import { ask, notice } from './dialog';
@@ -607,14 +608,16 @@ gadgetMenu.addEventListener('click', (e) => {
 
 const IMG_TYPES = 'image/*,.png,.jpg,.jpeg';
 const DOC_TYPES = 'application/pdf,.pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-// Android (π.χ. διαδραστικοί BenQ): όταν η λίστα έχει και εικόνες, ο Chrome ανοίγει μόνο τις Φωτογραφίες,
+// Android (π.χ. διαδραστικοί πίνακες): όταν η λίστα έχει και εικόνες, ο Chrome ανοίγει μόνο τις Φωτογραφίες,
 // οπότε τα PDF και Word παίρνουν δικό τους κουμπί, που ανοίγει τα αρχεία της συσκευής
-const android = /Android/i.test(navigator.userAgent);
+const android = isAndroid();
 if (android) {
   const img = impMenu.querySelector<HTMLElement>('[data-imp="file"]')!;
   img.lastChild!.textContent = 'Εικόνα από αρχείο…';
   impMenu.querySelector('[data-imp="doc"]')!.classList.remove('hidden');
 }
+// στιγμιότυπο οθόνης: στα Windows από το πρόγραμμα, στον browser με getDisplayMedia (που δεν υπάρχει στο Android)
+if (!isNative && !navigator.mediaDevices?.getDisplayMedia) impMenu.querySelector('[data-imp="shot"]')!.classList.add('hidden');
 impMenu.addEventListener('click', (e) => {
   const t = e.target as HTMLElement;
   const ins = t.closest<HTMLElement>('[data-ins]')?.dataset.ins;
@@ -758,11 +761,11 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'help') {
     openWelcome();
   } else if (act === 'test') {
-    window.open('./dokimi.html', '_blank');
+    openPage('./dokimi.html');
   } else if (act === 'report') {
     void openReport(toast);
   } else if (act === 'licenses') {
-    window.open('./adeies.html', '_blank');
+    openPage('./adeies.html');
   } else if (act === 'open') {
     ($('fileOpen') as HTMLInputElement).click();
   } else if (act === 'save') {
@@ -1021,7 +1024,7 @@ function showUsage(): Promise<void> {
 const showNews = (): Promise<void> => notice('Τι νέο στο PrismaBoard', NEWS.slice(0, 3), { hint: `Έκδοση ${VERSION}`, more: NEWS.slice(3) });
 $('verLine').textContent = $('verMain').textContent = `Έκδοση ${VERSION}`;
 // οι οδηγίες ως σελίδα, με κινούμενα κλιπ· το PDF μένει για εκτύπωση
-$('wHelp').onclick = () => window.open('./odigies.html', '_blank');
+$('wHelp').onclick = () => openPage('./odigies.html');
 // άγγιγμα έξω από την κάρτα (π.χ. παλάμη ή μανίκι στον πίνακα): κλείνει για τώρα, αλλά η γνωριμία ξαναβγαίνει στο επόμενο άνοιγμα· μόνο το «Ξεκίνα» τη σημειώνει ως ειδωμένη
 $('welcome').addEventListener('pointerdown', (e) => {
   if (e.target === $('welcome')) $('welcome').classList.add('hidden');
@@ -1137,7 +1140,8 @@ void (async () => {
 if (!isOverlay) trackUsage();
 
 declare const __BUILD_ID__: string;
-if (import.meta.env.PROD && !isNative && 'serviceWorker' in navigator) {
+// στην εφαρμογή Android τα αρχεία είναι ήδη μέσα στο πακέτο: ούτε service worker ούτε έλεγχος για νέα έκδοση
+if (import.meta.env.PROD && !isNative && !isAndroidApp && 'serviceWorker' in navigator) {
   navigator.serviceWorker.register(`./sw.js?v=${__BUILD_ID__}`).catch(() => {});
 }
 
@@ -1172,7 +1176,7 @@ if (isNative && !isOverlay) {
 }
 
 // Πίνακας που μένει ανοιχτός για μέρες δεν παίρνει ποτέ τη νέα έκδοση: όταν ανέβει καινούρια, ένα μήνυμα προτείνει ανανέωση.
-if (import.meta.env.PROD && !isNative) {
+if (import.meta.env.PROD && !isNative && !isAndroidApp) {
   // η λίστα αρχείων της έκδοσης αλλάζει σε κάθε δημοσίευση
   const buildId = (): Promise<string | null> => fetch('./precache.json', { cache: 'no-store' }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
   let mine: string | null = null, told = false, last = Date.now();

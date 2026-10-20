@@ -11,6 +11,8 @@ import './style.css';
 import { Board, SizedTool } from './board';
 import { Timer } from './timer';
 import { closeOverlay, isNative, isOverlay, nativeSave } from './native';
+import { isAndroidApp } from './platform';
+import { androidDownload } from './android';
 import { Curtain, Spotlight } from './overlays';
 import { mountUi } from './ui';
 
@@ -97,6 +99,7 @@ export function toast(msg: string, ms = 3000, action?: { label: string; run: () 
 }
 
 export function download(blob: Blob, name: string): void {
+  if (isAndroidApp) return void androidDownload(blob, name, toast);
   if (isNative) {
     nativeSave(blob, name)
       .then((ok) => ok && toast('Αποθηκεύτηκε'))

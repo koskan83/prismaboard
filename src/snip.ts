@@ -1,26 +1,18 @@
 /**
- * «Ψαλίδι πάνω από άλλες εφαρμογές» (μόνο στο Android, π.χ. BenQ Board).
+ * «Ψαλίδι πάνω από άλλες εφαρμογές» (μόνο στο Android, π.χ. διαδραστικοί πίνακες).
  * Μια σελίδα web δεν μπορεί να βάλει κουμπί πάνω από άλλες εφαρμογές ούτε να τραβήξει στιγμιότυπό τους·
  * το κάνει ο μικρός βοηθός του φακέλου `android-snip/`, που ανοίγει/κλείνει από εδώ με σύνδεσμο intent://.
  * Ό,τι κόβεις με τον κύκλο έρχεται πίσω με «Κοινοποίηση» (share_target, βλ. sw.js) στο ανοιχτό μάθημα.
  */
 import { isNative } from './native';
+import { isAndroid, isAndroidApp } from './platform';
 
 const KEY = 'grafida.snip';
 /** Αν ο βοηθός δεν είναι εγκατεστημένος, ο Chrome ανοίγει αυτό αντί για τον βοηθό (κατέβασμα του APK). */
 export const SNIP_APK = 'https://github.com/koskan83/prismaboard/releases/download/prismasnip/PrismaBoard-psalidi.apk';
 
-/**
- * Android; και στις μεγάλες οθόνες (BenQ Board), όπου ο Chrome ζητά μόνος του «έκδοση για υπολογιστές»
- * και το userAgent λέει Linux αντί για Android: τότε το καταλαβαίνουμε από την αφή.
- */
-function isAndroid(): boolean {
-  const ua = navigator.userAgent;
-  const platform = (navigator as { userAgentData?: { platform?: string } }).userAgentData?.platform ?? '';
-  return /Android/i.test(ua) || /Android/i.test(platform) || (/Linux/i.test(ua) && !/CrOS/i.test(ua) && navigator.maxTouchPoints > 0);
-}
-
-export const snipAvailable = !isNative && isAndroid();
+// όχι στην εφαρμογή του Google Play: εκεί δεν επιτρέπεται να προτείνει APK από αλλού
+export const snipAvailable = !isNative && !isAndroidApp && isAndroid();
 
 let on = false;
 

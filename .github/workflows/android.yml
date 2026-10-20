@@ -1,0 +1,74 @@
+name: Android (Google Play)
+
+# Η εφαρμογή Android του Google Play (Capacitor, φάκελος android/): όλα τα αρχεία της μέσα στο πακέτο.
+#  - tag v* (μαζί με το site και τα Windows): το .aab για το Play Console και ένα .apk για δοκιμή σε tablet ή πίνακα.
+#  - push στο main που αλλάζει το android/: μόνο έλεγχος ότι χτίζεται.
+# Η έκδοση βγαίνει από το package.json: versionName 0.2.3, versionCode 203 (major·10000 + minor·100 + patch).
+#
+# Υπογραφή με το «κλειδί ανεβάσματος» του Play (όχι το κλειδί του ψαλιδιού), από τα secrets:
+#   ANDROID_KEYSTORE_B64 (το .jks/.p12 σε base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD (αν διαφέρει).
+# Χωρίς αυτά βγαίνει ανυπόγραφο πακέτο, που δεν ανεβαίνει στο Play.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+    branches: [main]
+    paths: ['android/**', 'capacitor.config.ts', '.github/workflows/android.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: 21
+      # το Android SDK υπάρχει ήδη στο ubuntu-latest (ANDROID_HOME)· ό,τι λείπει το κατεβάζει το Gradle
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+      - run: npm ci
+      - run: npm test
+      - name: Έκδοση
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          code=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number); a*10000+b*100+c")
+          if [[ "$GITHUB_REF" == refs/tags/v* && "v$ver" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::Το tag $GITHUB_REF_NAME δεν ταιριάζει με την έκδοση $ver του package.json"; exit 1
+          fi
+          echo "VERSION_NAME=$ver" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
+      # χτίσιμο της εφαρμογής και αντιγραφή του dist/ μέσα στο android/
+      - run: npx vite build && npx cap sync android
+      - name: Κλειδί υπογραφής
+        if: env.HAS_KEY == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.keystore"
+          echo "ANDROID_KEYSTORE_FILE=$RUNNER_TEMP/upload.keystore" >> "$GITHUB_ENV"
+      - name: Χτίσιμο (.aab για το Play, .apk για δοκιμή)
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease assembleRelease
+          mkdir -p ../out
+          cp app/build/outputs/bundle/release/*.aab "../out/PrismaBoard-$VERSION_NAME.aab"
+          cp app/build/outputs/apk/release/*.apk "../out/PrismaBoard-$VERSION_NAME.apk"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: prismaboard-android-${{ env.VERSION_NAME }}
+          path: out/*
