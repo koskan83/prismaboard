@@ -20,7 +20,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 /// Το OAuth client «Desktop app» στο ίδιο project του Google Cloud με το Web client: δημόσιο αναγνωριστικό.
-const CLIENT_ID: &str = "";
+const CLIENT_ID: &str = "613162937289-tle1qmp4q5i2di98e61j1a9mcj55u48g.apps.googleusercontent.com";
 const CLIENT_SECRET: Option<&str> = option_env!("GOOGLE_DESKTOP_CLIENT_SECRET");
 const SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 /// Πόσο περιμένουμε να ολοκληρωθεί η σύνδεση στον browser.
