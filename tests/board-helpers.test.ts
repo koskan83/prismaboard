@@ -668,28 +668,44 @@ describe('κυβάκια και αριθμοί', () => {
     expect(ncState(side.v).cubes.map((e) => e.n)).toEqual([4, 1]);
   });
 
-  it('🎲 η γεννήτρια ασκήσεων: αριθμοί 1–20, χωρίς αρνητικά αποτελέσματα, ποτέ η ίδια άσκηση δύο φορές στη σειρά', () => {
+  it('🎲 η γεννήτρια ασκήσεων: και οι τέσσερις πράξεις, στα όρια τους, ακριβής διαίρεση, ποτέ η ίδια άσκηση δύο φορές στη σειρά', () => {
     let seed = 7;
     const rand = (): number => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
-    let prev: NCExercise | null = null, plus = 0, minus = 0;
-    for (let i = 0; i < 3000; i++) {
+    let prev: NCExercise | null = null;
+    const count = [0, 0, 0, 0];
+    let ones = 0;
+    for (let i = 0; i < 4000; i++) {
       const x = ncExercise(rand, prev);
-      const r = x.minus ? x.a - x.b : x.a + x.b;
       expect(x.a).toBeGreaterThanOrEqual(1);
       expect(x.b).toBeGreaterThanOrEqual(1);
-      expect(r).toBeGreaterThanOrEqual(1);
-      expect(r).toBeLessThanOrEqual(20);
-      expect(x.a).toBeLessThanOrEqual(20);
+      if (x.op === 0) expect(x.a + x.b).toBeLessThanOrEqual(20);
+      if (x.op === 1) {
+        expect(x.a).toBeLessThanOrEqual(20);
+        expect(x.b).toBeLessThan(x.a);
+      }
+      if (x.op === 2) {
+        expect(Math.max(x.a, x.b)).toBeLessThanOrEqual(10);
+        if (x.a === 1 || x.b === 1) ones++;
+      }
+      if (x.op === 3) {
+        expect(x.b).toBeGreaterThanOrEqual(2);
+        expect(x.b).toBeLessThanOrEqual(10);
+        expect(x.a % x.b).toBe(0);
+        expect(x.a / x.b).toBeLessThanOrEqual(10);
+        expect(x.a).toBeLessThanOrEqual(100);
+      }
       if (prev) expect(x).not.toEqual(prev);
-      if (x.minus) minus++; else plus++;
+      count[x.op]++;
       prev = x;
     }
-    expect(plus).toBeGreaterThan(1000);
-    expect(minus).toBeGreaterThan(1000);
+    for (const n of count) expect(n).toBeGreaterThan(700);
+    // το ×1 είναι σπάνιο
+    expect(ones).toBeLessThan(count[2] * 0.3);
     // ακόμη κι αν το random δίνει πάντα το ίδιο, η άσκηση αλλάζει
     const once = ncExercise(() => 0);
     expect(ncExercise(() => 0, once)).not.toEqual(once);
-    expect(ncExercise(() => 0.99, null, 5)).toEqual({ a: 4, b: 1, minus: false });
+    expect(ncExercise(() => 0.99, null, 5, 0)).toEqual({ a: 4, b: 1, op: 0 });
+    expect(ncExercise(() => 0.99)).toEqual({ a: 100, b: 10, op: 3 });
   });
 
   it('🎲 στην εξίσωση: γεμίζει τις θέσεις 1 και 2, αφήνει την 3 άδεια, και η σωστή απάντηση με το = δίνει ✓', () => {
@@ -697,8 +713,8 @@ describe('κυβάκια και αριθμοί', () => {
     const dice = px(9.5, 2), eq = px(18.5, 4.9);
     const slotOf = (v: number[], k: number): NCube | undefined => ncState(v).cubes.find((e) => e.f & 16 && Math.abs(e.x - [50, 140, 230][k]) < 5);
     let v = ncPack({ mode: 0, sel: 0, flags: 16, cubes: [cube(60, 3), { ...cube(50, 2), f: 16, y: 65 }] });
-    // με ασκήσεις 0.7 (+ ή −: το πρώτο random < 0.5 είναι −) και το 2ο
-    const seq = [0.7, 0, 0.3, 0.5];
+    // το πρώτο random διαλέγει πράξη (0.1 → +), το δεύτερο την άσκηση
+    const seq = [0.1, 0, 0.3, 0.5];
     let i = 0;
     ncRandom.rand = () => seq[i++ % seq.length];
     try {
@@ -710,7 +726,7 @@ describe('κυβάκια και αριθμοί', () => {
       expect(s.cubes.filter((e) => !(e.f & 16)).map((e) => e.n)).toEqual([3]);
       const a = slotOf(v, 0)!, b = slotOf(v, 1)!;
       expect(slotOf(v, 2)).toBeUndefined();
-      expect(s.flags & 32).toBe(0); // rand() = 0.7 ≥ 0.5: πρόσθεση
+      expect(s.flags & 32).toBe(0); // rand() = 0.1: πρόσθεση
       expect(a.n + b.n).toBeLessThanOrEqual(20);
       const sum = a.n + b.n;
       // τα παιδιά φτιάχνουν την απάντηση και πατούν το =
@@ -731,7 +747,7 @@ describe('κυβάκια και αριθμοί', () => {
 
   it('🎲 αφαίρεση: το S_MINUS μπαίνει και το πρώτο είναι μεγαλύτερο από το δεύτερο· εκτός εξίσωσης το κουμπί δεν υπάρχει', () => {
     const dice: [number, number] = [ox + 9.5 * S, oy + 2 * S];
-    ncRandom.rand = () => 0.2;
+    ncRandom.rand = () => 0.3;
     try {
       const off = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 3)] });
       expect(d.paint!(off, ...dice, W, H, {}, true)).toBeNull();

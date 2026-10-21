@@ -11,11 +11,12 @@ export const VERSION: string = typeof __BUILD__ === 'string'
   : t('δοκιμαστική', 'test build');
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
-export const NEWS_ID = BETA ? '2026-10-22a' : '2026-10-22';
+export const NEWS_ID = BETA ? '2026-10-22b-beta' : '2026-10-22b';
 
 export const NEWS: string[] = [
   // μόνο στο beta: η κανονική έκδοση δεν έχει ακόμη αυτά τα εργαλεία
   ...(BETA ? [t('Στη δοκιμαστική έκδοση (beta): νέα εργαλεία τάξης στα Όργανα, «Επίπεδο φωνής» και «Μετρητής θορύβου» με το μικρόφωνο (ο ήχος δεν ηχογραφείται), και το χρονόμετρο με δίσκο-πίτα που αδειάζει (κουμπί δίσκου στην κεφαλίδα).', 'In the beta: new classroom tools under Tools, “Voice level” and a microphone “Noise meter” (sound is never recorded), plus a timer with a pie disk that empties (disk button in the header).')] : []),
+  t('Κυβάκια και αριθμοί: και πολλαπλασιασμός και διαίρεση! Το σύμβολο στο +=, με πάτημα, γίνεται + − × : · το 3 × 4 βγαίνει ορθογώνιο με 3 σειρές των 4, το 12 : 3 μοιράζεται σε 3 καλάθια, και το 🎲 βάζει ασκήσεις και με τις τέσσερις πράξεις.', 'Number Cubes: multiplication and division too! Tap the sign in += to cycle + − × : · 3 × 4 appears as a rectangle of 3 rows of 4, 12 : 3 is shared into 3 baskets, and the 🎲 now sets exercises with all four operations.'),
   t('Κυβάκια και αριθμοί: ασκήσεις μόνες τους! Στο +=, το κίτρινο 🎲 πάνω από το + βάζει νέα πρόσθεση ή αφαίρεση ως το 20· τα παιδιά φτιάχνουν την απάντηση και πατούν =. Και οι χαρακτήρες ενώνονται πιο εύκολα όταν αφήνεις τον έναν πάνω στον άλλον.', 'Number Cubes: exercises by themselves! In +=, the yellow 🎲 above the + sets a new sum or subtraction up to 20; the children build the answer and press =. Characters also join more easily when you drop one on another.'),
   t('Δημοτικό: η «Μέτρηση» (μήκη, γωνίες, εμβαδόν, περίμετρος) είναι πλέον και στη γραμμή εργαλείων του Δημοτικού.', 'Primary: “Measure” (lengths, angles, area, perimeter) is now on the primary toolbar too.'),
   t('Το PrismaBoard μιλά πλέον και αγγλικά: ☰ → «English» (και πίσω με «Ελληνικά»). Σε συσκευή ρυθμισμένη σε άλλη γλώσσα ανοίγει μόνο του στα αγγλικά, μαζί με τις οδηγίες. Τα μαθήματα είναι ίδια και στις δύο γλώσσες.', 'PrismaBoard now speaks English too: ☰ → “Ελληνικά” switches to Greek and back with “English”. On a device set to another language it opens in English by itself, guide included. Lessons are the same in both languages.'),
