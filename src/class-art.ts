@@ -25,86 +25,82 @@ const waves = (x: number, y: number, n: number, op: number, col = '#38bdf8', ste
 /** Το κέντρο του κεφαλιού (60,60) είναι και κέντρο του viewBox, ώστε το πρόσωπο να είναι πάντα στη μέση. */
 const svg = (body: string): string => `<svg viewBox="8 8 104 104" aria-hidden="true">${body}</svg>`;
 
-// ---- Παιδιά σε προφίλ (για το voiceArt). Σχεδιάζονται κοιτάζοντας δεξιά γύρω από το (0,0)· για αριστερά καθρεφτίζονται. ----
-interface Kid { skin: string; skinD: string; hair: string; shirt: string; girl?: boolean; mouth: 'shut' | 'open' | 'o'; eye: 'shut' | 'open' | 'wide' }
-const FACE = 'M0 -27C18 -27 27 -15 27 -4L27 0C28 3 33 7 33 10C33 12 30 13 27 13L28 16C29 17 28 18 26 18.500C28 19 28 22 26 23C26 25 26 27 25 29C22 32 14 33 6 31L-8 30C-22 28 -27 14 -27 0C-27 -16 -14 -27 0 -27Z';
-const kidBack = (k: Kid): string => k.girl
-  ? `<ellipse cx="-31" cy="14" rx="9" ry="22" transform="rotate(16 -31 14)" fill="${k.hair}"/><circle cx="-36" cy="34" r="6" fill="${k.hair}"/>`
-  : '';
-const kidBody = (k: Kid): string =>
-  `<path d="M-10 24h20v18h-20Z" fill="${k.skinD}"/>`
-  + `<path d="M-40 90C-40 52 -24 40 -2 40C16 40 32 46 40 62L46 90Z" fill="${k.shirt}"/>`
-  + `<path d="M-8 40q10 10 20 0" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="3" stroke-linecap="round"/>`;
-const kidHead = (k: Kid): string => {
-  const eye = k.eye === 'shut' ? `<path d="M12 -3q4 4 9 0" fill="none" stroke="${INK}" stroke-width="2.600" stroke-linecap="round"/>`
-    : k.eye === 'wide' ? `<ellipse cx="17" cy="-3" rx="4.400" ry="5" fill="#fff"/><circle cx="18.500" cy="-3" r="2.600" fill="${INK}"/>`
-    : `<ellipse cx="17" cy="-3" rx="3" ry="3.600" fill="${INK}"/><circle cx="18" cy="-4.200" r="1.100" fill="#fff"/>`;
-  const brow = `<path d="M12 -11q5-3 11-1" fill="none" stroke="${k.hair}" stroke-width="2.200" stroke-linecap="round"/>`;
-  const mouth = k.mouth === 'open'
-    ? `<path d="M26 15.500C32 16 33 22 26 23.500C21 24 17 22 17 19.500C17 17 21 15 26 15.500Z" fill="#8f2a3a"/><path d="M20 22q4 2.500 7 0" fill="none" stroke="#f47c8c" stroke-width="2.400" stroke-linecap="round"/>`
-    : k.mouth === 'o' ? `<ellipse cx="26" cy="19.500" rx="3" ry="3.400" fill="#8f2a3a"/>`
-    : `<path d="M20 19.500q3 1.800 7 0" fill="none" stroke="#d9667a" stroke-width="2.600" stroke-linecap="round"/>`;
-  const hair = k.girl
-    ? `<path d="M27 -8C27 -25 14 -31 0 -31C-19 -31 -31 -18 -30 2C-30 10 -27 14 -23 16L-17 4C-14 -6 -2 -11 8 -13C16 -14 23 -11 27 -8Z" fill="${k.hair}"/>`
-    : `<path d="M28 -9C28 -25 15 -31 1 -31C-18 -31 -30 -19 -29 -2C-29 4 -27 8 -24 10L-18 -2C-12 -9 0 -12 8 -14C16 -15 24 -13 28 -9Z" fill="${k.hair}"/>`;
-  return `<path d="${FACE}" fill="${k.skin}"/>`
-    + `<ellipse cx="-5" cy="6" rx="5.500" ry="7" fill="${k.skinD}"/><ellipse cx="-5" cy="6.500" rx="2.600" ry="4" fill="${k.skin}" opacity=".8"/>`
-    + hair + brow + eye
-    + `<circle cx="13" cy="12" r="5.500" fill="#f9a8a8" opacity=".65"/>`
-    + mouth;
-};
-const kid = (k: Kid, x: number, y: number, sc: number, flip = false): string =>
-  `<g transform="translate(${x} ${y}) scale(${flip ? -sc : sc} ${sc})">${kidBack(k)}${kidBody(k)}${kidHead(k)}</g>`;
+// ---- Πρόσωπα σαν emoji (για το voiceArt). Τοπικές συντεταγμένες: κέντρο (0,0), ακτίνα 30. ----
+const Y = '#ffcc4d';
+const Y_D = '#f4a63a';
+const Y_LINE = '#e69a2c';
+const BR = '#5a3a0a';
 const svgW = (body: string): string => `<svg viewBox="0 0 160 110" aria-hidden="true">${body}</svg>`;
-
-const KID_A: Kid = { skin: '#fcd5a5', skinD: '#e9a96b', hair: '#7c4a2d', shirt: '#6366f1', mouth: 'shut', eye: 'shut' };
-const KID_B: Kid = { skin: '#c98e5f', skinD: '#a86f45', hair: '#2f1d14', shirt: '#f59e0b', mouth: 'o', eye: 'wide' };
-const BOY: Kid = { skin: '#f6c99a', skinD: '#e0a36c', hair: '#b45f2a', shirt: '#38bdf8', mouth: 'open', eye: 'open' };
-const GIRL: Kid = { skin: '#e3b184', skinD: '#c98f60', hair: '#4a2a1a', shirt: '#f472b6', girl: true, mouth: 'open', eye: 'open' };
+const emoji = (cx: number, cy: number, r: number, rot: number, inner: string, flip = false): string =>
+  `<g transform="translate(${cx} ${cy}) rotate(${rot}) scale(${flip ? -r / 30 : r / 30} ${r / 30})">`
+  + `<circle r="30" fill="${Y_D}"/><circle cy="-2.200" r="28" fill="${Y}"/>`
+  + `<ellipse cx="-10" cy="-19" rx="9" ry="3.600" fill="#fff" opacity=".28" transform="rotate(-22 -10 -19)"/>${inner}</g>`;
+const eye = (x: number, y: number, dx = 0, dy = 0): string =>
+  `<ellipse cx="${x}" cy="${y}" rx="4.400" ry="5.600" fill="${BR}"/><circle cx="${x + 1.400 + dx}" cy="${y - 2 + dy}" r="1.600" fill="#fff"/>`;
+const eyeWide = (x: number, y: number, dx = 0): string =>
+  `<ellipse cx="${x}" cy="${y}" rx="7" ry="8" fill="#fff" stroke="${BR}" stroke-width="1.800"/><circle cx="${x + dx}" cy="${y + 1}" r="4" fill="${BR}"/><circle cx="${x + dx + 1.300}" cy="${y - .5}" r="1.400" fill="#fff"/>`;
+const brow = (x1: number, y1: number, x2: number, y2: number): string =>
+  `<path d="M${x1} ${y1}Q${(x1 + x2) / 2} ${Math.min(y1, y2) - 3} ${x2} ${y2}" fill="none" stroke="${BR}" stroke-width="2.600" stroke-linecap="round"/>`;
+const talk = (): string =>
+  `<path d="M-12 8C-6 6 6 6 12 8C12 21 -12 21 -12 8Z" fill="${BR}"/><path d="M-6 17.500Q0 12 6 17.500Q0 21 -6 17.500Z" fill="#ff7a8a"/>`
+  + `<path d="M-11 8.500Q0 6.500 11 8.500Q0 11 -11 8.500Z" fill="#fff"/>`;
+const hand = `fill="${Y}" stroke="${Y_LINE}" stroke-width="1.600" stroke-linejoin="round" stroke-linecap="round"`;
 
 /** Εικόνα επιπέδου φωνής: 0 ησυχία (σσσς), 1 ψίθυροι, 2 κανονική φωνή. */
 export function voiceArt(level: 0 | 1 | 2): string {
   if (level === 0) {
     return svgW(
-      `<g fill="#6366f1" opacity=".18"><circle cx="30" cy="30" r="3"/><circle cx="128" cy="26" r="4"/><circle cx="122" cy="60" r="2.500"/></g>`
-      + kid(KID_A, 76, 42, 1.050)
-      // δείκτης όρθιος μπροστά στα χείλη, γροθιά κάτω από το πηγούνι, βραχίονας από κάτω
-      + `<g stroke="#e9a96b" stroke-width="1.800" stroke-linejoin="round" stroke-linecap="round" fill="#fcd5a5">`
-      + `<path d="M96 110L84 82" stroke="#6366f1" stroke-width="15" fill="none"/>`
-      + `<path d="M96 110L84 82" stroke="#6366f1" stroke-width="12" fill="none"/>`
-      + `<rect x="82" y="73" width="24" height="18" rx="8"/>`
-      + `<path d="M88 79v6M94 79v6M100 79v6" fill="none" opacity=".6"/>`
-      + `<rect x="98.500" y="56" width="8.500" height="31" rx="4.250"/>`
-      + `<ellipse cx="85" cy="82" rx="3.500" ry="6" transform="rotate(-30 85 82)"/>`
-      + `</g>`
+      `<g fill="#6366f1" opacity=".18"><circle cx="22" cy="28" r="4"/><circle cx="140" cy="24" r="5"/><circle cx="134" cy="76" r="3"/></g>`
+      + emoji(80, 54, 44, 0,
+        brow(-16, -12, -5, -14) + brow(5, -14, 16, -12)
+        + eye(-10, -4, 0, -.6) + eye(10, -4, 0, -.6)
+        + `<path d="M-9 14.500Q0 12.500 9 14.500" fill="none" stroke="${BR}" stroke-width="2.600" stroke-linecap="round"/>`
+        // δείκτης όρθιος πάνω στα χείλη, κλειστά δάχτυλα και αντίχειρας από κάτω
+        + `<g ${hand}>`
+        + `<ellipse cx="-9" cy="29" rx="5" ry="4" transform="rotate(-20 -9 29)"/>`
+        + `<rect x="-10" y="22" width="25" height="15" rx="7"/>`
+        + `<path d="M-1 26Q4 28 9 26M-1 31.500Q4 33.500 10 31.500" fill="none" opacity=".7"/>`
+        + `<rect x="-4.500" y="2" width="9" height="30" rx="4.500"/>`
+        + `<path d="M-3 7Q0 5 3 7" fill="none" opacity=".5"/>`
+        + `</g>`)
     );
   }
   if (level === 1) {
     return svgW(
-      `<g fill="#f59e0b" opacity=".2"><circle cx="24" cy="26" r="4"/><circle cx="140" cy="22" r="3"/></g>`
-      + kid(KID_B, 108, 46, .72)
-      + kid({ ...KID_A, eye: 'open', mouth: 'o', shirt: '#22c55e' }, 50, 50, .72)
-      // χέρι σε κοίλο σχήμα ανάμεσα στο στόμα και στο αυτί
-      + `<g stroke="#e9a96b" stroke-width="1.600" stroke-linejoin="round" stroke-linecap="round" fill="#fcd5a5">`
-      + `<path d="M74 66L68 84" stroke="#fcd5a5" stroke-width="8" fill="none"/>`
-      + `<path d="M68 82L62 104" stroke="#22c55e" stroke-width="12" fill="none"/>`
-      + `<g transform="rotate(-24 82 58)"><rect x="70" y="50" width="26" height="15" rx="7.500"/>`
-      + `<path d="M80 51.500v5M86 51.500v5M92 52.500v5" fill="none" opacity=".6"/><ellipse cx="73" cy="64" rx="5" ry="3.400"/></g>`
-      + `</g>`
-      + `<g fill="#38bdf8" opacity=".6"><circle cx="74" cy="72" r="1.600"/><circle cx="80" cy="73" r="1.300"/><circle cx="85" cy="71" r="1"/></g>`
+      `<g fill="#f59e0b" opacity=".2"><circle cx="18" cy="24" r="4"/><circle cx="142" cy="20" r="3"/></g>`
+      // δεξί πρόσωπο: ωτίο και μάτια ορθάνοιχτα
+      + emoji(118, 56, 28, 0,
+        `<ellipse cx="-31" cy="2" rx="5" ry="7" fill="${Y_D}" stroke="${Y_LINE}" stroke-width="1.400"/>`
+        + brow(-16, -17, -5, -19) + brow(5, -19, 16, -17)
+        + eyeWide(-10, -6, -2) + eyeWide(10, -6, -2)
+        + `<ellipse cx="0" cy="15" rx="3.400" ry="4" fill="${BR}"/>`)
+      // αριστερό πρόσωπο, γερμένο προς τα δεξιά, μάτια στο πλάι
+      + emoji(42, 58, 28, 14,
+        eye(-8, -4, 1.600) + eye(12, -4, 1.600)
+        + `<path d="M-14 -13Q-9 -16 -4 -14M7 -14Q12 -16 17 -13" fill="none" stroke="${BR}" stroke-width="2.400" stroke-linecap="round"/>`
+        + `<path d="M-2 14Q4 16 10 13" fill="none" stroke="${BR}" stroke-width="2.600" stroke-linecap="round"/>`)
+      // χέρι σε κοίλο σχήμα στο στόμα, δείχνει προς το ωτίο
+      + `<g ${hand}><g transform="rotate(-10 70 72)">`
+      + `<rect x="57" y="66" width="25" height="14" rx="7"/>`
+      + `<path d="M68 67.500v5M74 67.500v5M79 68.500v4" fill="none" opacity=".7"/>`
+      + `<ellipse cx="58" cy="65" rx="6" ry="3.400" transform="rotate(-25 58 65)"/>`
+      + `</g></g>`
+      + `<g fill="#38bdf8"><circle cx="80" cy="52" r="1.800" opacity=".7"/><circle cx="85" cy="46" r="1.500" opacity=".55"/><circle cx="91" cy="41" r="1.200" opacity=".4"/></g>`
     );
   }
-  const bubble = (x: number, y: number, w: number, flip: boolean, col: string): string =>
-    `<g transform="translate(${x} ${y})"><path d="${flip ? 'M6 0h' + (w - 6) + 'a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H' + (w - 6) + 'l-6 7v-7H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6Z' : 'M6 0h' + (w - 6) + 'a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H14l-6 7v-7H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6Z'}" fill="#fff" stroke="${col}" stroke-width="2.200" stroke-linejoin="round"/>`
-    + `<circle cx="${w / 2 - 6}" cy="11" r="2" fill="${col}"/><circle cx="${w / 2 + 1}" cy="11" r="2" fill="${col}"/><circle cx="${w / 2 + 8}" cy="11" r="2" fill="${col}"/></g>`;
+  const bubble = (x: number, y: number, w: number, tailLeft: boolean, col: string): string =>
+    `<g transform="translate(${x} ${y})"><path d="M6 0h${w - 12}a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H${tailLeft ? 20 : w - 8}l${tailLeft ? -5 : 5} 7v-7H6a6 6 0 0 1-6-6V6a6 6 0 0 1 6-6Z" fill="#fff" stroke="${col}" stroke-width="2.200" stroke-linejoin="round"/>`
+    + `<circle cx="${w / 2 - 7}" cy="11" r="2" fill="${col}"/><circle cx="${w / 2}" cy="11" r="2" fill="${col}"/><circle cx="${w / 2 + 7}" cy="11" r="2" fill="${col}"/></g>`;
   const arcs = (x: number, dir: 1 | -1, col: string): string =>
-    [0, 1].map((i) => `<path d="M${x + dir * i * 5} ${60 - 6 - i * 3}q${dir * 5} ${6 + i * 3} 0 ${12 + i * 6}" fill="none" stroke="${col}" stroke-width="2.200" stroke-linecap="round" opacity="${.9 - i * .25}"/>`).join('');
+    [0, 1].map((i) => `<path d="M${x + dir * i * 6} ${72 - 7 - i * 3}q${dir * 5} ${7 + i * 3} 0 ${14 + i * 6}" fill="none" stroke="${col}" stroke-width="2.400" stroke-linecap="round" opacity="${.95 - i * .3}"/>`).join('');
+  const faceTalk = (dx: number): string => brow(-16, -15, -5, -17) + brow(5, -17, 16, -15) + eye(-10 + dx, -5, dx / 2) + eye(10 + dx, -5, dx / 2) + `<g transform="translate(${dx * .6} 1)">${talk()}</g>`;
+  const bow = `<g transform="translate(15 -26) rotate(25)"><path d="M0 0L-10 -6V6ZM0 0L10 -6V6Z" fill="#f472b6" stroke="#db2777" stroke-width="1.200" stroke-linejoin="round"/><circle r="3" fill="#ec4899" stroke="#db2777" stroke-width="1"/></g>`;
   return svgW(
-    kid(BOY, 43, 52, .7)
-    + kid(GIRL, 117, 52, .7, true)
-    + bubble(18, 4, 38, false, '#38bdf8')
-    + bubble(104, 8, 36, true, '#f472b6')
-    + arcs(72, 1, '#38bdf8') + arcs(88, -1, '#f472b6')
+    emoji(40, 72, 27, -6, faceTalk(3))
+    + emoji(120, 72, 27, 6, faceTalk(-3) + bow)
+    + bubble(10, 4, 40, true, '#38bdf8')
+    + bubble(110, 4, 40, false, '#f472b6')
+    + arcs(70, 1, '#38bdf8') + arcs(90, -1, '#f472b6')
   );
 }
 
