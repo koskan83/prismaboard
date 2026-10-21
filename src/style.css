@@ -681,13 +681,14 @@ body.primary #gadgetMenu .tiles[data-tab] { animation: tabIn .14s ease-out; }
 
 /* ---------- δύο θέματα: λιτό για Γυμνάσιο – Λύκειο (τα χρώματα στην αρχή), χαρούμενο και στρογγυλό για το Δημοτικό ---------- */
 body.primary {
-  --bar: #3b1d7a;
-  --bar-2: #5b3aa8;
-  --bar-3: #6d4bc0;
-  --fg: #f5f3ff;
-  --on-bg: #fde047;
-  --on-fg: #3b0764;
-  --go: #fde047;
+  /* γαλάζιο-πετρόλ: ήρεμο πάνω στο λευκό, για να μην κουράζει τα μάτια στην ώρα του μαθήματος */
+  --bar: #2f6b85;
+  --bar-2: #4a86a0;
+  --bar-3: #5b96b0;
+  --fg: #eef7fb;
+  --on-bg: #ffd36e;
+  --on-fg: #173848;
+  --go: #ffd36e;
   --ring: rgba(255, 255, 255, .35);
   --accent: #db2777;
   font-family: "Playpen Sans", system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -697,11 +698,11 @@ body.primary.dark {
   --bar: #fff7ed;
   --bar-2: #fde4c8;
   --bar-3: #fbd3a5;
-  --fg: #3b0764;
-  --on-bg: #7c3aed;
+  --fg: #173848;
+  --on-bg: #2f6b85;
   --on-fg: #ffffff;
   --go: #c2410c;
-  --ring: rgba(59, 7, 100, .25);
+  --ring: rgba(23, 56, 72, .25);
 }
 body.primary #toolbar { border-radius: 26px; }
 body.primary #toolbar button { border-radius: 16px; }
@@ -715,7 +716,7 @@ canvas.mascot { position: static; display: block; touch-action: auto; }
 #stHead { display: grid; grid-template-columns: auto 1fr; column-gap: 14px; align-items: center; }
 #stHead .mascot { grid-row: 1 / span 2; }
 .mascotPop { position: fixed; left: 16px; bottom: 96px; z-index: 96; display: flex; align-items: flex-end; pointer-events: none; animation: mascotIn .45s cubic-bezier(.3, 1.6, .5, 1); }
-.mascotPop b { margin: 0 0 84px -6px; padding: 10px 18px; border-radius: 20px 20px 20px 4px; background: #fff; color: #3b0764; font-size: 28px; font-weight: 800; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); white-space: nowrap; }
+.mascotPop b { margin: 0 0 84px -6px; padding: 10px 18px; border-radius: 20px 20px 20px 4px; background: #fff; color: #173848; font-size: 28px; font-weight: 800; box-shadow: 0 6px 18px rgba(0, 0, 0, .25); white-space: nowrap; }
 .mascotPop.left { flex-direction: row-reverse; }
 .mascotPop.left b { margin: 0 -6px 84px 0; border-radius: 20px 20px 4px 20px; }
 .mascotPop.out { transition: transform .45s ease-in, opacity .45s; transform: translateY(160%); opacity: 0; }
