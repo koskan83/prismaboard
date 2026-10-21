@@ -4,6 +4,7 @@
  */
 
 import { monster } from './kids/monster';
+import { isEn } from './i18n';
 
 const still = (): boolean => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -37,7 +38,7 @@ export function mascot(size: number, talk = 0): HTMLCanvasElement {
   return cv;
 }
 
-const CHEERS = ['Μπράβο!', 'Τέλεια!', 'Σούπερ!', 'Ναι!', 'Υπέροχα!'];
+const CHEERS = isEn ? ['Well done!', 'Perfect!', 'Super!', 'Yes!', 'Wonderful!'] : ['Μπράβο!', 'Τέλεια!', 'Σούπερ!', 'Ναι!', 'Υπέροχα!'];
 let popping: HTMLElement | null = null;
 
 /** Ένα ορθογώνιο της οθόνης (σε px του παραθύρου): εκεί που είναι το παιχνίδι που πέτυχε. */

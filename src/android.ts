@@ -4,6 +4,8 @@
  * (Drive, email, Viber…). Τα plugins φορτώνονται μόνο εδώ, για να μη βαραίνουν τον browser.
  */
 
+import { t } from './i18n';
+
 type Toast = (msg: string, ms?: number, action?: { label: string; run: () => void }) => void;
 
 async function base64(blob: Blob): Promise<string> {
@@ -45,9 +47,10 @@ export async function androidDownload(blob: Blob, name: string, toast: Toast): P
   try {
     const { uri, docs } = await androidWrite(blob, name);
     if (!docs) return await androidShareUri(uri, name);
-    toast(`Αποθηκεύτηκε στα Έγγραφα/PrismaBoard: ${name}`, 8000, { label: 'Κοινοποίηση', run: () => void androidShareUri(uri, name).catch(() => undefined) });
+    toast(t(`Αποθηκεύτηκε στα Έγγραφα/PrismaBoard: ${name}`, `Saved to Documents/PrismaBoard: ${name}`), 8000, { label: t('Κοινοποίηση', 'Share'), run: () => void androidShareUri(uri, name).catch(() => undefined) });
   } catch (err) {
-    toast(`Αποτυχία αποθήκευσης: ${err instanceof Error ? err.message : err}`, 6000);
+    const msg = err instanceof Error ? err.message : err;
+    toast(t(`Αποτυχία αποθήκευσης: ${msg}`, `Couldn't save: ${msg}`), 6000);
   }
 }
 

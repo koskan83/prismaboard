@@ -16,6 +16,7 @@ import { androidShareUri, androidWrite } from './android';
 import { driveClientId, driveConnect, driveReady, saveToDrive } from './drive';
 import { confirmBox } from './dialog';
 import { classFileName, safeName } from './class-name';
+import { t } from './i18n';
 
 export { classFileName, safeName };
 
@@ -67,7 +68,8 @@ export async function chooseFolder(toast: Toast): Promise<Dir | null> {
     dirCache = d;
     await kvPutRaw(DIR_KEY, d).catch(() => {});
     set(MODE, 'folder');
-    toast(`Τα αρχεία θα μπαίνουν στο «${d.name === ROOT ? ROOT : `${d.name}\\${ROOT}`}», σε φάκελο ανά τμήμα`, 5000);
+    const shown = d.name === ROOT ? ROOT : `${d.name}\\${ROOT}`;
+    toast(t(`Τα αρχεία θα μπαίνουν στο «${shown}», σε φάκελο ανά τμήμα`, `Files will go to “${shown}”, in a folder for each class`), 5000);
     return d;
   } catch {
     return null; // ακύρωση
@@ -123,14 +125,14 @@ export async function saveClassFile(blob: Blob, name: string, group: string | un
       // εφαρμογή Android: στα Έγγραφα/PrismaBoard/<τμήμα> της συσκευής, με «Κοινοποίηση»
       const sub = group ? safeName(group) : '';
       const { uri, docs } = await androidWrite(blob, name, false, sub);
-      where = docs ? `στα «Έγγραφα/${ROOT}${sub ? `/${sub}` : ''}»` : '';
-      action = { label: 'Κοινοποίηση', run: () => void androidShareUri(uri, name).catch(() => {}) };
+      where = docs ? t(`στα «Έγγραφα/${ROOT}${sub ? `/${sub}` : ''}»`, `to “Documents/${ROOT}${sub ? `/${sub}` : ''}”`) : '';
+      action = { label: t('Κοινοποίηση', 'Share'), run: () => void androidShareUri(uri, name).catch(() => {}) };
       if (!docs) await androidShareUri(uri, name);
     } else if (isNative) {
       try {
         const path = await nativeSaveIn(group ? safeName(group) : '', blob, name);
-        where = `στο «Έγγραφα\\${ROOT}${group ? `\\${safeName(group)}` : ''}»`;
-        action = { label: 'Άνοιγμα φακέλου', run: () => void nativeShowFile(path).catch(() => {}) };
+        where = t(`στο «Έγγραφα\\${ROOT}${group ? `\\${safeName(group)}` : ''}»`, `to “Documents\\${ROOT}${group ? `\\${safeName(group)}` : ''}”`);
+        action = { label: t('Άνοιγμα φακέλου', 'Open folder'), run: () => void nativeShowFile(path).catch(() => {}) };
       } catch {
         // παλιότερη εφαρμογή Windows, χωρίς την εντολή: το γνωστό «Αποθήκευση ως»
         if (!(await nativeSave(blob, name))) return;
@@ -139,22 +141,30 @@ export async function saveClassFile(blob: Blob, name: string, group: string | un
     } else if (canPickFolder() && get(MODE) !== 'downloads') {
       let d = await savedDir();
       if (!d || get(MODE) !== 'folder') {
-        const yes = await confirmBox('Πού να μπαίνουν τα αρχεία των μαθημάτων;', '📁 Διάλεξε φάκελο', false,
-          `Διάλεξε έναν φάκελο (π.χ. τα Έγγραφα): μέσα του θα φτιαχτεί ο «${ROOT}», με έναν φάκελο για κάθε τμήμα. Αλλάζει από ☰ → Ρυθμίσεις.`, 'Στις Λήψεις');
+        const yes = await confirmBox(t('Πού να μπαίνουν τα αρχεία των μαθημάτων;', 'Where should lesson files go?'), t('📁 Διάλεξε φάκελο', '📁 Choose folder'), false,
+          t(`Διάλεξε έναν φάκελο (π.χ. τα Έγγραφα): μέσα του θα φτιαχτεί ο «${ROOT}», με έναν φάκελο για κάθε τμήμα. Αλλάζει από ☰ → Ρυθμίσεις.`,
+            `Choose a folder (e.g. Documents): a “${ROOT}” folder will be created inside it, with a folder for each class. You can change this in ☰ → Settings.`),
+          t('Στις Λήψεις', 'To Downloads'));
         if (yes) d = await chooseFolder(toast);
         else set(MODE, 'downloads');
       }
       if (d && get(MODE) === 'folder') {
-        if (await allowed(d)) where = `στο «${await writeIn(d, group, blob, name)}»`;
+        if (await allowed(d)) {
+          const at = await writeIn(d, group, blob, name);
+          where = t(`στο «${at}»`, `to “${at}”`);
+        }
         else {
           // ο browser θέλει ξανά άδεια και δεν μπορεί να ρωτήσει τώρα: στις Λήψεις, και ένα κουμπί για τον φάκελο
           downloadAs(blob, name);
           const dir = d;
-          toast('Σώθηκε στις Λήψεις· ο φάκελος των μαθημάτων θέλει ξανά άδεια', 10000, {
-            label: '📁 Και στον φάκελο',
+          toast(t('Σώθηκε στις Λήψεις· ο φάκελος των μαθημάτων θέλει ξανά άδεια', 'Saved to Downloads. The lessons folder needs permission again'), 10000, {
+            label: t('📁 Και στον φάκελο', '📁 Also to folder'),
             run: () => void allowed(dir).then(async (ok) => {
-              if (ok) toast(`Αποθηκεύτηκε στο «${await writeIn(dir, group, blob, name)}»`);
-            }).catch(() => toast('Δεν αποθηκεύτηκε στον φάκελο', 5000)),
+              if (ok) {
+                const at = await writeIn(dir, group, blob, name);
+                toast(t(`Αποθηκεύτηκε στο «${at}»`, `Saved to “${at}”`));
+              }
+            }).catch(() => toast(t('Δεν αποθηκεύτηκε στον φάκελο', "Couldn't save to the folder"), 5000)),
           });
           return void (driveCopy() && driveReady() && copyToDrive(blob, name, group, toast, '', upload));
         }
@@ -166,21 +176,28 @@ export async function saveClassFile(blob: Blob, name: string, group: string | un
     where = '';
   }
 
-  const local = where ? `Αποθηκεύτηκε ${where}` : isNative ? 'Αποθηκεύτηκε' : `Αποθηκεύτηκε: ${name}`;
+  const local = where ? t(`Αποθηκεύτηκε ${where}`, `Saved ${where}`) : isNative ? t('Αποθηκεύτηκε', 'Saved') : t(`Αποθηκεύτηκε: ${name}`, `Saved: ${name}`);
   // απλό κατέβασμα: το δείχνει ήδη ο browser, και δεν σβήνουμε άλλο μήνυμα (π.χ. την «Αναίρεση» μιας διαγραφής)
   if (!driveCopy()) return void ((where || isNative) && toast(local, 5000, action));
   if (driveReady()) return copyToDrive(blob, name, group, toast, local, upload);
   // χωρίς σύνδεση με το Google σε αυτή τη συσκευή: ένα πάτημα συνδέει και ανεβάζει
   toast(local, 10000, {
-    label: '☁ Και στο Drive',
-    run: () => void driveConnect().then(() => copyToDrive(blob, name, group, toast, local, upload)).catch((err) => toast(`Δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 6000)),
+    label: t('☁ Και στο Drive', '☁ Also to Drive'),
+    run: () => void driveConnect().then(() => copyToDrive(blob, name, group, toast, local, upload)).catch((err) => {
+      const msg = err instanceof Error ? err.message : err;
+      toast(t(`Δεν ανέβηκε: ${msg}`, `Upload failed: ${msg}`), 6000);
+    }),
   });
 }
 
 function copyToDrive(blob: Blob, name: string, group: string | undefined, toast: Toast, local: string, upload?: () => Promise<unknown>): void {
   const dest = `«${ROOT}${group ? `/${safeName(group)}` : ''}»`;
-  toast(`${local ? `${local}· ` : ''}ανεβαίνει και στο Drive…`, 0);
+  const enDest = `“${ROOT}${group ? `/${safeName(group)}` : ''}”`;
+  toast(t(`${local ? `${local}· ` : ''}ανεβαίνει και στο Drive…`, `${local ? `${local}. ` : ''}Uploading to Drive too…`), 0);
   (upload ? upload() : saveToDrive(blob, name, group ? safeName(group) : undefined))
-    .then(() => toast(`${local ? `${local} και` : 'Ανέβηκε'} στο Drive, στο ${dest}`, 6000))
-    .catch((err) => toast(`${local ? `${local}· ` : ''}στο Drive δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 8000));
+    .then(() => toast(t(`${local ? `${local} και` : 'Ανέβηκε'} στο Drive, στο ${dest}`, `${local ? `${local} and` : 'Uploaded'} to Drive, in ${enDest}`), 6000))
+    .catch((err) => {
+      const msg = err instanceof Error ? err.message : err;
+      toast(t(`${local ? `${local}· ` : ''}στο Drive δεν ανέβηκε: ${msg}`, `${local ? `${local}. ` : ''}Couldn't upload to Drive: ${msg}`), 8000);
+    });
 }

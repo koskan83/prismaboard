@@ -3,6 +3,8 @@
  * βλ. capacitor.config.ts και android/) ή browser. Στην εφαρμογή Android όλα τα αρχεία είναι μέσα στο πακέτο.
  */
 
+import { isEn } from './i18n';
+
 interface CapacitorGlobal {
   isNativePlatform?(): boolean;
   getPlatform?(): string;
@@ -26,6 +28,8 @@ export function isAndroid(): boolean {
 
 /** Ανοίγει μια σελίδα της εφαρμογής (οδηγίες, άδειες…): στην εφαρμογή Android στο ίδιο παράθυρο (πίσω με το ◁), αλλού σε νέα καρτέλα. */
 export function openPage(url: string): void {
+  // στα αγγλικά: η αγγλική σελίδα (odigies-en.html κ.λπ.)
+  if (isEn) url = url.replace(/\/(odigies|adeies|dokimi)\.html/, '/$1-en.html');
   if (isAndroidApp) location.href = url;
   else window.open(url, '_blank');
 }

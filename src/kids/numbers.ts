@@ -1,5 +1,6 @@
 /** Αριθμοί: αριθμογραμμή, ρολόι, υλικό δεκάδων, χρήματα, πίνακας του 100, προπαίδεια και κάθετες πράξεις. */
 import type { StampDef } from '../stamps';
+import { locale, t as tr } from '../i18n';
 import { bit, BLUE, type C, el, fitText, flip, GOOD, GREEN, inR, kid, type KidEnv, knob, ORANGE, PURPLE, RED, rrect, skinBtn, text, YELLOW } from './common';
 
 const LINES: [from: number, to: number, step: number][] = [[0, 10, 1], [0, 20, 1], [0, 100, 10], [-10, 10, 1], [0, 1, 0.1]];
@@ -31,7 +32,7 @@ const BHEAD = 0.24;
 /** Όρια των στηλών ανά πλήθος στηλών: 3 (Ε Δ Μ), 4 (και χιλιάδες), 5 (και δεκάδες χιλιάδες). */
 const BCOLS_BY: Record<number, number[]> = { 3: [0, 0.44, 0.72, 1], 4: [0, 0.26, 0.56, 0.79, 1], 5: [0, 0.19, 0.38, 0.61, 0.8, 1] };
 /** Όνομα και χρώμα κάθε θέσης, από τις μονάδες προς τα πάνω. */
-const BNAMES = ['Μονάδες', 'Δεκάδες', 'Εκατοντάδες', 'Χιλιάδες', 'Δεκάδες χιλιάδες'];
+const BNAMES = [tr('Μονάδες', 'Ones'), tr('Δεκάδες', 'Tens'), tr('Εκατοντάδες', 'Hundreds'), tr('Χιλιάδες', 'Thousands'), tr('Δεκάδες χιλιάδες', 'Ten thousands')];
 const BFILLS = [YELLOW, BLUE, GREEN, RED, PURPLE];
 /** Πόσες στήλες δείχνει το υλικό (τρίτο στοιχείο της κατάστασης· αν λείπει, οι τρεις κλασικές). */
 const blockCols = (v: number[]): number => (v[2] === 4 || v[2] === 5 ? v[2] : 3);
@@ -107,7 +108,7 @@ function moneyPile(v: number[], w: number, h: number): { i: number; x: number; y
 
 export const NUMBER_KIDS: Record<string, StampDef> = {
   numline: kid({
-    label: 'Αριθμογραμμή', w: 760, h: 120, init: [0],
+    label: tr('Αριθμογραμμή', 'Number line'), w: 760, h: 120, init: [0],
     drawKid(c, w, h, v, env) {
       const [from, to, step] = LINES[v[0] % LINES.length] ?? LINES[0];
       const n = Math.round((to - from) / step);
@@ -137,7 +138,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   clock: kid({
-    label: 'Ρολόι', w: 320, h: 390, init: [185, 1],
+    label: tr('Ρολόι', 'Clock'), w: 320, h: 390, init: [185, 1],
     drawKid(c, w, h, v, env) {
       const cx = w / 2, cy = w / 2, r = w * 0.47;
       const mins = ((v[0] ?? 0) % 720 + 720) % 720;
@@ -187,7 +188,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
       c.lineWidth = Math.max(1.5, w * 0.006);
       c.stroke();
       // άσκηση (τρίτο στοιχείο: η ώρα που ζητείται, +1· τέταρτο: βρέθηκε): «Δείξε 7:45» και ✓ όταν αφήσεις τους δείκτες εκεί
-      if (v[2]) fitText(c, v[3] ? `✓ ${clockText(v[2] - 1)}` : `Δείξε ${clockText(v[2] - 1)}`, w / 2, sy + 1, (h - w) * 0.4, w * 0.5, v[3] ? GOOD : env.ink, 700);
+      if (v[2]) fitText(c, v[3] ? `✓ ${clockText(v[2] - 1)}` : tr(`Δείξε ${clockText(v[2] - 1)}`, `Show ${clockText(v[2] - 1)}`), w / 2, sy + 1, (h - w) * 0.4, w * 0.5, v[3] ? GOOD : env.ink, 700);
       else text(c, v[1] ? `${hr}:${String(mins % 60).padStart(2, '0')}` : '? : ??', w / 2, sy + 1, (h - w) * 0.46, env.ink, 700);
       skinBtn(c, w * 0.92, w * 0.08, w * 0.07, '🎯', !!v[2], env);
     },
@@ -222,7 +223,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   blocks: kid({
-    label: 'Εκατοντάδες, δεκάδες, μονάδες', w: 620, h: 400, init: [234, 1],
+    label: tr('Εκατοντάδες, δεκάδες, μονάδες', 'Hundreds, tens, ones'), w: 620, h: 400, init: [234, 1],
     drawKid(c, w, h, v, env) {
       const nc = blockCols(v), n = Math.max(0, Math.min(10 ** nc - 1, v[0] ?? 0));
       const cols = BCOLS_BY[nc].map((q) => q * w);
@@ -301,11 +302,11 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
         }
         c.restore();
       }
-      text(c, v[1] ? el(n, 0) : 'Ποιος αριθμός είναι;', w / 2, h - foot / 2 + 2, foot * (v[1] ? 0.7 : 0.42), env.ink, 700);
+      text(c, v[1] ? el(n, 0) : tr('Ποιος αριθμός είναι;', 'What number is it?'), w / 2, h - foot / 2 + 2, foot * (v[1] ? 0.7 : 0.42), env.ink, 700);
       // κάτω αριστερά: μία στήλη ακόμα προς τα αριστερά (χιλιάδες, δεκάδες χιλιάδες) ή μία λιγότερη
       const g = blockBtns(w, h);
-      if (nc < 5) pill(c, g.add, g.y, g.pw, g.ph, `＋ ${nc === 3 ? 'Χιλιάδες' : 'Δεκ. χιλιάδες'}`, env);
-      if (nc > 3) pill(c, g.del, g.y, g.pw, g.ph, '− στήλη', env);
+      if (nc < 5) pill(c, g.add, g.y, g.pw, g.ph, `＋ ${nc === 3 ? tr('Χιλιάδες', 'Thousands') : tr('Δεκ. χιλιάδες', 'Ten thous.')}`, env);
+      if (nc > 3) pill(c, g.del, g.y, g.pw, g.ph, tr('− στήλη', '− column'), env);
     },
     tap(v, x, y, w, h) {
       const nc = blockCols(v), max = 10 ** nc - 1, n = Math.max(0, Math.min(max, v[0] ?? 0));
@@ -328,7 +329,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   money: kid({
-    label: 'Χρήματα', w: 640, h: 360, init: [1, 0, 0, 0, 0, 0, 0, 0, 0],
+    label: tr('Χρήματα', 'Money'), w: 640, h: 360, init: [1, 0, 0, 0, 0, 0, 0, 0, 0],
     drawKid(c, w, h, v, env) {
       const s = w * 0.06;
       // επάνω η «τράπεζα»: πατάς ένα και μπαίνει στον σωρό
@@ -346,7 +347,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
       rrect(c, 0, 0, w, h, s * 0.4);
       c.stroke();
       c.restore();
-      text(c, v[0] ? `Σύνολο: ${(total / 100).toLocaleString('el', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : 'Πόσα χρήματα είναι;', w / 2, h * 0.92, h * 0.085, env.ink, 700);
+      text(c, v[0] ? `${tr('Σύνολο', 'Total')}: ${(total / 100).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €` : tr('Πόσα χρήματα είναι;', 'How much money is it?'), w / 2, h * 0.92, h * 0.085, env.ink, 700);
     },
     tap(v, x, y, w, h) {
       const out = [...v];
@@ -366,7 +367,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   hundred: kid({
-    label: 'Πίνακας του 100', w: 500, h: 500, init: [0, 0, 0, 0],
+    label: tr('Πίνακας του 100', 'Hundred chart'), w: 500, h: 500, init: [0, 0, 0, 0],
     drawKid(c, w, h, v, env) {
       const s = w / 10;
       for (let i = 0; i < 100; i++) {
@@ -386,7 +387,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   times: kid({
-    label: 'Προπαίδεια', w: 520, h: 520, init: [0, 0, 0, 0],
+    label: tr('Προπαίδεια', 'Times tables'), w: 520, h: 520, init: [0, 0, 0, 0],
     drawKid(c, w, h, v, env) {
       const s = w / 11, t = h / 11;
       c.save();
@@ -396,7 +397,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
       c.restore();
       // άσκηση (πέμπτο στοιχείο: το γινόμενο που ζητείται, έκτο: βρέθηκε): «Βρες 42» στη γωνία και ✓ όταν πατηθεί κουτάκι που το δίνει
       if (v[4]) {
-        text(c, v[5] ? '✓' : 'Βρες', s / 2, t * 0.27, s * 0.24, v[5] ? GOOD : env.ink, 700);
+        text(c, v[5] ? '✓' : tr('Βρες', 'Find'), s / 2, t * 0.27, s * 0.24, v[5] ? GOOD : env.ink, 700);
         text(c, String(v[4]), s / 2, t * 0.66, s * 0.4, v[5] ? GOOD : ORANGE, 800);
       } else skinBtn(c, s / 2, t / 2, s * 0.4, '🎯', false, env);
       c.fillStyle = env.ink;
@@ -439,10 +440,10 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
   }),
 
   colops: kid({
-    label: 'Κάθετη πράξη', w: 320, h: 300,
+    label: tr('Κάθετη πράξη', 'Column sums'), w: 320, h: 300,
     drawKid(c, w, h, _v, env) {
       const cw = w / 5, rh = h / 6;
-      ['', 'Χ', 'Ε', 'Δ', 'Μ'].forEach((n, i) => text(c, n, cw * (i + 0.5), rh * 0.5, rh * 0.5, env.ink, 700));
+      ['', tr('Χ', 'Th'), tr('Ε', 'H'), tr('Δ', 'T'), tr('Μ', 'O')].forEach((n, i) => text(c, n, cw * (i + 0.5), rh * 0.5, rh * 0.5, env.ink, 700));
       c.save();
       c.globalAlpha = 0.3;
       c.lineWidth = 1.2;
@@ -452,7 +453,7 @@ export const NUMBER_KIDS: Record<string, StampDef> = {
       c.stroke();
       c.restore();
       // η πρώτη σειρά είναι για τα κρατούμενα, η γραμμή της πράξης πριν από το αποτέλεσμα
-      text(c, 'κρατ.', cw * 0.5, rh * 1.5, rh * 0.26, env.ink, 500);
+      text(c, tr('κρατ.', 'carry'), cw * 0.5, rh * 1.5, rh * 0.26, env.ink, 500);
       c.lineWidth = 3.5;
       c.beginPath();
       c.moveTo(cw * 0.3, rh * 4);

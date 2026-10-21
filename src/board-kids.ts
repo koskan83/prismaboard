@@ -3,6 +3,7 @@
 import { Item, Pt, StampItem, unrot } from './model';
 import { STAMPS, stampTexts, type KidArea } from './stamps';
 import type { Board, PState } from './board';
+import { t as tr } from './i18n';
 import { playsFull } from './game-view';
 
 /** Η κατάσταση ενός εργαλείου άλλαξε (ή μια επιβράβευση μόλις μπήκε): ήχος, και κίνηση για όσο κρατά. */
@@ -148,8 +149,8 @@ export function tapStampText(bd: Board, before: StampItem, after: Item, at: Pt):
   const page = bd.cur, id = before.id;
   const now = before.txt?.[lab.t] ?? lab.t;
   void bd.onAsk({
-    title: `Τι να γράφει στη θέση του «${lab.t}»;`,
-    hint: angle ? 'Γράψε τις μοίρες (το ° μπαίνει μόνο του)· άδειο, για να σβηστεί.' : 'Άδειο, για να σβηστεί.',
+    title: tr(`Τι να γράφει στη θέση του «${lab.t}»;`, `What should it say instead of «${lab.t}»?`),
+    hint: angle ? tr('Γράψε τις μοίρες (το ° μπαίνει μόνο του)· άδειο, για να σβηστεί.', 'Type the degrees (the ° is added for you); leave empty to remove it.') : tr('Άδειο, για να σβηστεί.', 'Leave empty to remove it.'),
     value: now,
     picks: angle ? [lab.t, '30°', '37°', '45°', '53°', '60°'] : [lab.t],
     max: 12,

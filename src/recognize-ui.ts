@@ -10,22 +10,23 @@ import { spellGame, spellList } from './kids/spell-words';
 import { askSpellWords } from './spell-lists';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, refreshUi } from './main';
+import { isEn, t } from './i18n';
 
 export const ai = loadAi();
 const aiMenu = $('aiMenu');
 const aiKey = $('aiKey') as HTMLInputElement;
 const aiModel = $('aiModel') as HTMLInputElement;
 const AI_HINT: Record<Provider, string> = {
-  gemini: 'Δωρεάν κλειδί από το Google AI Studio (aistudio.google.com), με ημερήσιο όριο. Στη δωρεάν βαθμίδα η Google χρησιμοποιεί ό,τι στέλνεις για να βελτιώνει τα προϊόντα της.',
-  claude: 'Κλειδί από το console.anthropic.com. Χρεώνεται ανά χρήση.',
+  gemini: t('Δωρεάν κλειδί από το Google AI Studio (aistudio.google.com), με ημερήσιο όριο. Στη δωρεάν βαθμίδα η Google χρησιμοποιεί ό,τι στέλνεις για να βελτιώνει τα προϊόντα της.', 'Free key from Google AI Studio (aistudio.google.com), with a daily limit. On the free tier Google uses what you send to improve its products.'),
+  claude: t('Κλειδί από το console.anthropic.com. Χρεώνεται ανά χρήση.', 'Key from console.anthropic.com. Billed per use.'),
 };
 function renderAi(): void {
   document.querySelectorAll<HTMLElement>('[data-prov]').forEach((b) => b.classList.toggle('on', b.dataset.prov === ai.provider));
   $('aiModels').innerHTML = MODELS[ai.provider].map((m) => `<option value="${m}"></option>`).join('');
   aiModel.value = ai.models[ai.provider];
   aiKey.value = '';
-  aiKey.placeholder = ai.keys[ai.provider] ? '•••••••• (αποθηκευμένο σε αυτή τη συσκευή)' : 'επικόλλησε εδώ το κλειδί σου';
-  $('aiHint').textContent = `${AI_HINT[ai.provider]} Το κλειδί μένει μόνο σε αυτή τη συσκευή. Η εικόνα όσων αναγνωρίζεις στέλνεται στην υπηρεσία.`;
+  aiKey.placeholder = ai.keys[ai.provider] ? t('•••••••• (αποθηκευμένο σε αυτή τη συσκευή)', '•••••••• (saved on this device)') : t('επικόλλησε εδώ το κλειδί σου', 'paste your key here');
+  $('aiHint').textContent = t(`${AI_HINT[ai.provider]} Το κλειδί μένει μόνο σε αυτή τη συσκευή. Η εικόνα όσων αναγνωρίζεις στέλνεται στην υπηρεσία.`, `${AI_HINT[ai.provider]} The key stays on this device only. An image of whatever you recognize is sent to the service.`);
 }
 export function openAi(): void {
   closePopups();
@@ -33,23 +34,23 @@ export function openAi(): void {
   aiMenu.classList.remove('hidden');
 }
 aiMenu.addEventListener('click', (e) => {
-  const t = e.target as HTMLElement;
-  const prov = t.closest<HTMLElement>('[data-prov]')?.dataset.prov as Provider | undefined;
+  const tg = e.target as HTMLElement;
+  const prov = tg.closest<HTMLElement>('[data-prov]')?.dataset.prov as Provider | undefined;
   if (prov) {
     ai.provider = prov;
     saveAi(ai);
     renderAi();
-  } else if (t.closest('#aiSave')) {
+  } else if (tg.closest('#aiSave')) {
     if (aiKey.value.trim()) ai.keys[ai.provider] = aiKey.value.trim();
     if (aiModel.value.trim()) ai.models[ai.provider] = aiModel.value.trim();
     saveAi(ai);
     closePopups();
-    toast(ai.keys[ai.provider] ? 'Οι ρυθμίσεις αποθηκεύτηκαν' : 'Αποθηκεύτηκαν, αλλά λείπει το κλειδί');
-  } else if (t.closest('#aiForget')) {
+    toast(ai.keys[ai.provider] ? t('Οι ρυθμίσεις αποθηκεύτηκαν', 'Settings saved') : t('Αποθηκεύτηκαν, αλλά λείπει το κλειδί', 'Saved, but the key is missing'));
+  } else if (tg.closest('#aiForget')) {
     ai.keys[ai.provider] = '';
     saveAi(ai);
     renderAi();
-    toast('Το κλειδί διαγράφηκε από αυτή τη συσκευή');
+    toast(t('Το κλειδί διαγράφηκε από αυτή τη συσκευή', 'The key was deleted from this device'));
   }
 });
 
@@ -70,21 +71,21 @@ let aiBusy = 0;
 // Χωρίς κλειδί ή ίντερνετ επιστρέφει κενό: το παιχνίδι δείχνει τότε τη σωστή λέξη και η τάξη τη συγκρίνει με το χειρόγραφο.
 board.onRead = async (ids) => {
   if (!ids.length) {
-    toast('Γράψε πρώτα με το μολύβι μέσα στο πλαίσιο');
+    toast(t('Γράψε πρώτα με το μολύβι μέσα στο πλαίσιο', 'First write with the pen inside the frame'));
     return null;
   }
   if (!ai.keys[ai.provider]) return '';
   const img = await board.inkImage(ids);
   if (!img) return null;
   aiBusy++;
-  toast('✨ Το διαβάζω…', 0);
+  toast(t('✨ Το διαβάζω…', '✨ Reading it…'), 0);
   try {
     const out = (await recognize(img.blob, 'letters', ai)).split('\n')[0].trim();
     if (out) $('toast').classList.add('hidden');
-    else toast('Δεν μπόρεσα να το διαβάσω: σύγκρινέ το εσύ με τη σωστή λέξη.', 5000);
+    else toast(t('Δεν μπόρεσα να το διαβάσω: σύγκρινέ το εσύ με τη σωστή λέξη.', 'I could not read it: compare it with the correct word yourself.'), 5000);
     return out;
   } catch (err) {
-    toast(`Η ανάγνωση απέτυχε (${(err as Error).message}): σύγκρινέ το εσύ με τη σωστή λέξη.`, 6000);
+    toast(t(`Η ανάγνωση απέτυχε (${(err as Error).message}): σύγκρινέ το εσύ με τη σωστή λέξη.`, `Reading failed (${(err as Error).message}): compare it with the correct word yourself.`), 6000);
     return '';
   } finally {
     aiBusy--;
@@ -108,7 +109,7 @@ function plotReply(out: string): void {
     fns.push({ expr: f.expr, color: pal[0], ...(f.dom ? { dom: f.dom } : {}) });
   }
   if (!fns.length) {
-    toast(r.fns.length ? `Δεν μπόρεσα να σχεδιάσω το «${r.fns[0].expr}». Γράψε το με το f(x).` : 'Δεν βρήκα συνάρτηση για γραφική παράσταση', 6000);
+    toast(r.fns.length ? t(`Δεν μπόρεσα να σχεδιάσω το «${r.fns[0].expr}». Γράψε το με το f(x).`, `I could not plot “${r.fns[0].expr}”. Write it with f(x).`) : t('Δεν βρήκα συνάρτηση για γραφική παράσταση', 'No function found to plot'), 6000);
     return;
   }
   const NX = 10;
@@ -118,7 +119,7 @@ function plotReply(out: string): void {
   const mode = pickAxesMode(gs, NX * sx);
   const sy = fitScaleY(gs, mode === 'full' ? -NX * sx : 0, NX * sx, 10, mode === 'q1' ? 0 : 10);
   board.addAxes(mode, { fns, ...(Object.keys(params).length ? { params } : {}), ...(sx === 1 ? {} : { sx }), ...(sy === 1 ? {} : { sy }), ...(r.lx ? { lx: r.lx } : {}), ...(r.ly ? { ly: r.ly } : {}) });
-  toast('Η γραφική παράσταση μπήκε. Έλεγξε ότι ο τύπος διαβάστηκε σωστά.', 5000);
+  toast(t('Η γραφική παράσταση μπήκε. Έλεγξε ότι ο τύπος διαβάστηκε σωστά.', 'The graph was added. Check that the formula was read correctly.'), 5000);
 }
 
 /**
@@ -161,19 +162,19 @@ async function selectionText(join: string): Promise<string | null> {
   const typed = picked.filter((it): it is TextItem => it.kind === 'text').map((t) => t.text).join(join);
   if (typed) return typed;
   if (!ai.keys[ai.provider]) {
-    toast('Για χειρόγραφο χρειάζεται το κλειδί της αναγνώρισης. Κείμενο γραμμένο με το «Κείμενο» διαβάζεται χωρίς κλειδί.', 9000, { label: 'Ρύθμιση κλειδιού', run: openAi });
+    toast(t('Για χειρόγραφο χρειάζεται το κλειδί της αναγνώρισης. Κείμενο γραμμένο με το «Κείμενο» διαβάζεται χωρίς κλειδί.', 'Handwriting needs the recognition key. Text typed with “Text” is read without a key.'), 9000, { label: t('Ρύθμιση κλειδιού', 'Set up key'), run: openAi });
     return null;
   }
   const img = board.hasRegion ? await board.regionImage() : await board.inkImage(board.selectionIds);
   if (!img) return null;
   aiBusy++;
-  toast('✨ Το διαβάζω…', 0);
+  toast(t('✨ Το διαβάζω…', '✨ Reading it…'), 0);
   try {
     const out = await recognize(img.blob, 'text', ai);
     $('toast').classList.add('hidden');
     return out;
   } catch (err) {
-    toast(`Η ανάγνωση απέτυχε: ${(err as Error).message}`, 6000);
+    toast(t(`Η ανάγνωση απέτυχε: ${(err as Error).message}`, `Reading failed: ${(err as Error).message}`), 6000);
     return null;
   } finally {
     aiBusy--;
@@ -187,11 +188,11 @@ async function spellFromSelection(): Promise<void> {
   // λέξεις γραμμένες στον πίνακα με κενά ή σε γραμμές: μία σε κάθε γραμμή (με κόμμα, το κόμμα χωρίζει, για να μένουν οι φράσεις)
   if (!/[,;·]/.test(found)) found = found.trim().split(/\s+/).join('\n');
   if (!spellList(found).words.length) {
-    toast('Δεν βρήκα λέξεις στην επιλογή');
+    toast(t('Δεν βρήκα λέξεις στην επιλογή', 'No words found in the selection'));
     return;
   }
   const en = spellList(found).words.every((w) => /[a-z]/.test(w));
-  const text = await askSpellWords({ title: 'Ορθογραφία με αυτές τις λέξεις', voice: en ? 'en-GB' : 'el-GR', value: found, download });
+  const text = await askSpellWords({ title: t('Ορθογραφία με αυτές τις λέξεις', 'Spelling with these words'), voice: en ? 'en-GB' : 'el-GR', value: found, download });
   const v = text == null ? null : spellGame(text);
   if (v) board.addStamp('spell', v);
 }
@@ -200,7 +201,7 @@ async function spellFromSelection(): Promise<void> {
 async function speakSelection(): Promise<void> {
   const synth = window.speechSynthesis;
   if (!synth) {
-    toast('Αυτός ο browser δεν μπορεί να διαβάσει φωναχτά');
+    toast(t('Αυτός ο browser δεν μπορεί να διαβάσει φωναχτά', 'This browser cannot read aloud'));
     return;
   }
   if (synth.speaking) {
@@ -210,22 +211,22 @@ async function speakSelection(): Promise<void> {
   const words = await selectionText('. ');
   if (words == null) return;
   if (!words.trim()) {
-    toast('Δεν βρήκα κάτι να διαβάσω');
+    toast(t('Δεν βρήκα κάτι να διαβάσω', 'Nothing found to read'));
     return;
   }
   const u = new SpeechSynthesisUtterance(words);
-  u.lang = 'el-GR';
+  u.lang = isEn ? 'en-US' : 'el-GR';
   u.rate = 0.85;
-  const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith('el'));
+  const voice = synth.getVoices().find((v) => v.lang.toLowerCase().startsWith(isEn ? 'en' : 'el'));
   if (voice) u.voice = voice;
-  else if (synth.getVoices().length) toast('Δεν βρέθηκε ελληνική φωνή σε αυτή τη συσκευή· η ανάγνωση μπορεί να μην ακούγεται σωστά.', 6000);
+  else if (synth.getVoices().length) toast(t('Δεν βρέθηκε ελληνική φωνή σε αυτή τη συσκευή· η ανάγνωση μπορεί να μην ακούγεται σωστά.', 'No English voice was found on this device; reading may not sound right.'), 6000);
   synth.speak(u);
 }
 
 async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   if (!ai.keys[ai.provider]) {
     openAi();
-    toast('Βάλε πρώτα το κλειδί της υπηρεσίας');
+    toast(t('Βάλε πρώτα το κλειδί της υπηρεσίας', 'Add the service key first'));
     return;
   }
   const page = board.cur;
@@ -238,35 +239,35 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   const img = board.hasRegion && ((kind !== 'text' && kind !== 'math') || fromPage) ? await board.regionImage() : await board.inkImage(ids);
   if (!img) return;
   aiBusy++;
-  toast(kind === 'spell' ? '✨ Ορθογραφία…' : kind === 'graph' ? '✨ Γραφική παράσταση…' : kind === 'figure' ? '✨ Σχήμα…' : kind === 'solve' ? '✨ Λύνεται…' : kind === 'check' ? '✨ Ελέγχεται…' : '✨ Αναγνώριση…', 0);
+  toast(kind === 'spell' ? t('✨ Ορθογραφία…', '✨ Spelling…') : kind === 'graph' ? t('✨ Γραφική παράσταση…', '✨ Graph…') : kind === 'figure' ? t('✨ Σχήμα…', '✨ Drawing…') : kind === 'solve' ? t('✨ Λύνεται…', '✨ Solving…') : kind === 'check' ? t('✨ Ελέγχεται…', '✨ Checking…') : t('✨ Αναγνώριση…', '✨ Recognizing…'), 0);
   try {
     const out = await recognize(img.blob, kind, ai);
     if (kind === 'graph') {
-      if (moved()) toast('Άλλαξες σελίδα ή μάθημα· η γραφική παράσταση δεν μπήκε');
+      if (moved()) toast(t('Άλλαξες σελίδα ή μάθημα· η γραφική παράσταση δεν μπήκε', 'You changed page or lesson; the graph was not added'));
       else plotReply(out);
       return;
     }
     if (kind === 'figure') {
       const cmds = out ? parseFigureReply(out) : [];
-      if (moved()) toast('Άλλαξες σελίδα ή μάθημα· το σχήμα δεν μπήκε');
-      else if (cmds === null) toast('Αυτή η εκφώνηση δεν χρειάζεται σχήμα.', 5000);
-      else if (!cmds.length) toast('Δεν μπόρεσα να φτιάξω σχήμα για αυτή την εκφώνηση');
+      if (moved()) toast(t('Άλλαξες σελίδα ή μάθημα· το σχήμα δεν μπήκε', 'You changed page or lesson; the drawing was not added'));
+      else if (cmds === null) toast(t('Αυτή η εκφώνηση δεν χρειάζεται σχήμα.', 'This problem does not need a drawing.'), 5000);
+      else if (!cmds.length) toast(t('Δεν μπόρεσα να φτιάξω σχήμα για αυτή την εκφώνηση', 'I could not make a drawing for this problem'));
       else {
         // κάτω από την εκφώνηση, σε μέγεθος που διαβάζεται στο τρέχον zoom
         const zk = board.page.view.k;
         const f = Math.max(4, Math.min(5.6 / zk, (window.innerWidth - 80) / zk / 100));
         const pal = inkPalette();
         board.addItems(figureItems(cmds, img.box.x0, img.box.y1 + 24 / zk, f, img.color, { red: pal[1], blue: pal[2], green: pal[3] }));
-        toast('Το σχήμα μπήκε κάτω από την εκφώνηση. Είναι πρόχειρο: έλεγξέ το και διόρθωσέ το πριν το δείξεις.', 6000);
+        toast(t('Το σχήμα μπήκε κάτω από την εκφώνηση. Είναι πρόχειρο: έλεγξέ το και διόρθωσέ το πριν το δείξεις.', 'The drawing was added below the problem. It is a rough sketch: check and fix it before showing it.'), 6000);
       }
       return;
     }
     if (!out) {
-      toast(kind === 'solve' ? 'Δεν βρήκα κάτι να λύσω' : kind === 'check' ? 'Δεν βρήκα λύση να ελέγξω' : 'Δεν μπόρεσα να το διαβάσω');
+      toast(kind === 'solve' ? t('Δεν βρήκα κάτι να λύσω', 'Nothing found to solve') : kind === 'check' ? t('Δεν βρήκα λύση να ελέγξω', 'No solution found to check') : t('Δεν μπόρεσα να το διαβάσω', 'I could not read it'));
       return;
     }
     if (moved()) {
-      toast(kind === 'solve' ? 'Άλλαξες σελίδα ή μάθημα· η λύση δεν μπήκε' : kind === 'check' ? 'Άλλαξες σελίδα ή μάθημα· ο έλεγχος δεν μπήκε' : 'Άλλαξες σελίδα ή μάθημα· η αναγνώριση δεν εφαρμόστηκε');
+      toast(kind === 'solve' ? t('Άλλαξες σελίδα ή μάθημα· η λύση δεν μπήκε', 'You changed page or lesson; the solution was not added') : kind === 'check' ? t('Άλλαξες σελίδα ή μάθημα· ο έλεγχος δεν μπήκε', 'You changed page or lesson; the check was not added') : t('Άλλαξες σελίδα ή μάθημα· η αναγνώριση δεν εφαρμόστηκε', 'You changed page or lesson; the recognition was not applied'));
       return;
     }
     const { box, color } = img;
@@ -275,14 +276,14 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
       // η κρίση μπαίνει κάτω από τη λύση του μαθητή: πράσινη αν είναι σωστή, κόκκινη αν έχει λάθος
       const ok = out.startsWith('✓');
       aiNote(box, out, ok ? 'ok' : 'bad');
-      toast(ok ? 'Δεν βρέθηκε λάθος. Ρίξε κι εσύ μια ματιά.' : kind === 'spell' ? 'Βρέθηκαν λέξεις για διόρθωση. Ρίξε κι εσύ μια ματιά.' : 'Βρέθηκε πιθανό λάθος. Έλεγξέ το πριν το πεις στον μαθητή.', 5000);
+      toast(ok ? t('Δεν βρέθηκε λάθος. Ρίξε κι εσύ μια ματιά.', 'No mistake found. Take a look yourself too.') : kind === 'spell' ? t('Βρέθηκαν λέξεις για διόρθωση. Ρίξε κι εσύ μια ματιά.', 'Some words need fixing. Take a look yourself too.') : t('Βρέθηκε πιθανό λάθος. Έλεγξέ το πριν το πεις στον μαθητή.', 'A possible mistake was found. Check it before telling the student.'), 5000);
       return;
     }
     if (kind === 'solve') {
       if (/^TEXT\b/.test(out)) {
         // ερώτηση θεωρίας ή πολλαπλής επιλογής: η απάντηση είναι σκέτο κείμενο
         aiNote(box, out.replace(/^TEXT\s*/, ''), 'info');
-        toast('Η απάντηση μπήκε κάτω από την ερώτηση. Έλεγξέ την πριν τη δείξεις.', 5000);
+        toast(t('Η απάντηση μπήκε κάτω από την ερώτηση. Έλεγξέ την πριν τη δείξεις.', 'The answer was added below the question. Check it before showing it.'), 5000);
         return;
       }
       // η λύση μπαίνει κάτω από την άσκηση, χωρίς να πειράξει το χειρόγραφο
@@ -291,14 +292,14 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
       const zk = board.page.view.k;
       const pic = await texToImage(out, board.ink(color), Math.max(26, Math.min(160, Math.max(Math.min(bh * 0.4, 60), 30 / zk))));
       board.addItem({ kind: 'image', id: uid(), x: box.x0, y: box.y1 + 20 / zk, w: pic.w, h: pic.h, src: pic.src });
-      toast(lines > 1 ? 'Η λύση μπήκε κάτω από την άσκηση. Έλεγξέ την πριν τη δείξεις.' : 'Η απάντηση μπήκε κάτω από την άσκηση. Έλεγξέ την.', 5000);
+      toast(lines > 1 ? t('Η λύση μπήκε κάτω από την άσκηση. Έλεγξέ την πριν τη δείξεις.', 'The solution was added below the exercise. Check it before showing it.') : t('Η απάντηση μπήκε κάτω από την άσκηση. Έλεγξέ την.', 'The answer was added below the exercise. Check it.'), 5000);
       return;
     }
     if (fromPage) {
       // η σελίδα μένει όπως είναι· το κείμενο μπαίνει από κάτω, σε μέγεθος που διαβάζεται στο τρέχον zoom
       const zk = board.page.view.k;
       board.addItem({ kind: 'text', id: uid(), x: box.x0, y: box.y1 + 20 / zk, text: out, size: 28 / zk, color });
-      toast('Το κείμενο μπήκε κάτω από την περιοχή. Διόρθωσέ το με διπλό πάτημα.', 5000);
+      toast(t('Το κείμενο μπήκε κάτω από την περιοχή. Διόρθωσέ το με διπλό πάτημα.', 'The text was added below the area. Double-tap to fix it.'), 5000);
       return;
     }
     if (kind === 'text') {
@@ -314,7 +315,7 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
     }
     $('toast').classList.add('hidden');
   } catch (err) {
-    toast(`${kind === 'solve' ? 'Η λύση' : kind === 'check' ? 'Ο έλεγχος' : kind === 'figure' ? 'Το σχήμα' : 'Η αναγνώριση'} απέτυχε: ${(err as Error).message}`, 6000);
+    toast(t(`${kind === 'solve' ? 'Η λύση' : kind === 'check' ? 'Ο έλεγχος' : kind === 'figure' ? 'Το σχήμα' : 'Η αναγνώριση'} απέτυχε: ${(err as Error).message}`, `${kind === 'solve' ? 'Solving' : kind === 'check' ? 'Checking' : kind === 'figure' ? 'The drawing' : 'Recognition'} failed: ${(err as Error).message}`), 6000);
   } finally {
     aiBusy--;
   }
@@ -359,12 +360,12 @@ $('penKinds').addEventListener('click', (e) => {
     autoKind = null;
   } else if (!ai.keys[ai.provider]) {
     openAi();
-    toast('Βάλε πρώτα το κλειδί της υπηρεσίας');
+    toast(t('Βάλε πρώτα το κλειδί της υπηρεσίας', 'Add the service key first'));
     return;
   } else {
     autoKind = k;
     if (board.tool !== 'pen') board.setTool('pen');
-    toast(k === 'text' ? 'Αυτόματη αναγνώριση κειμένου: γράψε και σταμάτα για λίγο' : 'Αυτόματη αναγνώριση τύπων: γράψε και σταμάτα για λίγο', 4000);
+    toast(k === 'text' ? t('Αυτόματη αναγνώριση κειμένου: γράψε και σταμάτα για λίγο', 'Automatic text recognition: write and pause for a moment') : t('Αυτόματη αναγνώριση τύπων: γράψε και σταμάτα για λίγο', 'Automatic formula recognition: write and pause for a moment'), 4000);
   }
   clearTimeout(autoTimer);
   autoBatch = [];

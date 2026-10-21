@@ -15,6 +15,7 @@ import { isAndroidApp } from './platform';
 import { androidDownload } from './android';
 import { Curtain, Spotlight } from './overlays';
 import { mountUi } from './ui';
+import { t } from './i18n';
 
 /** Βασικά χρώματα ανά φόντο· ίδια θέση = αντίστοιχο χρώμα στο άλλο φόντο. */
 export const PALETTE = {
@@ -24,13 +25,13 @@ export const PALETTE = {
 /** Ελληνικό όνομα για ένα χρώμα #rrggbb (για αναγνώστες οθόνης και tooltip), από την απόχρωση και τη φωτεινότητά του. */
 export function colorName(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return 'Χρώμα';
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return t('Χρώμα', 'Color');
   const [r, g, b] = [(n >> 16) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
   const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min;
-  if (d < 0.12) return l < 0.2 ? 'Μαύρο' : l > 0.9 ? 'Λευκό' : l > 0.65 ? 'Ανοιχτό γκρι' : 'Γκρι';
+  if (d < 0.12) return l < 0.2 ? t('Μαύρο', 'Black') : l > 0.9 ? t('Λευκό', 'White') : l > 0.65 ? t('Ανοιχτό γκρι', 'Light gray') : t('Γκρι', 'Gray');
   const h = (max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
-  const base = h < 15 || h >= 345 ? 'κόκκινο' : h < 40 ? (l < 0.4 ? 'καφέ' : 'πορτοκαλί') : h < 65 ? 'κίτρινο' : h < 165 ? 'πράσινο' : h < 195 ? 'τιρκουάζ' : h < 255 ? 'μπλε' : h < 290 ? 'μωβ' : 'ροζ';
-  const name = l > 0.7 ? `ανοιχτό ${base}` : l < 0.3 ? `σκούρο ${base}` : base;
+  const base = h < 15 || h >= 345 ? t('κόκκινο', 'red') : h < 40 ? (l < 0.4 ? t('καφέ', 'brown') : t('πορτοκαλί', 'orange')) : h < 65 ? t('κίτρινο', 'yellow') : h < 165 ? t('πράσινο', 'green') : h < 195 ? t('τιρκουάζ', 'turquoise') : h < 255 ? t('μπλε', 'blue') : h < 290 ? t('μωβ', 'purple') : t('ροζ', 'pink');
+  const name = l > 0.7 ? t(`ανοιχτό ${base}`, `light ${base}`) : l < 0.3 ? t(`σκούρο ${base}`, `dark ${base}`) : base;
   return name[0].toUpperCase() + name.slice(1);
 }
 /** Χρώματα του υπογραμμιστικού (ίδια σε κάθε φόντο). */
@@ -46,7 +47,7 @@ export const SIZES: Record<SizedTool, number[]> = {
   highlighter: [2, 4, 8, 16],
   eraser: [8, 16, 32, 64],
 };
-export const SIZE_NAME = ['Λεπτό', 'Κανονικό', 'Παχύ', 'Πολύ παχύ'];
+export const SIZE_NAME = [t('Λεπτό', 'Thin'), t('Κανονικό', 'Normal'), t('Παχύ', 'Thick'), t('Πολύ παχύ', 'Extra thick')];
 export const app = document.getElementById('app')!;
 mountUi(app);
 
@@ -102,8 +103,8 @@ export function download(blob: Blob, name: string): void {
   if (isAndroidApp) return void androidDownload(blob, name, toast);
   if (isNative) {
     nativeSave(blob, name)
-      .then((ok) => ok && toast('Αποθηκεύτηκε'))
-      .catch((err) => toast(`Αποτυχία αποθήκευσης: ${err}`, 6000));
+      .then((ok) => ok && toast(t('Αποθηκεύτηκε', 'Saved')))
+      .catch((err) => toast(t(`Αποτυχία αποθήκευσης: ${err}`, `Couldn't save: ${err}`), 6000));
     return;
   }
   const a = document.createElement('a');

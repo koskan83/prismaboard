@@ -4,6 +4,7 @@ import { KIDS } from './kids/lazy';
 import type { KidEnv } from './kids/common';
 import { hatch, label, path, zigzag } from './draw-util';
 import { PHYSICS } from './physics';
+import { t } from './i18n';
 
 type C = CanvasRenderingContext2D;
 
@@ -65,12 +66,12 @@ export interface KidAsk {
 
 /** Κατηγορίες του μενού «Σχήματα Φυσικής», με τη σειρά που εμφανίζονται. */
 export const STAMP_CATS = {
-  mech: 'Δυνάμεις και κινήσεις',
-  mom: 'Ορμή και κρούσεις',
-  osc: 'Ταλαντώσεις',
-  wave: 'Κύματα',
-  circ: 'Ηλεκτρικά κυκλώματα',
-  em: 'Ηλεκτρικό και μαγνητικό πεδίο',
+  mech: t('Δυνάμεις και κινήσεις', 'Forces and motion'),
+  mom: t('Ορμή και κρούσεις', 'Momentum and collisions'),
+  osc: t('Ταλαντώσεις', 'Oscillations'),
+  wave: t('Κύματα', 'Waves'),
+  circ: t('Ηλεκτρικά κυκλώματα', 'Electric circuits'),
+  em: t('Ηλεκτρικό και μαγνητικό πεδίο', 'Electric and magnetic fields'),
 } as const;
 
 export interface StampDef {
@@ -181,7 +182,7 @@ function meter(letter: string): StampDef['draw'] {
 
 export const STAMPS: Record<string, StampDef> = {
   incline: {
-    label: 'Κεκλιμένο επίπεδο', cat: 'mech', w: 320, h: 180,
+    label: t('Κεκλιμένο επίπεδο', 'Inclined plane'), cat: 'mech', w: 320, h: 180,
     draw(c, w, h) {
       path(c, [[0, h], [w, h], [w, h * 0.25], [0, h]], true);
       // σώμα πάνω στο επίπεδο
@@ -198,14 +199,14 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   block: {
-    label: 'Σώμα', cat: 'mech', w: 120, h: 90,
+    label: t('Σώμα', 'Body'), cat: 'mech', w: 120, h: 90,
     draw(c, w, h) {
       c.strokeRect(1, 1, w - 2, h - 2);
       label(c, 'm', w / 2, h / 2, h * 0.4);
     },
   },
   spring: {
-    label: 'Οριζόντιο ελατήριο', cat: 'osc', w: 380, h: 100,
+    label: t('Οριζόντιο ελατήριο', 'Horizontal spring'), cat: 'osc', w: 380, h: 100,
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const x = w * 0.5 + d;
@@ -218,7 +219,7 @@ export const STAMPS: Record<string, StampDef> = {
       if (st?.marks) {
         const fs = Math.max(11, h * 0.15);
         // οριζόντια, η θέση ισορροπίας συμπίπτει με τη θέση φυσικού μήκους
-        mark(c, w * 0.5, -h * 0.15, w * 0.5, h, 'Θ.Φ.Μ. ≡ Θ.Ι.', w * 0.5, -h * 0.3, fs);
+        mark(c, w * 0.5, -h * 0.15, w * 0.5, h, t('Θ.Φ.Μ. ≡ Θ.Ι.', 'L₀ ≡ Eq.'), w * 0.5, -h * 0.3, fs);
         if (st.amp) {
           mark(c, w * 0.5 - st.amp, h * 0.05, w * 0.5 - st.amp, h, '−A', w * 0.5 - st.amp, -h * 0.08, fs);
           mark(c, w * 0.5 + st.amp, h * 0.05, w * 0.5 + st.amp, h, '+A', w * 0.5 + st.amp, -h * 0.08, fs);
@@ -228,7 +229,7 @@ export const STAMPS: Record<string, StampDef> = {
     spring: (w, h) => ({ cx: w * 0.61, cy: h * 0.6, ux: 1, uy: 0, max: w * 0.24, r: Math.max(w * 0.13, h * 0.45) }),
   },
   springV: {
-    label: 'Κατακόρυφο ελατήριο', cat: 'osc', w: 150, h: 360,
+    label: t('Κατακόρυφο ελατήριο', 'Vertical spring'), cat: 'osc', w: 150, h: 360,
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const cx = w / 2, top = 2, y0 = h * 0.06, yi = h * 0.56, y = yi + d, amp = w * 0.16, n = 14;
@@ -244,8 +245,8 @@ export const STAMPS: Record<string, StampDef> = {
       if (st?.marks) {
         const fs = Math.max(11, w * 0.1);
         const line = (yy: number, text: string): void => mark(c, w * 0.05, yy, w * 1.1, yy, text, w * 1.1 + fs * (text.length * 0.33 + 0.4), yy, fs);
-        line(yi - h * 0.1, 'Θ.Φ.Μ.');
-        line(yi, 'Θ.Ι.');
+        line(yi - h * 0.1, t('Θ.Φ.Μ.', 'L₀'));
+        line(yi, t('Θ.Ι.', 'Eq.'));
         if (st.amp) {
           line(yi - st.amp, '−A');
           line(yi + st.amp, '+A');
@@ -255,7 +256,7 @@ export const STAMPS: Record<string, StampDef> = {
     spring: (w, h) => ({ cx: w / 2, cy: h * 0.66, ux: 0, uy: 1, max: h * 0.2, r: Math.max(w * 0.34, h * 0.12) }),
   },
   springIncline: {
-    label: 'Ελατήριο σε κεκλιμένο', cat: 'osc', w: 400, h: 250,
+    label: t('Ελατήριο σε κεκλιμένο', 'Spring on incline'), cat: 'osc', w: 400, h: 250,
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const rise = h * 0.72;
@@ -285,8 +286,8 @@ export const STAMPS: Record<string, StampDef> = {
           const [ax, ay] = at(px, 0), [bx, by] = at(px, bh * far), [tx, ty] = at(px, bh * far + fs * 1.1);
           mark(c, ax, ay, bx, by, text, tx, ty, fs);
         };
-        line(xi - L * 0.09, 'Θ.Φ.Μ.', 2.1);
-        line(xi, 'Θ.Ι.', 2.1);
+        line(xi - L * 0.09, t('Θ.Φ.Μ.', 'L₀'), 2.1);
+        line(xi, t('Θ.Ι.', 'Eq.'), 2.1);
         if (st.amp) {
           line(xi - st.amp, '−A', 1.5);
           line(xi + st.amp, '+A', 1.5);
@@ -303,7 +304,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   pulley: {
-    label: 'Τροχαλία', cat: 'mech', w: 200, h: 300,
+    label: t('Τροχαλία', 'Pulley'), cat: 'mech', w: 200, h: 300,
     draw(c, w, h) {
       const r = w * 0.28, cy = h * 0.22;
       path(c, [[w * 0.15, 0], [w * 0.85, 0]]);
@@ -324,7 +325,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   pendulum: {
-    label: 'Εκκρεμές', cat: 'osc', w: 200, h: 280,
+    label: t('Εκκρεμές', 'Pendulum'), cat: 'osc', w: 200, h: 280,
     draw(c, w, h, st) {
       path(c, [[w * 0.2, 0], [w * 0.8, 0]]);
       hatch(c, w * 0.25, 0, w * 0.75, 0, 5, 8, -8);
@@ -370,7 +371,7 @@ export const STAMPS: Record<string, StampDef> = {
             ghost(ex, ey, t);
           }
         }
-        ghost(ix, iy, 'Θ.Ι.');
+        ghost(ix, iy, t('Θ.Ι.', 'Eq.'));
         c.restore();
       }
       path(c, [[w / 2, 0], [bx, by]]);
@@ -383,13 +384,13 @@ export const STAMPS: Record<string, StampDef> = {
     spring: (w, h) => pendulum(w, h),
   },
   resistor: {
-    label: 'Αντιστάτης', hidden: true, w: 220, h: 60,
+    label: t('Αντιστάτης', 'Resistor'), hidden: true, w: 220, h: 60,
     draw(c, w, h) {
       path(c, [[0, h / 2], [w * 0.22, h / 2], ...zigzag(w * 0.22, w * 0.78, h / 2, h * 0.32, 7).slice(1), [w, h / 2]]);
     },
   },
   battery: {
-    label: 'Πηγή', hidden: true, w: 160, h: 90,
+    label: t('Πηγή', 'Source'), hidden: true, w: 160, h: 90,
     draw(c, w, h) {
       path(c, [[0, h / 2], [w * 0.44, h / 2]]);
       path(c, [[w * 0.56, h / 2], [w, h / 2]]);
@@ -403,7 +404,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   capacitor: {
-    label: 'Πυκνωτής', hidden: true, w: 160, h: 90,
+    label: t('Πυκνωτής', 'Capacitor'), hidden: true, w: 160, h: 90,
     draw(c, w, h) {
       path(c, [[0, h / 2], [w * 0.44, h / 2]]);
       path(c, [[w * 0.56, h / 2], [w, h / 2]]);
@@ -412,7 +413,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   lamp: {
-    label: 'Λαμπτήρας', hidden: true, w: 160, h: 80,
+    label: t('Λαμπτήρας', 'Lamp'), hidden: true, w: 160, h: 80,
     draw(c, w, h) {
       const r = h * 0.42, q = r * Math.SQRT1_2;
       path(c, [[0, h / 2], [w / 2 - r, h / 2]]);
@@ -425,7 +426,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   switch: {
-    label: 'Διακόπτης', hidden: true, w: 180, h: 70,
+    label: t('Διακόπτης', 'Switch'), hidden: true, w: 180, h: 70,
     draw(c, w, h) {
       const y = h * 0.75;
       path(c, [[0, y], [w * 0.3, y]]);
@@ -438,8 +439,8 @@ export const STAMPS: Record<string, StampDef> = {
       }
     },
   },
-  ammeter: { label: 'Αμπερόμετρο', hidden: true, w: 160, h: 80, draw: meter('A') },
-  voltmeter: { label: 'Βολτόμετρο', hidden: true, w: 160, h: 80, draw: meter('V') },
+  ammeter: { label: t('Αμπερόμετρο', 'Ammeter'), hidden: true, w: 160, h: 80, draw: meter('A') },
+  voltmeter: { label: t('Βολτόμετρο', 'Voltmeter'), hidden: true, w: 160, h: 80, draw: meter('V') },
 };
 
 Object.assign(STAMPS, PHYSICS, KIDS);

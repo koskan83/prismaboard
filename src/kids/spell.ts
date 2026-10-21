@@ -1,5 +1,6 @@
 /** Ορθογραφία με το τερατάκι που τρώει τα λάθη. */
 import type { KidAsk, StampDef } from '../stamps';
+import { t as tr } from '../i18n';
 import { BLUE, type C, fitText, FONT, GOOD, GREEN, kid, ORANGE, PURPLE, RED, rrect, sum, text, YELLOW } from './common';
 import { monster } from './monster';
 import { readyWords } from './ready-words';
@@ -29,7 +30,7 @@ export function spellKeyboard(g: { kx: number; ky: number; kw: number; kh: numbe
 }
 /** Πόσο κρατά το φάγωμα ενός λάθους (ms) και πότε αρχίζει το πρώτο. */
 const SPELL_STEP = 800, SPELL_T0 = 350, SPELL_SNIFF = 300;
-const SPELL_GRADES = ['Α΄', 'Β΄', 'Γ΄', 'Δ΄', 'Ε΄', 'ΣΤ΄'];
+const SPELL_GRADES = [tr('Α΄', '1st'), tr('Β΄', '2nd'), tr('Γ΄', '3rd'), tr('Δ΄', '4th'), tr('Ε΄', '5th'), tr('ΣΤ΄', '6th')];
 /**
  * Αντιστοιχίζει ό,τι γράφτηκε με το σωστό, γράμμα προς γράμμα: `a` αυτό που έγραψε ο μαθητής, `b` το σωστό.
  * Λάθος γράμμα έχει και τα δύο διαφορετικά· γράμμα που περισσεύει δεν έχει `b`· γράμμα που λείπει δεν έχει `a`.
@@ -165,7 +166,7 @@ function spellFeast(c: C, w: number, h: number, u: number, from: { x: number; y:
     if (p < SPELL_CHOMP * 0.45) {
       c.save();
       c.globalAlpha = Math.min(1, 2.2 * (1 - p / (SPELL_CHOMP * 0.45)));
-      fitText(c, 'ΧΑΜ!', w / 2, h / 2 + 2, h * 0.24 * (1 + 0.25 * Math.max(0, 1 - p / 120)), w * 0.85, YELLOW, 900);
+      fitText(c, tr('ΧΑΜ!', 'CHOMP!'), w / 2, h / 2 + 2, h * 0.24 * (1 + 0.25 * Math.max(0, 1 - p / 120)), w * 0.85, YELLOW, 900);
       c.restore();
     }
   } else {
@@ -177,21 +178,21 @@ function spellFeast(c: C, w: number, h: number, u: number, from: { x: number; y:
     c.globalAlpha = 1;
     const r = R * 0.35 + (to.r - R * 0.35) * q, x = w / 2 + (to.x - w / 2) * q, y = h * 0.5 + (to.y - h * 0.5) * q;
     monster(c, x, y, r, q < 0.4 ? 0.7 : 0.1);
-    fitText(c, 'Μπουρπ!', x + r * 1.2, y - r * 1.1, Math.max(h * 0.05, r * 0.5) * (1 - q * 0.5), w * 0.5, YELLOW, 900);
+    fitText(c, tr('Μπουρπ!', 'Burp!'), x + r * 1.2, y - r * 1.1, Math.max(h * 0.05, r * 0.5) * (1 - q * 0.5), w * 0.5, YELLOW, 900);
   }
   c.restore();
 }
 
 export const SPELL_KIDS: Record<string, StampDef> = {
   spell: kid({
-    label: 'Ορθογραφία', w: 900, h: 660, init: [0, 0], animMs: 16000, big: true,
+    label: tr('Ορθογραφία', 'Spelling'), w: 900, h: 660, init: [0, 0], animMs: 16000, big: true,
     drawKid(c, w, h, v, env) {
       // μετά τη σκηνή του δέκατου λάθους φαίνεται η λίστα από την αρχή (όσο παίζει η σκηνή, ό,τι έγινε στον έλεγχο)
       const raw = spellState(v), before = env.anim ? spellState(env.anim.prev) : null;
       const restarted = spellFed(raw) && !(before && !spellFed(before) && spellFin(raw, before, env.anim!.t) < SPELL_FIN);
       const s = restarted ? spellLive(v) : raw, g = spellGeom(w, h), eaten = spellEaten(s.res);
       const prev = restarted ? null : before, at = restarted ? Infinity : env.anim?.t ?? Infinity;
-      const lathi = (k: number): string => (k === 1 ? '1 λάθος' : `${k} λάθη`);
+      const lathi = (k: number): string => (k === 1 ? tr('1 λάθος', '1 mistake') : tr(`${k} λάθη`, `${k} mistakes`));
       c.lineCap = 'round';
       const btn = (x: number, y: number, bw: number, bh: number, label: string, color: string, on = true): void => {
         rrect(c, x, y, bw, bh, bh * 0.3);
@@ -205,12 +206,12 @@ export const SPELL_KIDS: Record<string, StampDef> = {
       // πριν από το παιχνίδι: ποιες λέξεις;
       if (!s.words.length) {
         monster(c, w / 2, h * 0.15, spellR(w, 0) * 1.5, 0.3);
-        fitText(c, 'Ορθογραφία με το τερατάκι', w / 2, h * 0.315, h * 0.062, w * 0.9, env.ink, 800);
-        btn(w * 0.3, h * 0.385, w * 0.195, h * 0.085, 'Ελληνικά', BLUE, !s.en);
+        fitText(c, tr('Ορθογραφία με το τερατάκι', 'Spelling with the little monster'), w / 2, h * 0.315, h * 0.062, w * 0.9, env.ink, 800);
+        btn(w * 0.3, h * 0.385, w * 0.195, h * 0.085, tr('Ελληνικά', 'Greek'), BLUE, !s.en);
         btn(w * 0.505, h * 0.385, w * 0.195, h * 0.085, 'English', BLUE, s.en);
         // έτοιμες λέξεις ανά τάξη
         SPELL_GRADES.forEach((name, i) => btn(w * (0.06 + 0.15 * i), h * 0.5, w * 0.13, h * 0.14, name, [GREEN, GOOD, '#0d9488', BLUE, '#6366f1', PURPLE][i]));
-        btn(w * 0.2, h * 0.72, w * 0.6, h * 0.14, s.en ? '✏️ 🎤 My own words' : '✏️ 🎤 Δικές μου λέξεις', ORANGE);
+        btn(w * 0.2, h * 0.72, w * 0.6, h * 0.14, s.en ? '✏️ 🎤 My own words' : tr('✏️ 🎤 Δικές μου λέξεις', '✏️ 🎤 My own words'), ORANGE);
         return;
       }
       const n = s.words.length;
@@ -218,16 +219,16 @@ export const SPELL_KIDS: Record<string, StampDef> = {
       if (s.idx >= n) {
         const ok = s.res.filter((r) => r === 1 || spellFixed(r)).length, r = spellR(w, eaten % SPELL_FEAST), ate = Math.floor(eaten / SPELL_FEAST);
         monster(c, w * 0.14, h * 0.5, r, eaten ? 0.25 : 0);
-        fitText(c, `Τέλος! ${ok} από ${n} σωστές`, w * 0.6, h * 0.09, h * 0.068, w * 0.7, env.ink, 800);
-        fitText(c, ate ? `Το τερατάκι έφαγε ${lathi(eaten)} και ${ate === 1 ? 'μια φορά' : `${ate} φορές`} κι εσένα!` : eaten ? `Το τερατάκι έφαγε ${lathi(eaten)} και μεγάλωσε!` : 'Το τερατάκι έμεινε νηστικό!', w * 0.6, h * 0.175, h * 0.042, w * 0.7, eaten ? ORANGE : GOOD, 700);
+        fitText(c, tr(`Τέλος! ${ok} από ${n} σωστές`, `The end! ${ok} of ${n} right`), w * 0.6, h * 0.09, h * 0.068, w * 0.7, env.ink, 800);
+        fitText(c, ate ? tr(`Το τερατάκι έφαγε ${lathi(eaten)} και ${ate === 1 ? 'μια φορά' : `${ate} φορές`} κι εσένα!`, `The little monster ate ${lathi(eaten)} and ${ate === 1 ? 'you too, once' : `you too, ${ate} times`}!`) : eaten ? tr(`Το τερατάκι έφαγε ${lathi(eaten)} και μεγάλωσε!`, `The little monster ate ${lathi(eaten)} and grew bigger!`) : tr('Το τερατάκι έμεινε νηστικό!', 'The little monster stayed hungry!'), w * 0.6, h * 0.175, h * 0.042, w * 0.7, eaten ? ORANGE : GOOD, 700);
         const cols = n > 10 ? 2 : 1, rows = Math.ceil(n / cols), rh = Math.min(h * 0.085, (h * 0.6) / rows);
         s.words.forEach((word, i) => {
           const res = s.res[i], fixed = spellFixed(res), icon = res === 1 ? '⭐' : fixed ? '✅' : res >= 10 ? '👾' : '➖';
           const x = cols === 1 ? w * 0.6 : w * (0.45 + 0.34 * Math.floor(i / rows));
           fitText(c, `${icon} ${word}`, x, h * 0.25 + rh * ((i % rows) + 0.5), rh * 0.7, cols === 1 ? w * 0.66 : w * 0.32, res === 1 ? GOOD : fixed ? '#ca8a04' : res >= 10 ? RED : env.ink, 700);
         });
-        btn(w * 0.02, g.by, w * 0.47, g.bh, '↺ Ξανά οι ίδιες λέξεις', PURPLE);
-        btn(w * 0.51, g.by, w * 0.47, g.bh, '✏️ Νέες λέξεις', BLUE);
+        btn(w * 0.02, g.by, w * 0.47, g.bh, tr('↺ Ξανά οι ίδιες λέξεις', '↺ Same words again'), PURPLE);
+        btn(w * 0.51, g.by, w * 0.47, g.bh, tr('✏️ Νέες λέξεις', '✏️ New words'), BLUE);
         return;
       }
       const target = s.words[s.idx], res = s.res[s.idx] ?? 0, hint = s.hints[s.idx];
@@ -301,7 +302,7 @@ export const SPELL_KIDS: Record<string, StampDef> = {
       }
       c.save();
       c.globalAlpha = 0.6;
-      if (shown < 0) text(c, `Λέξη ${s.idx + 1} από ${n}`, w / 2, g.top + pr + h * 0.03, h * 0.03, env.ink, 600);
+      if (shown < 0) text(c, tr(`Λέξη ${s.idx + 1} από ${n}`, `Word ${s.idx + 1} of ${n}`), w / 2, g.top + pr + h * 0.03, h * 0.03, env.ink, 600);
       // η γραμμή όπου γράφεται η λέξη
       c.globalAlpha = 0.3;
       c.lineWidth = 2;
@@ -424,18 +425,18 @@ export const SPELL_KIDS: Record<string, StampDef> = {
       // τι λέει το τερατάκι
       const marked = s.marks.filter(Boolean).length;
       const said = feasting ? ''
-        : restarted && s.phase === 0 && !s.typed ? `Πάμε πάλι από την αρχή! ${s.peek ? 'Δες καλά τη λέξη!' : hint ? `Γράψε: ${hint}` : 'Πάτα 🔊 για την πρώτη λέξη.'}`
-        : s.peek ? `Δες καλά τη λέξη! ${s.hand ? 'Πάτα το 👁 για να κρυφτεί και γράψε την.' : 'Μόλις πατήσεις γράμμα, κρύβεται.'}`
-        : s.phase === 0 && hint ? `${/[a-z]/.test(target) ? 'Γράψε στα αγγλικά' : 'Γράψε'}: ${hint}`
-        : s.phase === 0 ? (s.hand ? 'Γράψε με το μολύβι στο πλαίσιο αυτό που ακούς και πάτα «Έλεγχος»' : s.typed ? '' : 'Γράψε με τα γράμματα αυτό που ακούς')
-        : eat1 ? (t < SPELL_T0 ? `Χμ… μυρίζω ${lathi(bad.length)}!` : 'Μιαμ…')
-        : s.phase === 1 ? `Μιαμ! Έφαγα ${lathi(spellAte(res))}. ${s.hand ? 'Σβήσε, γράψε ξανά τη λέξη σωστά και πάτα «Έλεγχος».' : marked ? 'Γράψε το σωστό γράμμα στα κενά.' : 'Δες τη λέξη και πάτα ξανά «Έλεγχος».'}`
-        : s.phase === 3 ? 'Έτσι γράφεται. Την έγραψες σωστά;'
-        : t < end ? 'Μιαμ…'
-        : res === 1 ? 'Τέλεια, με την πρώτη! Το τερατάκι έμεινε νηστικό.'
-        : spellFixed(res) ? 'Μπράβο, το διόρθωσες!'
-        : !s.typed ? 'Μιαμ! Δες πώς γράφεται και πάμε παρακάτω.'
-        : `Το τερατάκι έφαγε ${lathi(bad.length)} και μεγάλωσε!`;
+        : restarted && s.phase === 0 && !s.typed ? `${tr('Πάμε πάλι από την αρχή!', 'Let\'s start again!')} ${s.peek ? tr('Δες καλά τη λέξη!', 'Look at the word carefully!') : hint ? `${tr('Γράψε', 'Write')}: ${hint}` : tr('Πάτα 🔊 για την πρώτη λέξη.', 'Press 🔊 for the first word.')}`
+        : s.peek ? `${tr('Δες καλά τη λέξη!', 'Look at the word carefully!')} ${s.hand ? tr('Πάτα το 👁 για να κρυφτεί και γράψε την.', 'Press 👁 to hide it, then write it.') : tr('Μόλις πατήσεις γράμμα, κρύβεται.', 'It hides when you press a letter.')}`
+        : s.phase === 0 && hint ? `${/[a-z]/.test(target) ? tr('Γράψε στα αγγλικά', 'Write in English') : tr('Γράψε', 'Write')}: ${hint}`
+        : s.phase === 0 ? (s.hand ? tr('Γράψε με το μολύβι στο πλαίσιο αυτό που ακούς και πάτα «Έλεγχος»', 'Write what you hear in the box with the pencil, then press «Check»') : s.typed ? '' : tr('Γράψε με τα γράμματα αυτό που ακούς', 'Use the letters to write what you hear'))
+        : eat1 ? (t < SPELL_T0 ? tr(`Χμ… μυρίζω ${lathi(bad.length)}!`, `Hmm… I smell ${lathi(bad.length)}!`) : tr('Μιαμ…', 'Yum…'))
+        : s.phase === 1 ? `${tr(`Μιαμ! Έφαγα ${lathi(spellAte(res))}.`, `Yum! I ate ${lathi(spellAte(res))}.`)} ${s.hand ? tr('Σβήσε, γράψε ξανά τη λέξη σωστά και πάτα «Έλεγχος».', 'Erase, write the word again correctly and press «Check».') : marked ? tr('Γράψε το σωστό γράμμα στα κενά.', 'Write the right letter in the gaps.') : tr('Δες τη λέξη και πάτα ξανά «Έλεγχος».', 'Look at the word and press «Check» again.')}`
+        : s.phase === 3 ? tr('Έτσι γράφεται. Την έγραψες σωστά;', 'This is how it\'s spelled. Did you get it right?')
+        : t < end ? tr('Μιαμ…', 'Yum…')
+        : res === 1 ? tr('Τέλεια, με την πρώτη! Το τερατάκι έμεινε νηστικό.', 'Perfect, first try! The little monster stayed hungry.')
+        : spellFixed(res) ? tr('Μπράβο, το διόρθωσες!', 'Well done, you fixed it!')
+        : !s.typed ? tr('Μιαμ! Δες πώς γράφεται και πάμε παρακάτω.', 'Yum! See how it\'s spelled, then let\'s go on.')
+        : tr(`Το τερατάκι έφαγε ${lathi(bad.length)} και μεγάλωσε!`, `The little monster ate ${lathi(bad.length)} and grew bigger!`);
       if (said) fitText(c, said, w / 2, g.msg, h * 0.04, w * 0.94, s.peek || (s.phase === 0 && hint) ? BLUE : s.phase === 1 || (s.phase === 2 && res >= 10 && !spellFixed(res)) ? ORANGE : s.phase === 2 && t >= end ? GOOD : env.ink, 700);
       const live = s.phase < 2 && !feasting;
       if (s.hand) {
@@ -467,22 +468,22 @@ export const SPELL_KIDS: Record<string, StampDef> = {
         c.globalAlpha = !live || idle ? 0.35 : 1;
         c.lineWidth = on ? 3 : 1.5;
         c.stroke();
-        if (k.key === ' ') fitText(c, en ? 'space' : 'κενό', k.x + k.w / 2, k.y + k.h / 2 + 1, g.kh * 0.4, k.w * 0.8, env.ink, 600);
+        if (k.key === ' ') fitText(c, en ? 'space' : tr('κενό', 'space'), k.x + k.w / 2, k.y + k.h / 2 + 1, g.kh * 0.4, k.w * 0.8, env.ink, 600);
         else text(c, k.key === '΄' ? SPELL_ACC_KEY[s.acc] : k.key, k.x + k.w / 2, k.y + k.h / 2 + 1 + (k.key === '΄' ? g.kh * 0.12 : 0), g.kh * (k.key === '΄' ? 0.9 : 0.6), on ? '#ffffff' : env.ink, 700);
         c.restore();
       }
-      btn(g.bx[0], g.by, g.bw[0], g.bh, '✏️ Λέξεις', BLUE);
+      btn(g.bx[0], g.by, g.bw[0], g.bh, tr('✏️ Λέξεις', '✏️ Words'), BLUE);
       btn(g.bx[1], g.by, g.bw[1], g.bh, '👁', s.peek ? ORANGE : '#64748b', live);
       // το κουμπί δείχνει τον άλλο τρόπο γραφής, αυτόν στον οποίο θα σε πάει
       btn(g.bx[2], g.by, g.bw[2], g.bh, '🔊', '#0d9488');
-      btn(g.bx[3], g.by, g.bw[3], g.bh, s.hand ? '⌨️ Πλήκτρα' : '✍️ Με το χέρι', '#64748b', s.phase === 0);
+      btn(g.bx[3], g.by, g.bw[3], g.bh, s.hand ? tr('⌨️ Πλήκτρα', '⌨️ Keys') : tr('✍️ Με το χέρι', '✍️ By hand'), '#64748b', s.phase === 0);
       if (s.phase === 3) {
-        btn(g.bx[4], g.by, g.bw[4] * 0.49, g.bh, '✓ Σωστά', GOOD);
-        btn(g.bx[4] + g.bw[4] * 0.51, g.by, g.bw[4] * 0.49, g.bh, '✗ Λάθος', RED);
+        btn(g.bx[4], g.by, g.bw[4] * 0.49, g.bh, tr('✓ Σωστά', '✓ Right'), GOOD);
+        btn(g.bx[4] + g.bw[4] * 0.51, g.by, g.bw[4] * 0.49, g.bh, tr('✗ Λάθος', '✗ Wrong'), RED);
       } else if (s.phase === 2) {
-        btn(g.bx[4], g.by, g.bw[4], g.bh, s.idx + 1 < n ? '▶ Επόμενη λέξη' : '🏁 Αποτελέσματα', PURPLE);
+        btn(g.bx[4], g.by, g.bw[4], g.bh, s.idx + 1 < n ? tr('▶ Επόμενη λέξη', '▶ Next word') : tr('🏁 Αποτελέσματα', '🏁 Results'), PURPLE);
       } else {
-        btn(g.bx[4], g.by, g.bw[4], g.bh, s.phase === 1 ? '🔍 Έλεγχος ξανά' : '🔍 Έλεγχος', GOOD, s.hand || !!spellNorm(s.typed, SPELL_MAX));
+        btn(g.bx[4], g.by, g.bw[4], g.bh, s.phase === 1 ? tr('🔍 Έλεγχος ξανά', '🔍 Check again') : tr('🔍 Έλεγχος', '🔍 Check'), GOOD, s.hand || !!spellNorm(s.typed, SPELL_MAX));
       }
       if (feasting) spellFeast(c, w, h, fin, { x: mx, y: my, r }, { x: mx, y: g.base - spellR(w, eaten % SPELL_FEAST) * 1.1, r: spellR(w, eaten % SPELL_FEAST) });
     },
@@ -491,8 +492,9 @@ export const SPELL_KIDS: Record<string, StampDef> = {
       if (!s.words.length) {
         if (x < w * 0.2 || x > w * 0.8 || y < h * 0.72 || y > h * 0.86) return null;
         return {
-          title: s.en ? 'Οι λέξεις ή οι προτάσεις (Αγγλικά)' : 'Οι λέξεις ή οι προτάσεις της ορθογραφίας',
-          hint: `Χωρισμένες με κόμμα${s.en ? ': apple, school, good morning. Με «=» βάζεις τη σημασία που θα βλέπει ο μαθητής: apple=μήλο' : ', με τους τόνους τους: μήλο, σχολείο, καλή μέρα'}. Έως 20, η καθεμία έως 40 γράμματα. Με το 🎤 τις λες αντί να τις γράψεις: κάθε φορά που μιλάς μπαίνει μία. Φαίνονται ως κουκκίδες, για να μη τις δουν οι μαθητές· το 👁 τις δείχνει.`,
+          title: s.en ? tr('Οι λέξεις ή οι προτάσεις (Αγγλικά)', 'The words or sentences (English)') : tr('Οι λέξεις ή οι προτάσεις της ορθογραφίας', 'The spelling words or sentences (Greek)'),
+          hint: tr(`Χωρισμένες με κόμμα${s.en ? ': apple, school, good morning. Με «=» βάζεις τη σημασία που θα βλέπει ο μαθητής: apple=μήλο' : ', με τους τόνους τους: μήλο, σχολείο, καλή μέρα'}. Έως 20, η καθεμία έως 40 γράμματα. Με το 🎤 τις λες αντί να τις γράψεις: κάθε φορά που μιλάς μπαίνει μία. Φαίνονται ως κουκκίδες, για να μη τις δουν οι μαθητές· το 👁 τις δείχνει.`,
+            `Separated by commas${s.en ? ': apple, school, good morning. With «=» you add the meaning the pupil will see: apple=(meaning)' : ', with their accents: μήλο, σχολείο, καλή μέρα'}. Up to 20, each up to 40 letters. With 🎤 you say them instead of typing: each time you speak, one is added. They show as dots, so the pupils can't see them; 👁 shows them.`),
           secret: true, max: 840, voice: s.en ? 'en-GB' : 'el-GR', lists: true,
           apply(typed) {
             const list = spellList(typed);

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PrismaBoard – Classroom test</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f8fafc; --card: #fff; --fg: #111827; --mut: #6b7280; --line: #e5e7eb; --ok: #059669; --bad: #dc2626; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f172a; --card: #1e293b; --fg: #f1f5f9; --mut: #94a3b8; --line: #334155; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 18px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 20px 16px 120px; }
+  h1 { font-size: 28px; margin: 8px 0 4px; }
+  h2 { font-size: 20px; margin: 28px 0 8px; }
+  p.lead { color: var(--mut); margin: 0 0 12px; }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 8px 0; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
+  .item.ok { border-color: var(--ok); }
+  .item.bad { border-color: var(--bad); }
+  .item small { color: var(--mut); display: block; }
+  .btns { display: flex; gap: 8px; }
+  .btns button { width: 60px; height: 52px; border-radius: 12px; border: 2px solid var(--line); background: none; color: inherit; font-size: 24px; cursor: pointer; }
+  .item.ok .y { background: var(--ok); border-color: var(--ok); color: #fff; }
+  .item.bad .n { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .item textarea { grid-column: 1 / -1; display: none; width: 100%; min-height: 64px; font: inherit; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: inherit; }
+  .item.bad textarea { display: block; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 12px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #bar span { flex: 1; color: var(--mut); }
+  #bar button { padding: 13px 18px; border-radius: 12px; border: 0; background: #2563eb; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+  #bar button.sec { background: none; color: inherit; border: 1px solid var(--line); font-weight: 400; }
+  #out { width: 100%; min-height: 160px; margin-top: 16px; display: none; font: 15px ui-monospace, monospace; padding: 10px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <div style="text-align: right;"><a href="./dokimi.html" lang="el" hreflang="el">Ελληνικά</a></div>
+  <img src="./logo.svg" alt="PrismaBoard" width="64" height="64" />
+  <h1>Classroom test</h1>
+  <p class="lead">Open PrismaBoard in another tab and go through the steps in order. Tap ✓ if it worked or ✗ if it didn't, and write a few words about what you saw. At the end, tap "Copy results" and send them.</p>
+  <div id="list"></div>
+  <textarea id="out" readonly></textarea>
+</main>
+<div id="bar"><span id="count"></span><button class="sec" id="reset">Clear</button><button id="copy">Copy results</button></div>
+<script>
+const GROUPS = [
+  ['Writing', [
+    ['Write a sentence with the screen stylus.', 'Does the line follow without lag and without gaps?'],
+    ['Write with your finger.', 'Does that write too?'],
+    ['While writing, rest your palm on the screen.', 'It should not leave marks or erase anything by accident.'],
+    ['Erase part of a stroke with the eraser, then a whole stroke.', ''],
+    ['Erase with your palm or fist (without switching tools).', 'Does the red eraser circle appear?'],
+    ['Two people write at the same time.', 'Can both write without their lines getting mixed up?'],
+    ['Highlight a word with the highlighter, twice in the same spot.', 'Is it straight, and does it stay the same shade?'],
+    ['Undo and redo, 5 times each.', ''],
+  ]],
+  ['Moving around and zoom', [
+    ['Pinch with two fingers to zoom in and out.', 'Which tool was active when you tried it?'],
+    ['Drag with two fingers to move.', ''],
+    ['☰ → Fit to screen.', 'Does the whole page come back onto the screen?'],
+    ['New page, next, previous.', ''],
+  ]],
+  ['Toolbar and menus', [
+    ['Are the toolbar buttons easy to tap with a finger?', 'If not, try the + on the toolbar handle.'],
+    ['Drag the toolbar to the side of the screen.', 'Does it become vertical, with the menus opening next to it?'],
+    ['Switch the background to dark and back.', 'Does the toolbar change color, and is everything clearly visible?'],
+    ['Can the icons be read from the back of the classroom?', ''],
+  ]],
+  ['Shapes and measurements', [
+    ['Tools → triangle. With Measure, tap it and turn on lengths and angles.', ''],
+    ['Tap a length and change it with the keypad that opens.', 'Does the on-screen keyboard open on top of it?'],
+    ['Select the triangle and rotate it with the round handle.', ''],
+    ['With the triangle selected, place five fingers on the board and turn your hand.', 'Does the triangle rotate without the page moving or zooming? How many fingers did you start with?'],
+    ['Two arrows from a common start, and their resultant. Then change one arrow.', 'Does the resultant follow?'],
+    ['Ruler, protractor, compass: moving and rotating.', ''],
+  ]],
+  ['Functions', [
+    ['Tools → Calculus → ∫. Type x²/4 on the app\'s keyboard.', ''],
+    ['Drag the two handles of the integral along the axis.', 'Are they easy to grab with a finger?'],
+    ['Turn on lim and f′ and drag the points along the curve.', ''],
+  ]],
+  ['Graphs', [
+    ['Write y = 2x − 3 by hand, circle it with Select and tap "Graph".', 'Needs an AI key. Did axes appear with the right line?'],
+    ['Tools → axes → f(x) and type −200x.', 'Did the vertical axis adjust on its own so the line is visible?'],
+    ['Make a second set of axes with x² and drag it onto the first.', 'Did the two functions merge onto the same axes in a different color?'],
+    ['Tap ∫ twice.', 'Was the region between the two curves shaded, from one intersection to the other?'],
+    ['Tap "123" to remove the numbers and write your own values.', ''],
+    ['Drag with two fingers, then spread your fingers apart.', 'Dragging should not change the zoom.'],
+  ]],
+  ['Primary school', [
+    ['☰ → Switch to Primary school.', 'Did the toolbar become simple, with big colorful icons? Are they clearly visible?'],
+    ['Tools → Fraction: pie. With the pencil in hand, tap + and a piece.', 'Did the fraction change without leaving a dot on the board?'],
+    ['Hundreds, Tens, Ones: tap + on the ones past 9.', 'Did they reset to zero, with one ten added?'],
+    ['Bricks: they open full screen. Have two people build together, then tap the blue door.', 'Can both build at the same time? Does the door take you back to the board with the build on the page?'],
+    ['Hangman: tap ✏️, type a word, and play.', 'Was the word shown as dots? Did a keyboard open without hiding the window?'],
+    ['Balance scale: put weights on the left and the right.', 'Does it tip toward the larger total?'],
+    ['Clock: drag the minute hand.', ''],
+    ['Add a Star, roll the Die and find a word in hangman.', 'Can you hear the sounds from the board\'s speakers? Does confetti fall? Is the motion smooth or does it "stutter"?'],
+    ['☰ → Sounds: off.', 'Did all the sounds stop?'],
+    ['＋ → Templates → "Fractions" or "Times tables".', 'Was a ready-made page added that fits on the screen?'],
+  ]],
+  ['Printing', [
+    ['On a dark board, write in white and choose Print (right-click or long-press).', 'Is the preview white paper with black writing, without the toolbar, and with the logo at the bottom right?'],
+  ]],
+  ['Files and lessons', [
+    ['Tap the icon to the left of the lesson name and create a new lesson.', 'Does a keyboard open for the name?'],
+    ['Tap the lesson name and change it.', 'Is the window large, and not hidden by the on-screen keyboard?'],
+    ['Close the browser and open it again.', 'Did the same lesson open, with everything you had written?'],
+    ['＋ → image or PDF from a file.', ''],
+    ['☰ → Export to PDF.', 'Where was the file saved? Did you find it?'],
+    ['Lessons → Backup to file.','Was a file downloaded?'],
+  ]],
+  ['Presenting', [
+    ['Curtain and spotlight.', ''],
+    ['Laser (inside the pen).', ''],
+    ['Timer.', ''],
+    ['Full screen.', 'Can you leave it with the button next to the zoom, without Esc?'],
+  ]],
+  ['General', [
+    ['After 20 minutes of use with many pages, is it still fast?', ''],
+    ['What did you miss most? What confused you?', 'Write it under ✗ even if everything worked.'],
+  ]],
+];
+const KEY = 'grafida.dokimi';
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { /* no storage */ }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private browsing */ } };
+const list = document.getElementById('list');
+let n = 0;
+const items = [];
+for (const [title, rows] of GROUPS) {
+  const h = document.createElement('h2');
+  h.textContent = title;
+  list.append(h);
+  for (const [text, hint] of rows) {
+    const id = String(++n);
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = '<div><b></b> <span></span><small></small></div><div class="btns"><button class="y" title="Worked">✓</button><button class="n" title="Problem">✗</button></div><textarea placeholder="What did you see?"></textarea>';
+    el.querySelector('b').textContent = id + '.';
+    el.querySelector('span').textContent = text;
+    el.querySelector('small').textContent = hint;
+    const ta = el.querySelector('textarea');
+    const paint = () => {
+      const s = state[id] || {};
+      el.classList.toggle('ok', s.r === 'ok');
+      el.classList.toggle('bad', s.r === 'bad');
+      ta.value = s.note || '';
+      count();
+    };
+    const set = (r) => { const s = state[id] || {}; state[id] = { ...s, r: s.r === r ? undefined : r }; save(); paint(); };
+    el.querySelector('.y').onclick = () => set('ok');
+    el.querySelector('.n').onclick = () => set('bad');
+    ta.oninput = () => { state[id] = { ...(state[id] || {}), note: ta.value }; save(); };
+    list.append(el);
+    items.push({ id, title, text, paint });
+  }
+}
+function count() {
+  const done = items.filter((i) => state[i.id] && state[i.id].r).length;
+  const bad = items.filter((i) => state[i.id] && state[i.id].r === 'bad').length;
+  document.getElementById('count').textContent = done + ' of ' + items.length + ' · ' + bad + (bad === 1 ? ' problem' : ' problems');
+}
+items.forEach((i) => i.paint());
+document.getElementById('reset').onclick = () => { if (confirm('Clear all answers?')) { state = {}; save(); items.forEach((i) => i.paint()); } };
+document.getElementById('copy').onclick = async () => {
+  const lines = ['PrismaBoard test – ' + new Date().toLocaleString('en-US'), navigator.userAgent, innerWidth + 'x' + innerHeight + ' @' + devicePixelRatio, ''];
+  for (const i of items) {
+    const s = state[i.id] || {};
+    lines.push(i.id + '. [' + (s.r === 'ok' ? 'OK' : s.r === 'bad' ? 'PROBLEM' : '—') + '] ' + i.text + (s.r === 'bad' && s.note ? '\n   → ' + s.note : ''));
+  }
+  const text = lines.join('\n');
+  const out = document.getElementById('out');
+  out.value = text;
+  out.style.display = 'block';
+  try { await navigator.clipboard.writeText(text); document.getElementById('count').textContent = 'Copied. Paste it into the chat.'; }
+  catch { out.select(); document.getElementById('count').textContent = 'Select the text below and copy it.'; }
+  out.scrollIntoView({ behavior: 'smooth' });
+};
+</script>
+</body>
+</html>

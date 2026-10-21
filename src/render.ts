@@ -8,6 +8,7 @@ import { Asymptotes, asymptotes, integrate, lineEq, nf, oneSided, riemann, slope
 import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
 import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, lineAngleMark, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
+import { locale, t as tr } from './i18n';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -98,7 +99,7 @@ export class Renderer {
     c.font = `${13 / k}px system-ui, sans-serif`;
     c.textBaseline = 'top';
     c.textAlign = 'right';
-    c.fillText(this.b.doc.a4 === 'v' ? 'Α4 όρθια' : 'Α4 πλάγια', f.x1, f.y1 + 5 / k);
+    c.fillText(this.b.doc.a4 === 'v' ? tr('Α4 όρθια', 'A4 portrait') : tr('Α4 πλάγια', 'A4 landscape'), f.x1, f.y1 + 5 / k);
     c.restore();
   }
 
@@ -589,9 +590,9 @@ export class Renderer {
       }
       const what = g ? '(f − g)' : 'f(x)';
       const val = integrate(d, an.int.a, an.int.b);
-      info.push([`∫ ${what}dx από ${nf(an.int.a)} έως ${nf(an.int.b)} = ${nf(val)}`, ink]);
-      info.push([`Εμβαδόν Ε = ${nf(integrate((x) => Math.abs(d(x)), lo, hi))} τ.μ.`, ink]);
-      if (an.int.n) info.push([`Άθροισμα Riemann, ν = ${an.int.n}: Sν = ${nf(riemann(d, an.int.a, an.int.b, an.int.n))}`, ink]);
+      info.push([tr(`∫ ${what}dx από ${nf(an.int.a)} έως ${nf(an.int.b)} = ${nf(val)}`, `∫ ${what}dx from ${nf(an.int.a)} to ${nf(an.int.b)} = ${nf(val)}`), ink]);
+      info.push([tr(`Εμβαδόν Ε = ${nf(integrate((x) => Math.abs(d(x)), lo, hi))} τ.μ.`, `Area A = ${nf(integrate((x) => Math.abs(d(x)), lo, hi))} sq. units`), ink]);
+      if (an.int.n) info.push([tr(`Άθροισμα Riemann, ν = ${an.int.n}: Sν = ${nf(riemann(d, an.int.a, an.int.b, an.int.n))}`, `Riemann sum, n = ${an.int.n}: Sn = ${nf(riemann(d, an.int.a, an.int.b, an.int.n))}`), ink]);
     }
 
     if (an.tan) {
@@ -607,7 +608,7 @@ export class Renderer {
             c.lineWidth = 2;
             lineThrough(x, y, ms);
             dot(x + an.tan.h, y2, sc);
-            info.push([`Τέμνουσα (h = ${nf(an.tan.h)}): λ = ${nf(ms)}`, sc]);
+            info.push([tr(`Τέμνουσα (h = ${nf(an.tan.h)}): λ = ${nf(ms)}`, `Secant (h = ${nf(an.tan.h)}): m = ${nf(ms)}`), sc]);
           }
         }
         const m = slope(f, x);
@@ -615,10 +616,10 @@ export class Renderer {
           c.strokeStyle = tc;
           c.lineWidth = 2.5;
           lineThrough(x, y, m);
-          info.push([`f′(${nf(x)}) = ${nf(m)}`, tc], [`Εφαπτομένη: ${lineEq(m, y - m * x)}`, tc]);
-        } else info.push([`f′(${nf(x)}): δεν υπάρχει`, tc]);
+          info.push([`f′(${nf(x)}) = ${nf(m)}`, tc], [tr(`Εφαπτομένη: ${lineEq(m, y - m * x)}`, `Tangent: ${lineEq(m, y - m * x)}`), tc]);
+        } else info.push([tr(`f′(${nf(x)}): δεν υπάρχει`, `f′(${nf(x)}): does not exist`), tc]);
         dot(x, y, tc);
-      } else info.push([`f(${nf(x)}): δεν ορίζεται`, tc]);
+      } else info.push([tr(`f(${nf(x)}): δεν ορίζεται`, `f(${nf(x)}): undefined`), tc]);
     }
 
     if (an.lim) {
@@ -644,9 +645,9 @@ export class Renderer {
       }
       if (Number.isFinite(at)) dot(x0, at, fcol);
       if (Number.isFinite(y)) dot(x, y, ink);
-      const txt = (v: number | null): string => (v === null ? 'δεν υπάρχει' : nf(v));
-      info.push([`x = ${nf(x)}   f(x) = ${Number.isFinite(y) ? (+y.toFixed(3) || 0).toLocaleString('el', { maximumFractionDigits: 3 }).replace('-', '−') : 'δεν ορίζεται'}`, ink]);
-      if (l !== null && l === r) info.push([`lim f(x) = ${nf(l)}  όταν x → ${nf(x0)}`, ink]);
+      const txt = (v: number | null): string => (v === null ? tr('δεν υπάρχει', 'does not exist') : nf(v));
+      info.push([`x = ${nf(x)}   f(x) = ${Number.isFinite(y) ? (+y.toFixed(3) || 0).toLocaleString(locale, { maximumFractionDigits: 3 }).replace('-', '−') : tr('δεν ορίζεται', 'undefined')}`, ink]);
+      if (l !== null && l === r) info.push([tr(`lim f(x) = ${nf(l)}  όταν x → ${nf(x0)}`, `lim f(x) = ${nf(l)}  as x → ${nf(x0)}`), ink]);
       else info.push([`x → ${nf(x0)}⁻ :  lim f(x) = ${txt(l)}`, ink], [`x → ${nf(x0)}⁺ :  lim f(x) = ${txt(r)}`, ink]);
     }
     c.restore();
@@ -761,15 +762,15 @@ export class Renderer {
     const fs = r * 0.11;
     const sin = Math.sin(a), cos = Math.cos(a);
     const deg = ((Math.round((a * 180) / Math.PI) % 360) + 360) % 360;
-    const n2 = (v: number) => (Math.abs(v) < 0.005 ? 0 : v).toLocaleString('el', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const n2 = (v: number) => (Math.abs(v) < 0.005 ? 0 : v).toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     c.font = `600 ${fs}px system-ui, "Segoe UI", Roboto, sans-serif`;
     c.textAlign = 'left';
     c.textBaseline = 'middle';
     const parts: [string, string][] = [
       [`θ = ${radText(deg)} rad`, ink],
-      [`ημθ = ${n2(sin)}`, sinC],
-      [`συνθ = ${n2(cos)}`, cosC],
-      [`εφθ = ${Math.abs(cos) < 1e-9 ? '—' : n2(sin / cos)}`, ink],
+      [`${tr('ημθ', 'sin θ')} = ${n2(sin)}`, sinC],
+      [`${tr('συνθ', 'cos θ')} = ${n2(cos)}`, cosC],
+      [`${tr('εφθ', 'tan θ')} = ${Math.abs(cos) < 1e-9 ? '—' : n2(sin / cos)}`, ink],
     ];
     const gap = fs * 1.1;
     const widths = parts.map(([text]) => c.measureText(text).width);
@@ -833,15 +834,15 @@ export class Renderer {
         const q: Pt[] = [[x0, y0], [x1, y0], [x1, y1], [x0, y1]];
         for (let i = 0; i < 4; i++) corner(q[i], q[(i + 1) % 4], q[(i + 3) % 4], ctr);
       }
-      if (scaled && o.area) mid.push(`Ε = ${num(w * un.kx * h * un.ky)}`);
-      if (scaled && o.per && same) mid.push(`Π = ${num(2 * (w + h) * un.kx)}`);
+      if (scaled && o.area) mid.push(`${tr('Ε', 'A')} = ${num(w * un.kx * h * un.ky)}`);
+      if (scaled && o.per && same) mid.push(`${tr('Π', 'P')} = ${num(2 * (w + h) * un.kx)}`);
     } else if (s.shape === 'ellipse') {
       const a = Math.abs(x1 - x0) / 2, b = Math.abs(y1 - y0) / 2;
       const circle = Math.abs(a - b) < Math.max(a, b) * 0.03;
       if (o.len) mid.push(circle && same ? `r = ${num(a * un.kx)}` : `a = ${num(a * un.kx)}  b = ${num(b * un.ky)}`);
-      if (o.area) mid.push(`Ε = ${num(Math.PI * a * un.kx * b * un.ky)}`);
+      if (o.area) mid.push(`${tr('Ε', 'A')} = ${num(Math.PI * a * un.kx * b * un.ky)}`);
       // περίμετρος έλλειψης: προσέγγιση του Ramanujan (ακριβής για κύκλο)
-      if (o.per && same) mid.push(`Π = ${num(Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b))) * un.kx)}`);
+      if (o.per && same) mid.push(`${tr('Π', 'P')} = ${num(Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b))) * un.kx)}`);
     } else if (isPoly(s.shape)) {
       const t = trianglePts(s);
       const n = t.length;
@@ -849,8 +850,8 @@ export class Renderer {
       // εμβαδόν πολυγώνου από τις κορυφές του
       const area = Math.abs(t.reduce((a, p, i) => a + p[0] * t[(i + 1) % n][1] - t[(i + 1) % n][0] * p[1], 0)) / 2;
       if (o.ang && same) for (const m of measureAngles(s)) c.fillText(s.labels?.[ANGLE_KEY + m.i] ?? `${m.deg}°`, m.pos[0], m.pos[1]);
-      if (scaled && o.area) mid.push(`Ε = ${num(area * un.kx * un.ky)}`);
-      if (scaled && o.per && same) mid.push(`Π = ${num(t.reduce((a, p, i) => a + len(p, t[(i + 1) % n]), 0) * un.kx)}`);
+      if (scaled && o.area) mid.push(`${tr('Ε', 'A')} = ${num(area * un.kx * un.ky)}`);
+      if (scaled && o.per && same) mid.push(`${tr('Π', 'P')} = ${num(t.reduce((a, p, i) => a + len(p, t[(i + 1) % n]), 0) * un.kx)}`);
     }
     mid.forEach((text, i) => c.fillText(text, ctr[0], ctr[1] + (i - (mid.length - 1) / 2) * 24));
     c.restore();

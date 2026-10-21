@@ -1,5 +1,6 @@
 /** Κλάσματα: πίτα και μπάρα, με όψη πίτσας και σοκολάτας. */
 import type { StampDef } from '../stamps';
+import { t } from '../i18n';
 import { BLUE, type C, GOOD, inR, kid, type KidEnv, knob, ORANGE, skinBtn, text } from './common';
 
 /** Κάτω λωρίδα με − [κλάσμα] + : κοινή σε πίτα και μπάρα. */
@@ -106,7 +107,7 @@ const ones = (m: number): number => { let k = 0; for (let i = 0; i < 25; i++) if
 
 export const FRACTION_KIDS: Record<string, StampDef> = {
   fracpie: kid({
-    label: 'Κλάσμα: πίτα', w: 280, h: 370, init: [4, 0],
+    label: t('Κλάσμα: πίτα', 'Fraction: pie'), w: 280, h: 370, init: [4, 0],
     drawKid(c, w, h, v, env) {
       const n = v[0] || 4, cx = w / 2, cy = w / 2, r = w * 0.46;
       for (let i = 0; i < n; i++) {
@@ -162,7 +163,7 @@ export const FRACTION_KIDS: Record<string, StampDef> = {
   }),
 
   fracbar: kid({
-    label: 'Κλάσμα: μπάρα', w: 560, h: 170, init: [4, 0],
+    label: t('Κλάσμα: μπάρα', 'Fraction: bar'), w: 560, h: 170, init: [4, 0],
     drawKid(c, w, h, v, env) {
       const n = v[0] || 4, bh = h * 0.5;
       for (let i = 0; i < n; i++) {
@@ -203,5 +204,5 @@ export const FRACTION_KIDS: Record<string, StampDef> = {
 };
 
 // τα ίδια κλάσματα, που ξεκινούν κατευθείαν ως πίτσα και ως σοκολάτα
-FRACTION_KIDS.fracpizza = { ...FRACTION_KIDS.fracpie, label: 'Κλάσμα: πίτσα', init: [4, 0, 1] };
-FRACTION_KIDS.fracchoc = { ...FRACTION_KIDS.fracbar, label: 'Κλάσμα: σοκολάτα', init: [4, 0, 1] };
+FRACTION_KIDS.fracpizza = { ...FRACTION_KIDS.fracpie, label: t('Κλάσμα: πίτσα', 'Fraction: pizza'), init: [4, 0, 1] };
+FRACTION_KIDS.fracchoc = { ...FRACTION_KIDS.fracbar, label: t('Κλάσμα: σοκολάτα', 'Fraction: chocolate'), init: [4, 0, 1] };

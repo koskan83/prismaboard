@@ -5,6 +5,7 @@ import { GadgetKind } from './gadgets';
 import { isNative, isOverlay, nativeCheckUpdate, nativeExit, nativeRelaunch, openOverlay, type NativeUpdate } from './native';
 import { initSnip, toggleSnip } from './snip';
 import { isAndroid, isAndroidApp, openPage } from './platform';
+import { isEn, setLang, t } from './i18n';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
 import { ask, notice } from './dialog';
@@ -41,10 +42,11 @@ if (import.meta.env.VITE_CHANNEL === 'beta') {
   const tag = document.createElement('button');
   tag.id = 'betaTag';
   tag.textContent = 'BETA';
-  tag.title = 'Δοκιμαστική έκδοση';
-  tag.onclick = () => void notice('Δοκιμαστική έκδοση', [
-    'Εδώ δοκιμάζονται οι αλλαγές πριν φτάσουν σε όλους.',
-    'Τα μαθήματα εδώ είναι χωριστά από την κανονική διεύθυνση prismaboard.klabs.gr. Για κανονική δουλειά στην τάξη χρησιμοποίησε εκείνη.',
+  tag.title = t('Δοκιμαστική έκδοση', 'Beta version');
+  tag.onclick = () => void notice(t('Δοκιμαστική έκδοση', 'Beta version'), [
+    t('Εδώ δοκιμάζονται οι αλλαγές πριν φτάσουν σε όλους.', 'Changes are tested here before they reach everyone.'),
+    t('Τα μαθήματα εδώ είναι χωριστά από την κανονική διεύθυνση prismaboard.klabs.gr. Για κανονική δουλειά στην τάξη χρησιμοποίησε εκείνη.',
+      'Lessons here are separate from the regular address prismaboard.klabs.gr. For real classroom work, use that one.'),
   ]);
   document.body.append(tag);
 }
@@ -95,7 +97,7 @@ function renderColors(): void {
   colorsKey = key;
   colorsEl.innerHTML =
     list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('') +
-    '<button id="colorBtn" title="Περισσότερα χρώματα" aria-label="Περισσότερα χρώματα"><span data-em="🎨"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>';
+    `<button id="colorBtn" title="${t('Περισσότερα χρώματα', 'More colors')}" aria-label="${t('Περισσότερα χρώματα', 'More colors')}"><span data-em="🎨"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>`;
 }
 $('colorGrid').innerHTML = MORE_COLORS.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('');
 
@@ -182,14 +184,14 @@ widthsEl.addEventListener('click', (e) => {
   refreshUi();
 });
 $('eraserOpts').addEventListener('click', (e) => {
-  const t = e.target as HTMLElement;
-  if (t.closest('#eraseAll')) {
+  const tg = e.target as HTMLElement;
+  if (tg.closest('#eraseAll')) {
     if (board.page.items.length === 0) return;
     board.clearPage();
-    toast('Σβήστηκαν όλα στη σελίδα — πάτα ↶ για να τα φέρεις πίσω');
+    toast(t('Σβήστηκαν όλα στη σελίδα — πάτα ↶ για να τα φέρεις πίσω', 'Everything on the page was erased — tap ↶ to bring it back'));
     return;
   }
-  const b = t.closest<HTMLElement>('[data-eraser]');
+  const b = tg.closest<HTMLElement>('[data-eraser]');
   if (!b) return;
   board.eraserMode = b.dataset.eraser as EraserMode;
   savePrefs();
@@ -210,7 +212,7 @@ $('tidyBtn').onclick = () => board.tidySelection();
 const moveMenu = $('moveMenu');
 $('moveBtn').onclick = () => {
   const n = board.doc.pages.length;
-  $('moveGrid').innerHTML = Array.from({ length: n }, (_, i) => `<button data-to="${i}"${i === board.cur ? ' disabled' : ''}>${i + 1}</button>`).join('') + `<button data-to="${n}" class="new">＋ Νέα</button>`;
+  $('moveGrid').innerHTML = Array.from({ length: n }, (_, i) => `<button data-to="${i}"${i === board.cur ? ' disabled' : ''}>${i + 1}</button>`).join('') + `<button data-to="${n}" class="new">${t('＋ Νέα', '＋ New')}</button>`;
   togglePopup(moveMenu, $('moveBtn'));
 };
 $('moveGrid').addEventListener('click', (e) => {
@@ -219,7 +221,7 @@ $('moveGrid').addEventListener('click', (e) => {
   closePopups();
   const to = Number(b.dataset.to);
   board.moveSelectionTo(to);
-  toast(`Μεταφέρθηκε στη σελίδα ${to + 1}`);
+  toast(t(`Μεταφέρθηκε στη σελίδα ${to + 1}`, `Moved to page ${to + 1}`));
 });
 $('prev').onclick = () => board.goto(board.cur - 1);
 $('next').onclick = () => board.goto(board.cur + 1);
@@ -286,7 +288,7 @@ export function refreshUi(): void {
   show('springOpts', !!sp);
   $('spMarks').classList.toggle('on', !!sp?.marks);
   // στο εκκρεμές δεν υπάρχει φυσικό μήκος: οι θέσεις είναι η ισορροπία και οι ακραίες
-  $('spMarks').querySelector('span')!.textContent = sp?.name === 'pendulum' ? '±A' : 'ΘΦΜ';
+  $('spMarks').querySelector('span')!.textContent = sp?.name === 'pendulum' ? '±A' : t('ΘΦΜ', 'L₀');
   $('spDamp').classList.toggle('on', !!sp?.damp);
   ($('spStop') as HTMLButtonElement).disabled = !board.springMoving;
   // σχήματα με κίνηση (κύματα, κρούση): μόνο ▶/⏸· τα ελατήρια και το εκκρεμές: θέσεις, απόσβεση, στοπ
@@ -360,7 +362,7 @@ board.onMergeAxes = (target, dropped) => {
   const mode: AxesMode = target.mode === 'full' || dropped.mode === 'full' ? 'full' : target.mode === 'q14' || dropped.mode === 'q14' ? 'q14' : 'q1';
   const sx = Math.max(target.sx ?? 1, dropped.sx ?? 1);
   const next: AxesItem = { ...target, fns, mode, ...(Object.keys(params).length ? { params } : {}), sx: sx === 1 ? undefined : sx };
-  toast('Οι δύο γραφικές παραστάσεις ενώθηκαν στους ίδιους άξονες. Με αναίρεση χωρίζουν ξανά.', 5000);
+  toast(t('Οι δύο γραφικές παραστάσεις ενώθηκαν στους ίδιους άξονες. Με αναίρεση χωρίζουν ξανά.', 'The two graphs were merged onto the same axes. Undo separates them again.'), 5000);
   return { ...next, sy: fitY(next, fns, params) };
 };
 curtain.onChange = curtainTop.onChange = refreshUi;
@@ -465,8 +467,8 @@ function renderFavs(): void {
   box.classList.toggle('hidden', box.children.length === 0);
   gadgetMenu.querySelectorAll<HTMLElement>('.tile').forEach((t) => t.classList.toggle('fav', favs.includes(tileKey(t))));
   const editing = gadgetMenu.classList.contains('favEdit');
-  $('favEdit').textContent = editing ? '✓ Τέλος' : favs.length ? `★ Αγαπημένα (${favs.length})` : '☆ Αγαπημένα';
-  $('favMsg').textContent = editing ? `Πάτα έως ${FAV_MAX} όργανα για να μπουν στη μπάρα · ${favs.filter(tileFor).length} από ${FAV_MAX}` : '';
+  $('favEdit').textContent = editing ? t('✓ Τέλος', '✓ Done') : favs.length ? t(`★ Αγαπημένα (${favs.length})`, `★ Favorites (${favs.length})`) : t('☆ Αγαπημένα', '☆ Favorites');
+  $('favMsg').textContent = editing ? t(`Πάτα έως ${FAV_MAX} όργανα για να μπουν στη μπάρα · ${favs.filter(tileFor).length} από ${FAV_MAX}`, `Tap up to ${FAV_MAX} tools to add them to the bar · ${favs.filter(tileFor).length} of ${FAV_MAX}`) : '';
   layoutBar();
 }
 $('favs').addEventListener('click', (e) => {
@@ -489,7 +491,7 @@ gadgetMenu.addEventListener('click', (e) => {
   e.preventDefault();
   if (favs.includes(k)) favs = favs.filter((x) => x !== k);
   else if (favs.filter(tileFor).length < FAV_MAX) favs = [...favs, k];
-  else return toast(`Έως ${FAV_MAX} αγαπημένα· βγάλε πρώτα κάποιο.`);
+  else return toast(t(`Έως ${FAV_MAX} αγαπημένα· βγάλε πρώτα κάποιο.`, `Up to ${FAV_MAX} favorites. Remove one first.`));
   try { localStorage.setItem(FAVS, JSON.stringify(favs)); } catch { /* χωρίς αποθήκευση */ }
   renderFavs();
 }, true);
@@ -536,8 +538,8 @@ document.addEventListener('pointerdown', (e) => {
 });
 
 gadgetMenu.addEventListener('click', (e) => {
-  const t = e.target as HTMLElement;
-  const anq = t.closest<HTMLElement>('[data-anq]')?.dataset.anq;
+  const tg = e.target as HTMLElement;
+  const anq = tg.closest<HTMLElement>('[data-anq]')?.dataset.anq;
   if (anq) {
     // τα εργαλεία ανάλυσης δουλεύουν πάνω σε άξονες με συνάρτηση: διαλέγουμε (ή φτιάχνουμε) άξονες και, αν λείπει, ζητάμε συνάρτηση
     closePopups();
@@ -551,11 +553,11 @@ gadgetMenu.addEventListener('click', (e) => {
     } else {
       togglePopup(fnMenu, $('fnBtn'));
       renderFns();
-      toast('Γράψε πρώτα τη συνάρτηση. Μετά, τα ∫, Σ, lim, f′ είναι στη σειρά πάνω από τη μπάρα.', 6000);
+      toast(t('Γράψε πρώτα τη συνάρτηση. Μετά, τα ∫, Σ, lim, f′ είναι στη σειρά πάνω από τη μπάρα.', 'Write the function first. Then ∫, Σ, lim, f′ are in the row above the bar.'), 6000);
     }
     return;
   }
-  const kidTool = t.closest<HTMLElement>('[data-kid]')?.dataset.kid;
+  const kidTool = tg.closest<HTMLElement>('[data-kid]')?.dataset.kid;
   if (kidTool) {
     closePopups();
     board.addStamp(kidTool);
@@ -567,9 +569,9 @@ gadgetMenu.addEventListener('click', (e) => {
     if (added && added.kind === 'stamp' && playsFull(added)) openGameView(board, added.id, (ev, at) => kidFx(ev, at.x, at.y, at, added.name));
     return;
   }
-  const shape = t.closest<HTMLElement>('[data-shape]')?.dataset.shape;
-  const ax = t.closest<HTMLElement>('[data-axes]')?.dataset.axes;
-  const ins = t.closest<HTMLElement>('[data-ins]')?.dataset.ins;
+  const shape = tg.closest<HTMLElement>('[data-shape]')?.dataset.shape;
+  const ax = tg.closest<HTMLElement>('[data-axes]')?.dataset.axes;
+  const ins = tg.closest<HTMLElement>('[data-ins]')?.dataset.ins;
   if (shape || ax || ins) {
     closePopups();
     if (shape) {
@@ -585,7 +587,7 @@ gadgetMenu.addEventListener('click', (e) => {
     refreshUi();
     return;
   }
-  const view = t.closest<HTMLElement>('[data-view]')?.dataset.view;
+  const view = tg.closest<HTMLElement>('[data-view]')?.dataset.view;
   if (view) {
     closePopups();
     // η καθεμιά ανοίγει αφήνοντας ορατό ένα κομμάτι του πίνακα, και δίπλα στην άλλη αν είναι ήδη ανοιχτή
@@ -593,12 +595,12 @@ gadgetMenu.addEventListener('click', (e) => {
     else if (view === 'curtainTop') curtainTop.toggle(curtain.visible ? Math.max(0.1, curtain.edge - 0.3) : 0.3);
     else if (view === 'spot') spot.toggle();
     else if (board.replaying) board.stopReplay();
-    else if (board.page.items.length === 0) toast('Η σελίδα είναι κενή');
+    else if (board.page.items.length === 0) toast(t('Η σελίδα είναι κενή', 'The page is empty'));
     else board.startReplay();
     refreshUi();
     return;
   }
-  const b = t.closest<HTMLElement>('[data-gadget]');
+  const b = tg.closest<HTMLElement>('[data-gadget]');
   if (!b) return;
   const g = b.dataset.gadget!;
   if (g === 'timer') timer.toggle();
@@ -613,7 +615,7 @@ const DOC_TYPES = 'application/pdf,.pdf,.docx,application/vnd.openxmlformats-off
 const android = isAndroid();
 if (android) {
   const img = impMenu.querySelector<HTMLElement>('[data-imp="file"]')!;
-  img.lastChild!.textContent = 'Εικόνα από αρχείο…';
+  img.lastChild!.textContent = t('Εικόνα από αρχείο…', 'Image from file…');
   impMenu.querySelector('[data-imp="doc"]')!.classList.remove('hidden');
 }
 // στιγμιότυπο οθόνης: στα Windows από το πρόγραμμα, στον browser με getDisplayMedia (που δεν υπάρχει στο Android)
@@ -698,7 +700,7 @@ if (installed && !isOverlay) $('exitAct').classList.remove('hidden');
 /** Αρχείο του ανοιχτού μαθήματος στον φάκελο του τμήματός του (και στο Drive), βλ. class-files.ts. */
 function saveLesson(blob: Blob, ext: string, suffix = ''): Promise<void> {
   const cur = lessons?.current;
-  return saveClassFile(blob, classFileName(`${cur?.name ?? 'Μάθημα'}${suffix}`, cur?.group, ext), cur?.group, toast);
+  return saveClassFile(blob, classFileName(`${cur?.name ?? t('Μάθημα', 'Lesson')}${suffix}`, cur?.group, ext), cur?.group, toast);
 }
 
 /** Οι δύο ρυθμίσεις των αρχείων: ποιος φάκελος (μόνο σε υπολογιστή με Chrome/Edge) και αν πάνε και στο Drive. */
@@ -706,21 +708,21 @@ async function showFilePrefs(): Promise<void> {
   const dir = document.querySelector<HTMLElement>('[data-act="filesdir"]')!, drv = document.querySelector<HTMLElement>('[data-act="filesdrive"]')!;
   dir.classList.toggle('hidden', !canPickFolder());
   const where = await folderLabel();
-  dir.lastChild!.textContent = `Φάκελος για τα αρχεία των μαθημάτων: ${where ?? 'Λήψεις'}…`;
+  dir.lastChild!.textContent = t(`Φάκελος για τα αρχεία των μαθημάτων: ${where ?? 'Λήψεις'}…`, `Folder for lesson files: ${where ?? 'Downloads'}…`);
   drv.classList.toggle('hidden', !driveClientId());
   drv.classList.toggle('on', driveCopy());
-  drv.lastChild!.textContent = `Αρχεία και στο Google Drive, στον φάκελο του τμήματος: ${driveCopy() ? 'ναι' : 'όχι'}`;
+  drv.lastChild!.textContent = t(`Αρχεία και στο Google Drive, στον φάκελο του τμήματος: ${driveCopy() ? 'ναι' : 'όχι'}`, `Files also to Google Drive, in the class folder: ${driveCopy() ? 'on' : 'off'}`);
 }
 void showFilePrefs();
 
 /** Αποθηκεύει το μάθημα και κλείνει την εφαρμογή. */
 async function quitApp(): Promise<void> {
-  toast('Αποθήκευση…', 0);
+  toast(t('Αποθήκευση…', 'Saving…'), 0);
   await lessons?.flush(true).catch((err) => console.warn(err));
-  if (isNative) return void nativeExit().catch(() => toast('Δεν έκλεισε· κλείσε το παράθυρο από το ✕.', 5000));
+  if (isNative) return void nativeExit().catch(() => toast(t('Δεν έκλεισε· κλείσε το παράθυρο από το ✕.', "Couldn't close. Close the window with ✕."), 5000));
   window.close();
   // αν ο browser δεν επέτρεψε το κλείσιμο, είμαστε ακόμα εδώ
-  setTimeout(() => toast('Το μάθημα αποθηκεύτηκε. Κλείσε το παράθυρο για έξοδο.', 6000), 400);
+  setTimeout(() => toast(t('Το μάθημα αποθηκεύτηκε. Κλείσε το παράθυρο για έξοδο.', 'Lesson saved. Close the window to exit.'), 6000), 400);
 }
 initSnip();
 const onMenu = async (e: Event): Promise<void> => {
@@ -755,13 +757,16 @@ const onMenu = async (e: Event): Promise<void> => {
     return;
   } else if (act === 'level') {
     setLevel(!primary);
-    toast(primary ? 'Δημοτικό: απλή γραμμή εργαλείων. Τα εργαλεία του είναι στα Όργανα.' : 'Γυμνάσιο – Λύκειο: όλα τα εργαλεία.', 4000);
+    toast(primary ? t('Δημοτικό: απλή γραμμή εργαλείων. Τα εργαλεία του είναι στα Όργανα.', 'Primary school: simple toolbar. Its tools are in Tools.') : t('Γυμνάσιο – Λύκειο: όλα τα εργαλεία.', 'Secondary school: all tools.'), 4000);
   } else if (act === 'lib') {
     void lessons?.open();
   } else if (act === 'help') {
     openWelcome();
   } else if (act === 'test') {
     openPage('./dokimi.html');
+  } else if (act === 'lang') {
+    await lessons?.flush(true);
+    setLang(isEn ? 'el' : 'en');
   } else if (act === 'report') {
     void openReport(toast);
   } else if (act === 'licenses') {
@@ -776,7 +781,7 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'driveopen') {
     void lessons?.openFromDrive();
   } else if (act === 'png') {
-    void saveLesson(await board.exportPng(), 'png', ` σελίδα ${board.cur + 1}`);
+    void saveLesson(await board.exportPng(), 'png', t(` σελίδα ${board.cur + 1}`, ` page ${board.cur + 1}`));
   } else if (act === 'send') {
     openSend();
   } else if (act === 'pdf') {
@@ -785,7 +790,7 @@ const onMenu = async (e: Event): Promise<void> => {
       if (pdf) await saveLesson(pdf, 'pdf');
     } catch (err) {
       console.error(err);
-      toast('Η εξαγωγή σε PDF απέτυχε', 5000);
+      toast(t('Η εξαγωγή σε PDF απέτυχε', 'PDF export failed'), 5000);
     }
   } else if (act.startsWith('bg-')) {
     // το τρέχον χρώμα περνά στο αντίστοιχο της παλέτας του νέου φόντου
@@ -800,16 +805,16 @@ const onMenu = async (e: Event): Promise<void> => {
   } else if (act === 'clear') {
     if (board.page.items.length === 0) return;
     board.clearPage();
-    toast('Σβήστηκαν όλα στη σελίδα', 9000, { label: 'Αναίρεση', run: () => board.undo() });
+    toast(t('Σβήστηκαν όλα στη σελίδα', 'Everything on the page was erased'), 9000, { label: t('Αναίρεση', 'Undo'), run: () => board.undo() });
   } else if (act === 'delpage') {
     // χωρίς ερώτηση: η σελίδα σβήνει αμέσως και το μήνυμα έχει «Αναίρεση» για λίγα δευτερόλεπτα
     const gone = board.deletePage();
-    if (gone.page.items.length) toast('Η σελίδα διαγράφηκε', 9000, { label: 'Αναίρεση', run: () => board.restorePage(gone) });
+    if (gone.page.items.length) toast(t('Η σελίδα διαγράφηκε', 'Page deleted'), 9000, { label: t('Αναίρεση', 'Undo'), run: () => board.restorePage(gone) });
   } else if (act === 'full') {
     if (document.fullscreenElement) await document.exitFullscreen();
     else await document.documentElement.requestFullscreen().catch(() => {});
   } else if (act === 'overlay') {
-    openOverlay().catch((err) => toast(`Δεν άνοιξε: ${err}`, 6000));
+    openOverlay().catch((err) => toast(t(`Δεν άνοιξε: ${err}`, `Couldn't open: ${err}`), 6000));
   } else if (act === 'ai') {
     openAi();
   } else if (act === 'usage') {
@@ -891,10 +896,10 @@ function showFxPrefs(): void {
     const b = document.querySelector<HTMLElement>(`#menu [data-act="${act}"]`);
     if (!b) return;
     b.classList.toggle('on', on);
-    b.lastChild!.textContent = `${name}: ${on ? 'ναι' : 'όχι'}`;
+    b.lastChild!.textContent = `${name}: ${on ? t('ναι', 'on') : t('όχι', 'off')}`;
   };
-  mark('fxsound', fxPrefs.sound, 'Ήχοι');
-  mark('fxclick', fxPrefs.sound && fxPrefs.click, 'Ήχος «κλικ» στα κουμπιά των εργαλείων');
+  mark('fxsound', fxPrefs.sound, t('Ήχοι', 'Sounds'));
+  mark('fxclick', fxPrefs.sound && fxPrefs.click, t('Ήχος «κλικ» στα κουμπιά των εργαλείων', '“Click” sound on tool buttons'));
 }
 showFxPrefs();
 /** Ήχος για κάτι που έγινε σε εργαλείο του Δημοτικού· στις επιτυχίες και κομφετί από το σημείο (x, y) της οθόνης. */
@@ -907,7 +912,8 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): 
     void say(text, lang).then((heard) => {
       if (heard || noVoice.has(lang)) return;
       noVoice.add(lang);
-      toast(`Δεν μπόρεσα να πω τη λέξη: η συσκευή δεν έχει ${lang.startsWith('el') ? 'ελληνική' : 'αγγλική'} φωνή. Πες τη εσύ, ή δείξε τη με το 👁.`, 8000);
+      toast(t(`Δεν μπόρεσα να πω τη λέξη: η συσκευή δεν έχει ${lang.startsWith('el') ? 'ελληνική' : 'αγγλική'} φωνή. Πες τη εσύ, ή δείξε τη με το 👁.`,
+        `Couldn't say the word: this device has no ${lang.startsWith('el') ? 'Greek' : 'English'} voice. Say it yourself, or show it with 👁.`), 8000);
     });
     return;
   }
@@ -952,7 +958,7 @@ function setLevel(pri: boolean, save = true): void {
   // εργαλείο που δεν υπάρχει στο Δημοτικό δεν μένει ενεργό
   if (pri && board.tool === 'measure') board.setTool('select');
   const label = document.querySelector('#menu [data-act="level"]')?.lastChild;
-  if (label) label.textContent = pri ? 'Αλλαγή σε Γυμνάσιο – Λύκειο' : 'Αλλαγή σε Δημοτικό';
+  if (label) label.textContent = pri ? t('Αλλαγή σε Γυμνάσιο – Λύκειο', 'Switch to Secondary school') : t('Αλλαγή σε Δημοτικό', 'Switch to Primary school');
   document.querySelectorAll<HTMLElement>('#wLevel [data-level]').forEach((b) => b.classList.toggle('on', (b.dataset.level === 'primary') === pri));
   if (save) { try { localStorage.setItem(LEVEL, pri ? 'primary' : 'secondary'); } catch { /* χωρίς αποθήκευση */ } }
   renderColors();
@@ -1007,22 +1013,24 @@ $('wGo').onclick = closeWelcome;
 /** «Τι χρησιμοποιώ»: τα πιο συχνά κουμπιά, όσα δεν πατήθηκαν ποτέ και πόσο κρατά το άνοιγμα, όλα από αυτή τη συσκευή. */
 function showUsage(): Promise<void> {
   const u = usageSummary();
-  const since = new Date(u.since).toLocaleDateString('el', { day: 'numeric', month: 'long', year: 'numeric' });
+  const loc = isEn ? 'en-US' : 'el';
+  const since = new Date(u.since).toLocaleDateString(loc, { day: 'numeric', month: 'long', year: 'numeric' });
+  const secs = u.openMs !== null ? (u.openMs / 1000).toLocaleString(loc, { maximumFractionDigits: 1 }) : '';
   const lines = [
-    ...(u.openMs !== null ? [`Άνοιγμα της εφαρμογής: περίπου ${(u.openMs / 1000).toLocaleString('el', { maximumFractionDigits: 1 })}″`] : []),
-    ...(u.top.length ? u.top.map(([l, n], i) => `${i + 1}. ${l} — ${n} ${n === 1 ? 'φορά' : 'φορές'}`) : ['Δεν έχει πατηθεί ακόμα κανένα κουμπί.']),
+    ...(u.openMs !== null ? [t(`Άνοιγμα της εφαρμογής: περίπου ${secs}″`, `App start-up: about ${secs}″`)] : []),
+    ...(u.top.length ? u.top.map(([l, n], i) => `${i + 1}. ${l} — ${n} ${n === 1 ? t('φορά', 'time') : t('φορές', 'times')}`) : [t('Δεν έχει πατηθεί ακόμα κανένα κουμπί.', 'No button has been tapped yet.')]),
   ];
-  return notice('Τι χρησιμοποιώ', lines, {
-    hint: `Από ${since}, μόνο σε αυτή τη συσκευή· δεν στέλνεται πουθενά.`,
-    more: u.never.map((l) => `Ποτέ: ${l}`),
-    moreLabel: 'Δεν πατήθηκαν ποτέ',
-    extra: { label: 'Σε αρχείο', run: () => download(new Blob([usageReport()], { type: 'text/plain;charset=utf-8' }), `prismaboard_xrisi_${stamp()}.txt`) },
+  return notice(t('Τι χρησιμοποιώ', 'What I use'), lines, {
+    hint: t(`Από ${since}, μόνο σε αυτή τη συσκευή· δεν στέλνεται πουθενά.`, `Since ${since}, on this device only. Nothing is sent anywhere.`),
+    more: u.never.map((l) => t(`Ποτέ: ${l}`, `Never: ${l}`)),
+    moreLabel: t('Δεν πατήθηκαν ποτέ', 'Never tapped'),
+    extra: { label: t('Σε αρχείο', 'To file'), run: () => download(new Blob([usageReport()], { type: 'text/plain;charset=utf-8' }), `prismaboard_xrisi_${stamp()}.txt`) },
   });
 }
 
 // μόνο τα τρία τελευταία νέα· τα υπόλοιπα με ένα πάτημα
-const showNews = (): Promise<void> => notice('Τι νέο στο PrismaBoard', NEWS.slice(0, 3), { hint: `Έκδοση ${VERSION}`, more: NEWS.slice(3) });
-$('verLine').textContent = $('verMain').textContent = `Έκδοση ${VERSION}`;
+const showNews = (): Promise<void> => notice(t('Τι νέο στο PrismaBoard', "What's new in PrismaBoard"), NEWS.slice(0, 3), { hint: t(`Έκδοση ${VERSION}`, `Version ${VERSION}`), more: NEWS.slice(3) });
+$('verLine').textContent = $('verMain').textContent = t(`Έκδοση ${VERSION}`, `Version ${VERSION}`);
 // οι οδηγίες ως σελίδα, με κινούμενα κλιπ· το PDF μένει για εκτύπωση
 $('wHelp').onclick = () => openPage('./odigies.html');
 // άγγιγμα έξω από την κάρτα (π.χ. παλάμη ή μανίκι στον πίνακα): κλείνει για τώρα, αλλά η γνωριμία ξαναβγαίνει στο επόμενο άνοιγμα· μόνο το «Ξεκίνα» τη σημειώνει ως ειδωμένη
@@ -1041,7 +1049,7 @@ document.addEventListener('fullscreenchange', () => {
   const on = !!document.fullscreenElement;
   $('fsExit').classList.toggle('hidden', !on);
   const label = document.querySelector('#menu [data-act="full"]')?.lastChild;
-  if (label) label.textContent = on ? 'Έξοδος από πλήρη οθόνη' : 'Πλήρης οθόνη';
+  if (label) label.textContent = on ? t('Έξοδος από πλήρη οθόνη', 'Exit full screen') : t('Πλήρης οθόνη', 'Full screen');
 });
 board.onView = () => {
   const t = `${Math.round(board.zoom * 100)}%`;
@@ -1154,22 +1162,25 @@ if (isNative && !isOverlay) {
     try {
       await lessons?.flush(true);
       let total = 0, got = 0;
-      toast('Κατεβαίνει η ενημέρωση…', 0);
+      toast(t('Κατεβαίνει η ενημέρωση…', 'Downloading the update…'), 0);
       await u.downloadAndInstall((e) => {
         if (e.event === 'Started') total = e.data?.contentLength ?? 0;
-        else if (e.event === 'Progress' && total) toast(`Κατεβαίνει η ενημέρωση… ${Math.round(((got += e.data?.chunkLength ?? 0) / total) * 100)}%`, 0);
-        else if (e.event === 'Finished') toast('Εγκατάσταση της ενημέρωσης…', 0);
+        else if (e.event === 'Progress' && total) {
+          const pct = Math.round(((got += e.data?.chunkLength ?? 0) / total) * 100);
+          toast(t(`Κατεβαίνει η ενημέρωση… ${pct}%`, `Downloading the update… ${pct}%`), 0);
+        } else if (e.event === 'Finished') toast(t('Εγκατάσταση της ενημέρωσης…', 'Installing the update…'), 0);
       });
       await nativeRelaunch();
     } catch (err) {
-      toast(`Η ενημέρωση δεν ολοκληρώθηκε: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      toast(t(`Η ενημέρωση δεν ολοκληρώθηκε: ${msg}`, `The update didn't finish: ${msg}`), 8000);
       busy = false;
     }
   };
   const check = async (): Promise<void> => {
     const u = busy ? null : await nativeCheckUpdate();
     if (!u) return;
-    toast(`Υπάρχει νέα έκδοση του PrismaBoard (${u.version})`, 0, { label: 'Ενημέρωση', run: () => void install(u) });
+    toast(t(`Υπάρχει νέα έκδοση του PrismaBoard (${u.version})`, `A new version of PrismaBoard is available (${u.version})`), 0, { label: t('Ενημέρωση', 'Update'), run: () => void install(u) });
   };
   setTimeout(() => void check(), 8000);
   setInterval(() => void check(), 24 * 3600000);
@@ -1187,7 +1198,7 @@ if (import.meta.env.PROD && !isNative && !isAndroidApp) {
     const now = await buildId();
     if (!now || now === mine) return;
     told = true;
-    toast('Υπάρχει νέα έκδοση του PrismaBoard', 0, { label: 'Ανανέωση', run: () => void (lessons?.flush(true) ?? Promise.resolve()).then(() => location.reload()) });
+    toast(t('Υπάρχει νέα έκδοση του PrismaBoard', 'A new version of PrismaBoard is available'), 0, { label: t('Ανανέωση', 'Reload'), run: () => void (lessons?.flush(true) ?? Promise.resolve()).then(() => location.reload()) });
   };
   document.addEventListener('visibilitychange', () => void check());
   setInterval(() => void check(), 10 * 60000);

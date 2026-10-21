@@ -27,12 +27,22 @@
 <body>
 <header>
   <img src="./logo.svg" alt="" />
-  <div><b>Το μάθημα</b><span>PrismaBoard</span></div>
+  <div><b id="t">Το μάθημα</b><span>PrismaBoard</span></div>
   <a class="btn sec" id="open" target="_blank" rel="noopener">Άνοιγμα στο Drive</a>
   <a class="btn" id="get">Λήψη PDF</a>
 </header>
 <div id="none" hidden>Ο σύνδεσμος δεν είναι σωστός. Σκάναρε ξανά το QR από τον πίνακα.</div>
 <script>
+// Η γλώσσα του κινητού του μαθητή (όχι του καθηγητή): ελληνικά αν ξεκινά από el, αλλιώς αγγλικά.
+const en = !/^el\b/i.test(navigator.language || '');
+if (en) {
+  document.documentElement.lang = 'en';
+  document.title = 'The lesson – PrismaBoard';
+  document.getElementById('t').textContent = 'The lesson';
+  document.getElementById('open').textContent = 'Open in Drive';
+  document.getElementById('get').textContent = 'Download PDF';
+  document.getElementById('none').textContent = 'This link is not valid. Scan the QR code on the board again.';
+}
 // Το αναγνωριστικό του αρχείου είναι μετά το # και δεν στέλνεται σε κανέναν διακομιστή εκτός από το Google Drive που το προβάλλει.
 const id = decodeURIComponent(location.hash.slice(1));
 if (/^[\w-]{10,100}$/.test(id)) {
@@ -40,7 +50,7 @@ if (/^[\w-]{10,100}$/.test(id)) {
   document.getElementById('get').href = 'https://drive.google.com/uc?export=download&id=' + id;
   const f = document.createElement('iframe');
   f.src = 'https://drive.google.com/file/d/' + id + '/preview';
-  f.title = 'Οι σελίδες του μαθήματος';
+  f.title = en ? 'The lesson pages' : 'Οι σελίδες του μαθήματος';
   f.allow = 'autoplay';
   document.body.append(f);
 } else {

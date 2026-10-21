@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 /** Αιωρούμενο χρονόμετρο: αντίστροφη μέτρηση όταν έχει οριστεί χρόνος, αλλιώς μετράει προς τα πάνω. */
 export class Timer {
   private el: HTMLElement;
@@ -14,7 +16,7 @@ export class Timer {
     parent.insertAdjacentHTML(
       'beforeend',
       `<div id="timer" class="hidden">
-        <div class="thead"><span>⏱ Χρονόμετρο</span><button data-t="close">✕</button></div>
+        <div class="thead"><span>${t('⏱ Χρονόμετρο', '⏱ Timer')}</span><button data-t="close">✕</button></div>
         <div class="tdisplay">05:00</div>
         <div class="row">
           <button data-add="-60">−1′</button>
@@ -24,8 +26,8 @@ export class Timer {
           <button data-add="300">+5′</button>
         </div>
         <div class="row">
-          <button data-t="start" class="go">▶ Έναρξη</button>
-          <button data-t="reset">↺ Μηδενισμός</button>
+          <button data-t="start" class="go">${t('▶ Έναρξη', '▶ Start')}</button>
+          <button data-t="reset">${t('↺ Μηδενισμός', '↺ Reset')}</button>
         </div>
       </div>`
     );
@@ -115,7 +117,7 @@ export class Timer {
     const m = Math.floor(total / 60);
     const s = total % 60;
     this.display.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    this.startBtn.textContent = this.running ? '⏸ Παύση' : '▶ Έναρξη';
+    this.startBtn.textContent = this.running ? t('⏸ Παύση', '⏸ Pause') : t('▶ Έναρξη', '▶ Start');
   }
 
   private beep(): void {

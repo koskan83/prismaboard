@@ -3,6 +3,7 @@
  * τις αλλάζει από το «📋 Λέξεις» της πλήρους οθόνης· οι αλλαγές φυλάγονται στη συσκευή (βλ. ready-ui.ts) και τα παιχνίδια
  * παίρνουν πάντα τη λίστα από εδώ, με το readyWords.
  */
+import { t } from '../i18n';
 
 /** Συλλαβές: γνωστές στα παιδιά, από 2 ως 5 συλλαβές. */
 const SYL_WORDS: string[] = [
@@ -42,15 +43,16 @@ export const SPELL_READY_EN = [
 ].map((s) => s.split(' '));
 
 const GRADES = ['Α΄', 'Β΄', 'Γ΄', 'Δ΄', 'Ε΄', 'ΣΤ΄'];
+const grade = (g: string, k: number, en: boolean): string => t(`${g} τάξη${en ? ' (Αγγλικά)' : ''}`, `Grade ${k + 1}${en ? ' (English)' : ' (Greek)'}`);
 
 /** Μια λίστα έτοιμων λέξεων: σε ποιο παιχνίδι ανήκει, πώς λέγεται, και οι αρχικές της λέξεις. */
 export interface ReadyList { id: string; game: 'syllables' | 'hangman' | 'spell'; name: string; words: string[] }
 
 export const READY_LISTS: ReadyList[] = [
-  { id: 'syllables', game: 'syllables', name: 'Συλλαβές', words: SYL_WORDS },
-  { id: 'hangman', game: 'hangman', name: 'Κρεμάλα', words: HANG_WORDS },
-  ...GRADES.map((g, k): ReadyList => ({ id: `spell-el-${k}`, game: 'spell', name: `${g} τάξη`, words: SPELL_READY[k] })),
-  ...GRADES.map((g, k): ReadyList => ({ id: `spell-en-${k}`, game: 'spell', name: `${g} τάξη (Αγγλικά)`, words: SPELL_READY_EN[k] })),
+  { id: 'syllables', game: 'syllables', name: t('Συλλαβές', 'Syllables'), words: SYL_WORDS },
+  { id: 'hangman', game: 'hangman', name: t('Κρεμάλα', 'Hangman'), words: HANG_WORDS },
+  ...GRADES.map((g, k): ReadyList => ({ id: `spell-el-${k}`, game: 'spell', name: grade(g, k, false), words: SPELL_READY[k] })),
+  ...GRADES.map((g, k): ReadyList => ({ id: `spell-en-${k}`, game: 'spell', name: grade(g, k, true), words: SPELL_READY_EN[k] })),
 ];
 
 /** Οι λίστες που άλλαξε ο δάσκαλος (μόνο αυτές), ανά id. */

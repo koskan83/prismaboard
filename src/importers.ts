@@ -1,4 +1,5 @@
 import { Page, uid } from './model';
+import { t } from './i18n';
 
 export interface PicData {
   src: string;
@@ -99,7 +100,7 @@ export async function openDocx(file: File): Promise<OpenPdf> {
   const sections = [...body.querySelectorAll<HTMLElement>('section.docx')];
   if (sections.length === 0) {
     host.remove();
-    throw new Error('Το έγγραφο δεν έχει περιεχόμενο');
+    throw new Error(t('Το έγγραφο δεν έχει περιεχόμενο', 'The document has no content'));
   }
   const ser = new XMLSerializer();
   const css = [...styles.querySelectorAll('style')].map((st) => ser.serializeToString(st)).join('');

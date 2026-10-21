@@ -8,6 +8,7 @@
 import { confirmBox, notice } from './dialog';
 import { kvAll, kvPutMany } from './storage';
 import { mergeMove, parse, type Meta } from './move-merge';
+import { t } from './i18n';
 
 // στην ανάπτυξη: «παλιά» είναι η 127.0.0.1 και «νέα» η localhost, για να δοκιμάζεται η μεταφορά σε έναν υπολογιστή
 const DEV = import.meta.env.DEV;
@@ -38,26 +39,26 @@ export async function offerMove(flush: () => Promise<void>, backup: () => Promis
   try { moved = localStorage.getItem(MOVED) ?? ''; } catch { /* χωρίς αποθήκευση */ }
   const host = new URL(NEW_URL).host;
   const go = await confirmBox(
-    'Το PrismaBoard μετακόμισε',
-    moved ? 'Άνοιγμα της νέας διεύθυνσης' : 'Μεταφορά των μαθημάτων',
+    t('Το PrismaBoard μετακόμισε', 'PrismaBoard has moved'),
+    moved ? t('Άνοιγμα της νέας διεύθυνσης', 'Open the new address') : t('Μεταφορά των μαθημάτων', 'Move the lessons'),
     false,
     moved
-      ? `Η νέα διεύθυνση είναι ${host}. Τα μαθήματα έχουν ήδη μεταφερθεί· ό,τι άλλαξες εδώ μετά θα περάσει κι αυτό με το κουμπί.`
-      : `Η νέα διεύθυνση είναι ${host}. Πάτα το κουμπί: ανοίγει η νέα διεύθυνση και παίρνει μαζί όλα τα μαθήματα, τα τμήματα και τις ρυθμίσεις σου.`,
-    'Αργότερα',
+      ? t(`Η νέα διεύθυνση είναι ${host}. Τα μαθήματα έχουν ήδη μεταφερθεί· ό,τι άλλαξες εδώ μετά θα περάσει κι αυτό με το κουμπί.`, `The new address is ${host}. Your lessons have already been moved; anything you changed here since then will also be moved with the button.`)
+      : t(`Η νέα διεύθυνση είναι ${host}. Πάτα το κουμπί: ανοίγει η νέα διεύθυνση και παίρνει μαζί όλα τα μαθήματα, τα τμήματα και τις ρυθμίσεις σου.`, `The new address is ${host}. Tap the button: the new address opens and takes along all your lessons, classes and settings.`),
+    t('Αργότερα', 'Later'),
   );
   if (!go) return;
   // το παράθυρο ανοίγει αμέσως μετά το πάτημα, αλλιώς ο browser το μπλοκάρει
   const w = window.open(`${NEW_URL}?${PARAM}=1`, '_blank');
-  if (!w) return void notice('Δεν άνοιξε η νέα διεύθυνση', [`Ο browser μπλόκαρε το νέο παράθυρο. Επίτρεψε τα αναδυόμενα παράθυρα για αυτή τη σελίδα και πάτα ξανά, ή άνοιξε το ${host}.`]);
+  if (!w) return void notice(t('Δεν άνοιξε η νέα διεύθυνση', 'The new address did not open'), [t(`Ο browser μπλόκαρε το νέο παράθυρο. Επίτρεψε τα αναδυόμενα παράθυρα για αυτή τη σελίδα και πάτα ξανά, ή άνοιξε το ${host}.`, `The browser blocked the new window. Allow pop-ups for this page and tap again, or open ${host}.`)]);
   await flush().catch(() => undefined);
   let ready = false;
   setTimeout(() => {
     if (ready) return;
     window.removeEventListener('message', listen);
-    void confirmBox('Η αυτόματη μεταφορά δεν ολοκληρώθηκε', 'Κατέβασμα σε αρχείο', false,
-      `Κατέβασε τα μαθήματα σε αρχείο. Μετά, στο ${host}: κουμπί «Μαθήματα» (τα τετραγωνάκια πάνω αριστερά) → «Επαναφορά από αρχείο» και διάλεξε το αρχείο.`,
-      'Κλείσιμο').then((ok) => { if (ok) void backup(); });
+    void confirmBox(t('Η αυτόματη μεταφορά δεν ολοκληρώθηκε', 'The automatic move did not finish'), t('Κατέβασμα σε αρχείο', 'Download to a file'), false,
+      t(`Κατέβασε τα μαθήματα σε αρχείο. Μετά, στο ${host}: κουμπί «Μαθήματα» (τα τετραγωνάκια πάνω αριστερά) → «Επαναφορά από αρχείο» και διάλεξε το αρχείο.`, `Download your lessons to a file. Then, on ${host}: the “Lessons” button (the little squares at the top left) → “Restore from file” and pick the file.`),
+      t('Κλείσιμο', 'Close')).then((ok) => { if (ok) void backup(); });
   }, 20000);
   const onMsg = async (e: MessageEvent): Promise<void> => {
     if (e.origin !== NEW_ORIGIN || e.source !== w) return;
@@ -95,7 +96,7 @@ export async function receiveMove(): Promise<void> {
     opener.postMessage({ type: 'prisma-ready' }, OLD_ORIGIN);
   });
   history.replaceState(null, '', location.pathname);
-  if (!data || !Array.isArray(data.kv)) return void notice('Η μεταφορά δεν έγινε', ['Δεν ήρθαν δεδομένα από την παλιά διεύθυνση. Κλείσε αυτή την καρτέλα και πάτα ξανά «Μεταφορά» εκεί.']);
+  if (!data || !Array.isArray(data.kv)) return void notice(t('Η μεταφορά δεν έγινε', 'The move did not happen'), [t('Δεν ήρθαν δεδομένα από την παλιά διεύθυνση. Κλείσε αυτή την καρτέλα και πάτα ξανά «Μεταφορά» εκεί.', 'No data came from the old address. Close this tab and tap “Move” there again.')]);
   const kv = data.kv.filter((e): e is [string, string] => Array.isArray(e) && typeof e[0] === 'string' && typeof e[1] === 'string');
   const have = new Map(await kvAll());
   // εδώ δεν υπήρχαν ακόμα μαθήματα: οι ρυθμίσεις της παλιάς διεύθυνσης παίρνουν τη θέση των αρχικών
@@ -121,9 +122,9 @@ export function movedNotice(): boolean {
     sessionStorage.removeItem(DONE);
   } catch { /* χωρίς αποθήκευση */ }
   if (n === null) return false;
-  void notice('Η μεταφορά έγινε', [
-    n === '1' ? 'Πέρασε 1 μάθημα.' : `Πέρασαν ${n} μαθήματα.`,
-    'Από εδώ και πέρα άνοιγε αυτή τη διεύθυνση. Βάλ’ τη στους σελιδοδείκτες ή εγκατάστησέ τη ξανά ως εφαρμογή.',
+  void notice(t('Η μεταφορά έγινε', 'The move is done'), [
+    n === '1' ? t('Πέρασε 1 μάθημα.', '1 lesson was moved.') : t(`Πέρασαν ${n} μαθήματα.`, `${n} lessons were moved.`),
+    t('Από εδώ και πέρα άνοιγε αυτή τη διεύθυνση. Βάλ’ τη στους σελιδοδείκτες ή εγκατάστησέ τη ξανά ως εφαρμογή.', 'From now on open this address. Bookmark it or install it again as an app.'),
   ]);
   return true;
 }

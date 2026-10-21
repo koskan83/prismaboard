@@ -1,3 +1,5 @@
+import { t } from './i18n';
+
 export type Pt = [number, number];
 
 export interface Stroke {
@@ -304,12 +306,12 @@ function itemOk(it: Item): boolean {
 
 export function readDoc(raw: unknown): Doc {
   const r = raw as Record<string, unknown> | null;
-  if (!r || typeof r !== 'object' || typeof r.v !== 'number' || !Array.isArray(r.pages)) throw new Error('Μη έγκυρο αρχείο πίνακα');
-  if (r.v > DOC_V) throw new Error('Το μάθημα φτιάχτηκε με νεότερη έκδοση του PrismaBoard· ανανέωσε την εφαρμογή για να το ανοίξεις');
+  if (!r || typeof r !== 'object' || typeof r.v !== 'number' || !Array.isArray(r.pages)) throw new Error(t('Μη έγκυρο αρχείο πίνακα', 'Invalid board file'));
+  if (r.v > DOC_V) throw new Error(t('Το μάθημα φτιάχτηκε με νεότερη έκδοση του PrismaBoard· ανανέωσε την εφαρμογή για να το ανοίξεις', 'This lesson was made with a newer version of PrismaBoard; update the app to open it'));
   let d: Record<string, unknown> = r;
   for (let v = r.v; v < DOC_V; v++) {
     const up = UPGRADE[v];
-    if (!up) throw new Error('Μη έγκυρο αρχείο πίνακα');
+    if (!up) throw new Error(t('Μη έγκυρο αρχείο πίνακα', 'Invalid board file'));
     d = { ...up(d), v: v + 1 };
   }
   const pages = (d.pages as unknown[]).map((p): Page => {

@@ -1,10 +1,11 @@
 /** Παιχνίδια της τάξης: ζάρι, κλήρωση, ψηφοφορία και ζυγαριά. */
 import type { StampDef } from '../stamps';
+import { t } from '../i18n';
 import { bit, BLUE, fitText, flip, GOOD, GREEN, inR, kid, knob, ORANGE, PURPLE, RED, rrect, skinBtn, sum, text } from './common';
 
 const POLL_COLORS = [BLUE, ORANGE, GREEN, PURPLE, RED];
 /** Με δύο επιλογές η ψηφοφορία είναι ναι/όχι (ή σωστό/λάθος)· με περισσότερες, Α Β Γ Δ Ε. */
-const pollName = (n: number, i: number): string => (n === 2 ? '✓✗'[i] : 'ΑΒΓΔΕ'[i]);
+const pollName = (n: number, i: number): string => (n === 2 ? '✓✗'[i] : t('ΑΒΓΔΕ', 'ABCDE')[i]);
 function pollGeom(v: number[], w: number, h: number): { n: number; top: number; gap: number; cw: number; lab: number; r: number } {
   const n = Math.max(2, Math.min(5, v[0] || 4)), top = h * 0.78, gap = w * 0.03;
   return { n, top, gap, cw: (w - gap * (n + 1)) / n, lab: h * 0.13, r: (h - top) * 0.36 };
@@ -61,7 +62,7 @@ function scaleGeom(s: Scale, w: number, h: number, tilt?: number): { th: number;
 
 export const GAME_KIDS: Record<string, StampDef> = {
   dice: kid({
-    label: 'Ζάρι', w: 150, h: 150, init: [5],
+    label: t('Ζάρι', 'Dice'), w: 150, h: 150, init: [5],
     drawKid(c, w, h, v, env) {
       rrect(c, 2, 2, w - 4, h - 4, w * 0.16);
       c.fillStyle = '#ffffff';
@@ -86,7 +87,7 @@ export const GAME_KIDS: Record<string, StampDef> = {
   }),
 
   lottery: kid({
-    label: 'Κλήρωση', w: 240, h: 270, init: [0, 25],
+    label: t('Κλήρωση', 'Draw names'), w: 240, h: 270, init: [0, 25],
     drawKid(c, w, h, v, env) {
       const names = env.names?.length ? env.names : null;
       const n = names ? names.length : v[1] || 25, top = h * 0.74;
@@ -112,12 +113,12 @@ export const GAME_KIDS: Record<string, StampDef> = {
         let left = 0;
         for (let i = 0; i < n; i++) if (!bit(v, 2, i)) left++;
         knob(c, w * 0.16, y, r, '⟳', env);
-        fitText(c, `έμειναν ${left} από ${n}`, w * 0.62, y + 1, (h - top) * 0.3, w * 0.6, env.ink, 600);
+        fitText(c, t(`έμειναν ${left} από ${n}`, `${left} of ${n} left`), w * 0.62, y + 1, (h - top) * 0.3, w * 0.6, env.ink, 600);
         return;
       }
       knob(c, w * 0.16, y, r, '−', env);
       knob(c, w * 0.84, y, r, '+', env);
-      text(c, `1 έως ${n}`, w / 2, y + 1, (h - top) * 0.36, env.ink, 600);
+      text(c, t(`1 έως ${n}`, `1 to ${n}`), w / 2, y + 1, (h - top) * 0.36, env.ink, 600);
     },
     tap(v, x, y, w, h, env) {
       const n = v[1] || 25, top = h * 0.74, r = (h - top) * 0.36, sy = top + (h - top) / 2;
@@ -154,7 +155,7 @@ export const GAME_KIDS: Record<string, StampDef> = {
 
   // ψηφοφορία της τάξης πάνω στον πίνακα: [πόσες επιλογές, φαίνεται το αποτέλεσμα, ψήφοι κάθε επιλογής…]
   poll: kid({
-    label: 'Ψηφοφορία', w: 560, h: 380, init: [4, 0, 0, 0, 0, 0, 0],
+    label: t('Ψηφοφορία', 'Vote'), w: 560, h: 380, init: [4, 0, 0, 0, 0, 0, 0],
     drawKid(c, w, h, v, env) {
       const g = pollGeom(v, w, h);
       const votes = Array.from({ length: g.n }, (_, i) => v[2 + i] ?? 0);
@@ -188,7 +189,7 @@ export const GAME_KIDS: Record<string, StampDef> = {
         knob(c, w * 0.08, y, g.r, '−', env);
         knob(c, w * 0.2, y, g.r, '+', env);
       } else knob(c, w * 0.08, y, g.r, '⟳', env);
-      text(c, total === 1 ? 'Ψήφισε 1' : `Ψήφισαν ${total}`, w * 0.5, y + 1, (h - g.top) * 0.36, env.ink, 600);
+      text(c, total === 1 ? t('Ψήφισε 1', '1 vote') : t(`Ψήφισαν ${total}`, `${total} votes`), w * 0.5, y + 1, (h - g.top) * 0.36, env.ink, 600);
       skinBtn(c, w * 0.9, y, g.r, '📊', !!v[1], env);
     },
     tap(v, x, y, w, h) {
@@ -210,7 +211,7 @@ export const GAME_KIDS: Record<string, StampDef> = {
   }),
 
   balance: kid({
-    label: 'Ζυγαριά', w: 660, h: 430, init: [1, 0],
+    label: t('Ζυγαριά', 'Balance scale'), w: 660, h: 430, init: [1, 0],
     drawKid(c, w, h, v, env) {
       const s = readScale(v);
       // μόλις αλλάξουν τα βάρη ο ζυγός πηγαίνει στη νέα θέση ταλαντευόμενος, όπως μια αληθινή ζυγαριά
@@ -291,7 +292,7 @@ export const GAME_KIDS: Record<string, StampDef> = {
       });
       // άσκηση: τα αριστερά βαρίδια είναι δοσμένα και ζητείται να ισορροπήσει η ζυγαριά από τα δεξιά
       skinBtn(c, w * 0.07, h * 0.1, w * 0.045, '🎯', !!s.goal, env);
-      if (s.goal) fitText(c, L === R ? '✓ Ισορρόπησε!' : 'Ισορρόπησε τη ζυγαριά', w / 2, h * 0.06, h * 0.06, w * 0.6, L === R ? GOOD : env.ink, 700);
+      if (s.goal) fitText(c, L === R ? t('✓ Ισορρόπησε!', '✓ Balanced!') : t('Ισορρόπησε τη ζυγαριά', 'Balance the scale'), w / 2, h * 0.06, h * 0.06, w * 0.6, L === R ? GOOD : env.ink, 700);
       c.fillStyle = env.ink;
       // όταν ισορροπήσει με βαρίδια και στις δύο πλευρές, η ισότητα «ανάβει» πράσινη για λίγο
       const glow = an && s.show && L === R && L > 0 && an.t < 1200 ? Math.sin((an.t / 1200) * Math.PI) : 0;

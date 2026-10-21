@@ -1,5 +1,7 @@
 /** Μικρός, ασφαλής μεταγλωττιστής μαθηματικών εκφράσεων του x (χωρίς eval). */
 
+import { t } from './i18n';
+
 /** Τιμές παραμέτρων (a, b, …) που ορίζονται με δρομείς. */
 export type Params = Record<string, number>;
 export type Fn = (x: number, p?: Params) => number;
@@ -12,10 +14,10 @@ const FUNCS: Record<string, (v: number) => number> = {
   'ρίζα': Math.sqrt, 'ριζα': Math.sqrt,
   ln: Math.log,
   log: Math.log10,
+  // και τα αγγλικά ονόματα, ώστε ένα μάθημα να ανοίγει ίδιο και στις δύο γλώσσες
+  sin: Math.sin, cos: Math.cos, tan: Math.tan, cot: (v) => 1 / Math.tan(v), sqrt: Math.sqrt, abs: Math.abs, exp: Math.exp,
 };
-const CONSTS: Record<string, number> = { 'π': Math.PI, e: Math.E };
-/** Αγγλικά ονόματα που δεν δεχόμαστε, με το ελληνικό που τους αντιστοιχεί. */
-const ENGLISH: Record<string, string> = { sin: 'ημ', cos: 'συν', tan: 'εφ', cot: 'σφ', sqrt: '√', abs: '|x|', exp: 'e^x', pi: 'π' };
+const CONSTS: Record<string, number> = { 'π': Math.PI, e: Math.E, pi: Math.PI };
 
 type Tok = { t: 'num'; v: number } | { t: 'id'; v: string } | { t: 'par'; v: string } | { t: 'op'; v: string };
 
@@ -33,8 +35,6 @@ function tokenize(src: string): Tok[] {
       let j = i;
       while (j < s.length && /[a-zA-Zα-ωΑ-Ωάέήίόύώ]/.test(s[j])) j++;
       let word = s.slice(i, j).toLowerCase();
-      const en = Object.keys(ENGLISH).find((w) => word.includes(w));
-      if (en) throw new Error(`γράψε «${ENGLISH[en]}» αντί για «${en}»`);
       // «2xsin» δεν υπάρχει ως λέξη: κόβουμε το μακρύτερο γνωστό πρόθεμα, αλλιώς ένα γράμμα
       const known = [...Object.keys(FUNCS), ...Object.keys(CONSTS), 'x'].sort((a, b) => b.length - a.length);
       while (word.length) {
@@ -49,7 +49,7 @@ function tokenize(src: string): Tok[] {
       out.push({ t: 'op', v: ch });
       i++;
     } else {
-      throw new Error(`Άγνωστο σύμβολο «${ch}»`);
+      throw new Error(t(`Άγνωστο σύμβολο «${ch}»`, `Unknown symbol “${ch}”`));
     }
   }
   return out;
@@ -58,12 +58,12 @@ function tokenize(src: string): Tok[] {
 /** Μετατρέπει π.χ. «f(x)=x²-3x+2» σε συνάρτηση. Πετάει Error αν η έκφραση δεν είναι έγκυρη. */
 export function compile(src: string): Fn {
   const toks = tokenize(src.slice(src.lastIndexOf('=') + 1));
-  if (toks.length === 0) throw new Error('Κενή έκφραση');
+  if (toks.length === 0) throw new Error(t('Κενή έκφραση', 'Empty expression'));
   let p = 0;
   const peek = (): Tok | undefined => toks[p];
   const isOp = (v: string): boolean => toks[p]?.t === 'op' && toks[p].v === v;
   const eat = (v: string): void => {
-    if (!isOp(v)) throw new Error(`Λείπει «${v}»`);
+    if (!isOp(v)) throw new Error(t(`Λείπει «${v}»`, `Missing “${v}”`));
     p++;
   };
 
@@ -122,23 +122,23 @@ export function compile(src: string): Fn {
     return b;
   }
   function primary(): Fn {
-    const t = toks[p++];
-    if (!t) throw new Error('Η έκφραση είναι ημιτελής');
-    if (t.t === 'num') {
-      const v = t.v;
+    const tk = toks[p++];
+    if (!tk) throw new Error(t('Η έκφραση είναι ημιτελής', 'The expression is incomplete'));
+    if (tk.t === 'num') {
+      const v = tk.v;
       return () => v;
     }
-    if (t.t === 'par') {
-      const name = t.v;
+    if (tk.t === 'par') {
+      const name = tk.v;
       return (_x, q) => q?.[name] ?? 1;
     }
-    if (t.t === 'id') {
-      if (t.v === 'x') return (x) => x;
-      if (t.v in CONSTS) {
-        const v = CONSTS[t.v];
+    if (tk.t === 'id') {
+      if (tk.v === 'x') return (x) => x;
+      if (tk.v in CONSTS) {
+        const v = CONSTS[tk.v];
         return () => v;
       }
-      const f = FUNCS[t.v];
+      const f = FUNCS[tk.v];
       // sin(x)^2 = (sin x)^2, αλλά sin x^2 = sin(x^2)
       let a: Fn;
       if (isOp('(')) {
@@ -150,25 +150,25 @@ export function compile(src: string): Fn {
       }
       return (x, q) => f(a(x, q));
     }
-    if (t.v === '(') {
+    if (tk.v === '(') {
       const a = expr();
       eat(')');
       return a;
     }
-    if (t.v === '|') {
+    if (tk.v === '|') {
       const a = expr();
       eat('|');
       return (x, q) => Math.abs(a(x, q));
     }
-    if (t.v === '√') {
+    if (tk.v === '√') {
       const a = power();
       return (x, q) => Math.sqrt(a(x, q));
     }
-    throw new Error(`Δεν περίμενα «${t.v}»`);
+    throw new Error(t(`Δεν περίμενα «${tk.v}»`, `Did not expect “${tk.v}”`));
   }
 
   const f = expr();
-  if (p < toks.length) throw new Error(`Δεν περίμενα «${toks[p].v}»`);
+  if (p < toks.length) throw new Error(t(`Δεν περίμενα «${toks[p].v}»`, `Did not expect “${toks[p].v}”`));
   return f;
 }
 

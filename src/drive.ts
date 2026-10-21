@@ -5,6 +5,7 @@
  */
 
 import { isAndroidApp } from './platform';
+import { t } from './i18n';
 
 const KEY = 'grafida.drive';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
@@ -51,7 +52,7 @@ function loadGis(): Promise<Gis> {
     s.onload = () => res((window as unknown as { google: Gis }).google);
     s.onerror = () => {
       gis = null;
-      rej(new Error('Δεν φορτώθηκε η σύνδεση της Google (χρειάζεται ίντερνετ)'));
+      rej(new Error(t('Δεν φορτώθηκε η σύνδεση της Google (χρειάζεται ίντερνετ)', "Couldn't load Google sign-in (an internet connection is needed)")));
     };
     document.head.append(s);
   });
@@ -69,18 +70,18 @@ async function getToken(): Promise<string> {
   if (token && Date.now() < token.until) return token.value;
   if (isAndroidApp) return androidToken();
   const clientId = driveClientId();
-  if (!clientId) throw new Error('Δεν έχει οριστεί Client ID');
+  if (!clientId) throw new Error(t('Δεν έχει οριστεί Client ID', 'No Client ID has been set'));
   const g = await loadGis();
   return new Promise<string>((res, rej) => {
     const client = g.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: SCOPE,
       callback: (r) => {
-        if (!r.access_token) return rej(new Error(r.error_description ?? r.error ?? 'Η Google δεν έδωσε πρόσβαση'));
+        if (!r.access_token) return rej(new Error(r.error_description ?? r.error ?? t('Η Google δεν έδωσε πρόσβαση', "Google didn't grant access")));
         token = { value: r.access_token, until: Date.now() + ((r.expires_in ?? 3600) - 60) * 1000 };
         res(r.access_token);
       },
-      error_callback: (e) => rej(new Error(e.type === 'popup_closed' ? 'Το παράθυρο της Google έκλεισε' : e.type === 'popup_failed_to_open' ? 'Ο browser μπλόκαρε το παράθυρο της Google' : e.message ?? 'Αποτυχία σύνδεσης')),
+      error_callback: (e) => rej(new Error(e.type === 'popup_closed' ? t('Το παράθυρο της Google έκλεισε', 'The Google window was closed') : e.type === 'popup_failed_to_open' ? t('Ο browser μπλόκαρε το παράθυρο της Google', 'The browser blocked the Google window') : e.message ?? t('Αποτυχία σύνδεσης', "Couldn't sign in"))),
     });
     client.requestAccessToken({ prompt: '' });
   });
@@ -108,7 +109,7 @@ async function request(url: string, init: RequestInit, tk: string, retry = true)
     res = await fetch(url, { ...init, headers: { ...(init.headers as Record<string, string>), authorization: `Bearer ${tk}` } });
   } catch (err) {
     console.error(err);
-    throw new Error('Χωρίς σύνδεση στο ίντερνετ');
+    throw new Error(t('Χωρίς σύνδεση στο ίντερνετ', 'No internet connection'));
   }
   if (res.status === 401 && retry) {
     token = null;
@@ -120,12 +121,12 @@ async function request(url: string, init: RequestInit, tk: string, retry = true)
     console.error('Drive', res.status, body?.error?.message);
     if (res.status === 401) token = null;
     throw new Error(
-      reason === 'storageQuotaExceeded' ? 'Ο χώρος στο Google Drive γέμισε'
-        : res.status === 401 ? 'Η σύνδεση με τη Google έληξε· πάτα ξανά'
-        : res.status === 403 ? 'Η Google δεν επέτρεψε την ενέργεια (δικαιώματα ή όριο χρήσης)'
-        : res.status === 404 ? 'Το αρχείο δεν βρέθηκε στο Google Drive'
-        : res.status === 429 || res.status >= 500 ? 'Το Google Drive δεν απαντά τώρα· δοκίμασε σε λίγο'
-        : `Σφάλμα ${res.status} από το Google Drive`
+      reason === 'storageQuotaExceeded' ? t('Ο χώρος στο Google Drive γέμισε', 'Your Google Drive storage is full')
+        : res.status === 401 ? t('Η σύνδεση με τη Google έληξε· πάτα ξανά', 'Your Google session expired. Tap again')
+        : res.status === 403 ? t('Η Google δεν επέτρεψε την ενέργεια (δικαιώματα ή όριο χρήσης)', "Google didn't allow this (permissions or usage limit)")
+        : res.status === 404 ? t('Το αρχείο δεν βρέθηκε στο Google Drive', 'The file was not found on Google Drive')
+        : res.status === 429 || res.status >= 500 ? t('Το Google Drive δεν απαντά τώρα· δοκίμασε σε λίγο', "Google Drive isn't responding right now. Try again shortly")
+        : t(`Σφάλμα ${res.status} από το Google Drive`, `Error ${res.status} from Google Drive`)
     );
   }
   return res;

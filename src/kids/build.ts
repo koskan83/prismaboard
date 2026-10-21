@@ -1,5 +1,6 @@
 /** Χτίσιμο με τουβλάκια. */
 import type { StampDef } from '../stamps';
+import { t as tr } from '../i18n';
 import { type C, FONT, fullIcon, kid, rrect, text } from './common';
 
 const BCOLS = 24, BROWS = 14;
@@ -15,29 +16,29 @@ function bcells(v: number[]): number[] {
 }
 /** Τα υλικά: βασικό χρώμα, σκούρα και ανοιχτή απόχρωση για την «υφή». */
 const BLOCKS: { name: string; base: string; dark: string; light: string; top?: string; px?: string[]; pal?: Record<string, string> }[] = [
-  { name: 'Γρασίδι', base: '#8b5a2b', dark: '#6b4423', light: '#a9713a', top: '#4caf50' },
-  { name: 'Χώμα', base: '#8b5a2b', dark: '#6b4423', light: '#a9713a' },
-  { name: 'Πέτρα', base: '#9ca3af', dark: '#6b7280', light: '#d1d5db' },
-  { name: 'Ξύλο', base: '#b98146', dark: '#8a5a2b', light: '#d9a066' },
-  { name: 'Κορμός', base: '#6b4423', dark: '#4a2f17', light: '#8b5a2b' },
-  { name: 'Φύλλα', base: '#2e7d32', dark: '#1b5e20', light: '#66bb6a' },
-  { name: 'Τούβλα', base: '#c0392b', dark: '#8e2a20', light: '#e57368' },
-  { name: 'Άμμος', base: '#f4d58d', dark: '#d9b45f', light: '#fbe7b5' },
-  { name: 'Νερό', base: '#3b82f6', dark: '#1d4ed8', light: '#93c5fd' },
-  { name: 'Γυαλί', base: '#bae6fd', dark: '#7dd3fc', light: '#f0f9ff' },
-  { name: 'Χρυσός', base: '#facc15', dark: '#ca8a04', light: '#fef08a' },
+  { name: tr('Γρασίδι', 'Grass'), base: '#8b5a2b', dark: '#6b4423', light: '#a9713a', top: '#4caf50' },
+  { name: tr('Χώμα', 'Dirt'), base: '#8b5a2b', dark: '#6b4423', light: '#a9713a' },
+  { name: tr('Πέτρα', 'Stone'), base: '#9ca3af', dark: '#6b7280', light: '#d1d5db' },
+  { name: tr('Ξύλο', 'Wood'), base: '#b98146', dark: '#8a5a2b', light: '#d9a066' },
+  { name: tr('Κορμός', 'Trunk'), base: '#6b4423', dark: '#4a2f17', light: '#8b5a2b' },
+  { name: tr('Φύλλα', 'Leaves'), base: '#2e7d32', dark: '#1b5e20', light: '#66bb6a' },
+  { name: tr('Τούβλα', 'Bricks'), base: '#c0392b', dark: '#8e2a20', light: '#e57368' },
+  { name: tr('Άμμος', 'Sand'), base: '#f4d58d', dark: '#d9b45f', light: '#fbe7b5' },
+  { name: tr('Νερό', 'Water'), base: '#3b82f6', dark: '#1d4ed8', light: '#93c5fd' },
+  { name: tr('Γυαλί', 'Glass'), base: '#bae6fd', dark: '#7dd3fc', light: '#f0f9ff' },
+  { name: tr('Χρυσός', 'Gold'), base: '#facc15', dark: '#ca8a04', light: '#fef08a' },
   // χαρακτήρες και στολίδια: ζωγραφιές 8 × 8 «ψηφίδων» πάνω στον ουρανό, δεν μετράνε στα τουβλάκια
-  { name: 'Αγόρι', base: '', dark: '', light: '', pal: { H: '#5b3a1e', S: '#f2c29b', e: '#1f2937', B: '#2563eb', P: '#1e3a8a' },
+  { name: tr('Αγόρι', 'Boy'), base: '', dark: '', light: '', pal: { H: '#5b3a1e', S: '#f2c29b', e: '#1f2937', B: '#2563eb', P: '#1e3a8a' },
     px: ['..HHHH..', '..SSSS..', '..eSSe..', '.BBBBBB.', '.SBBBBS.', '..BBBB..', '..PPPP..', '..P..P..'] },
-  { name: 'Κορίτσι', base: '', dark: '', light: '', pal: { H: '#7c2d12', S: '#f2c29b', e: '#1f2937', R: '#ec4899' },
+  { name: tr('Κορίτσι', 'Girl'), base: '', dark: '', light: '', pal: { H: '#7c2d12', S: '#f2c29b', e: '#1f2937', R: '#ec4899' },
     px: ['.HHHHHH.', 'HHSSSSHH', 'HHeSSeHH', 'H.SSSS.H', '.RRRRRR.', '.SRRRRS.', '.RRRRRR.', '..S..S..'] },
-  { name: 'Γουρουνάκι', base: '', dark: '', light: '', pal: { P: '#f9a8d4', e: '#1f2937', n: '#db2777' },
+  { name: tr('Γουρουνάκι', 'Piggy'), base: '', dark: '', light: '', pal: { P: '#f9a8d4', e: '#1f2937', n: '#db2777' },
     px: ['........', 'P......P', '.PPPPPP.', 'PPePPePP', 'PPPnnPPP', 'PPPPPPPP', '.PPPPPP.', '.P.PP.P.'] },
-  { name: 'Τερατάκι', base: '', dark: '', light: '', pal: { G: '#4ade80', e: '#14532d', d: '#166534' },
+  { name: tr('Τερατάκι', 'Little monster'), base: '', dark: '', light: '', pal: { G: '#4ade80', e: '#14532d', d: '#166534' },
     px: ['.GGGGGG.', 'GGGGGGGG', 'GeeGGeeG', 'GeeGGeeG', 'GGGddGGG', 'GGddddGG', 'GGdGGdGG', '.GG..GG.'] },
-  { name: 'Λουλούδι', base: '', dark: '', light: '', pal: { R: '#f43f5e', Y: '#facc15', g: '#16a34a' },
+  { name: tr('Λουλούδι', 'Flower'), base: '', dark: '', light: '', pal: { R: '#f43f5e', Y: '#facc15', g: '#16a34a' },
     px: ['...RR...', '..RYYR..', '..RYYR..', '...RR...', '...g....', '..gg.g..', '...ggg..', '...g....'] },
-  { name: 'Πόρτα', base: '', dark: '', light: '', pal: { W: '#5b3a1e', d: '#b98146', y: '#facc15' },
+  { name: tr('Πόρτα', 'Door'), base: '', dark: '', light: '', pal: { W: '#5b3a1e', d: '#b98146', y: '#facc15' },
     px: ['.WWWWWW.', '.WddddW.', '.WddddW.', '.WddddW.', '.WdddyW.', '.WddddW.', '.WddddW.', '.WddddW.'] },
 ];
 /** Ένα τουβλάκι σε στιλ pixel: βασικό χρώμα, λίγες «ψηφίδες» για υφή, σκούρο περίγραμμα. */
@@ -86,7 +87,7 @@ function buildGeom(w: number, h: number): { s: number; gh: number; slots: number
 
 export const BUILD_KIDS: Record<string, StampDef> = {
   build: kid({
-    label: 'Χτίσιμο με τουβλάκια', w: 960, h: 640, init: [0],
+    label: tr('Χτίσιμο με τουβλάκια', 'Building blocks'), w: 960, h: 640, init: [0],
     drawKid(c, w, h, v, env) {
       const g = buildGeom(w, h);
       // ουρανός και αχνό πλέγμα, για να φαίνεται πού μπαίνει κάθε τουβλάκι
@@ -132,7 +133,7 @@ export const BUILD_KIDS: Record<string, StampDef> = {
       c.textAlign = 'right';
       c.textBaseline = 'top';
       c.fillStyle = '#1e3a8a';
-      c.fillText(`${count} τουβλάκια`, w - g.s * 0.2, g.s * 0.14);
+      c.fillText(tr(`${count} τουβλάκια`, `${count} blocks`), w - g.s * 0.2, g.s * 0.14);
       c.restore();
     },
     fullAt(x, y, w, h) {

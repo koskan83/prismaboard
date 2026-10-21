@@ -6,25 +6,26 @@ import { isNative, nativeScreenshot } from './native';
 import { $, board, toast } from './app';
 import { pickPages } from './send-ui';
 import { lessons } from './main';
+import { t } from './i18n';
 
 export async function importFiles(files: File[]): Promise<void> {
   for (const f of files) {
     try {
       const word = /\.docx$/i.test(f.name) || f.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       if (/\.(doc|odt|rtf)$/i.test(f.name)) {
-        toast('Αυτή η μορφή δεν ανοίγει. Αποθήκευσέ το από το Word ως .docx ή ως PDF.', 7000);
+        toast(t('Αυτή η μορφή δεν ανοίγει. Αποθήκευσέ το από το Word ως .docx ή ως PDF.', "This format can't be opened. Save it from Word as .docx or PDF."), 7000);
       } else if (word || f.type === 'application/pdf' || /\.pdf$/i.test(f.name)) {
         const kind = word ? 'Word' : 'PDF';
-        toast(`Ανοίγει το ${kind}…`, 0);
+        toast(t(`Ανοίγει το ${kind}…`, `Opening the ${kind}…`), 0);
         const pdf = await (word ? openDocx(f) : openPdf(f));
         try {
           toast('', 1);
           // με πάνω από μία σελίδα ρωτάμε ποιες θα μπουν
-          const list = pdf.n > 1 ? await pickPages(`Εισαγωγή από «${f.name}»`, 'Εισαγωγή', pdf.n, (i, w) => pdf.thumb(i, w)) : [0];
+          const list = pdf.n > 1 ? await pickPages(t(`Εισαγωγή από «${f.name}»`, `Import from “${f.name}”`), t('Εισαγωγή', 'Import'), pdf.n, (i, w) => pdf.thumb(i, w)) : [0];
           if (!list) continue;
-          const pages = await pdf.pages(list, (d, n) => toast(`Εισαγωγή ${kind}… σελίδα ${Math.min(d + 1, n)} από ${n}`, 0));
+          const pages = await pdf.pages(list, (d, n) => toast(t(`Εισαγωγή ${kind}… σελίδα ${Math.min(d + 1, n)} από ${n}`, `Importing ${kind}… page ${Math.min(d + 1, n)} of ${n}`), 0));
           board.appendPages(pages);
-          toast(pages.length === 1 ? `Προστέθηκε 1 σελίδα από το ${kind}` : `Προστέθηκαν ${pages.length} σελίδες από το ${kind}`);
+          toast(pages.length === 1 ? t(`Προστέθηκε 1 σελίδα από το ${kind}`, `Added 1 page from the ${kind}`) : t(`Προστέθηκαν ${pages.length} σελίδες από το ${kind}`, `Added ${pages.length} pages from the ${kind}`));
         } finally {
           pdf.close();
         }
@@ -41,11 +42,11 @@ export async function importFiles(files: File[]): Promise<void> {
           board.loadDoc(readDoc(j?.grafida === 'backup' ? j.lessons?.[0]?.doc : j));
         }
       } else {
-        toast(`Μη υποστηριζόμενο αρχείο: ${f.name}`);
+        toast(t(`Μη υποστηριζόμενο αρχείο: ${f.name}`, `Unsupported file: ${f.name}`));
       }
     } catch (err) {
       console.error(err);
-      toast(err instanceof Error && err.message.includes('νεότερη') ? err.message : `Αποτυχία εισαγωγής: ${f.name}`, 6000);
+      toast(err instanceof Error && (err.message.includes('νεότερη') || err.message.includes('newer version')) ? err.message : t(`Αποτυχία εισαγωγής: ${f.name}`, `Couldn't import: ${f.name}`), 6000);
     }
   }
 }
@@ -57,7 +58,7 @@ export async function doScreenshot(): Promise<void> {
   } catch (err) {
     const name = (err as Error).name;
     if (name === 'NotAllowedError') return; // ο χρήστης ακύρωσε
-    toast('Η λήψη οθόνης δεν υποστηρίζεται εδώ. Βγάλε στιγμιότυπο με τη συσκευή και πάτα «Επικόλληση» ή Εισαγωγή αρχείου.', 7000);
+    toast(t('Η λήψη οθόνης δεν υποστηρίζεται εδώ. Βγάλε στιγμιότυπο με τη συσκευή και πάτα «Επικόλληση» ή Εισαγωγή αρχείου.', 'Screen capture isn’t supported here. Take a screenshot with your device and tap “Paste” or Import file.'), 7000);
   }
 }
 
@@ -65,13 +66,13 @@ export async function doPaste(): Promise<void> {
   try {
     const blob = await clipboardImage();
     if (!blob) {
-      toast('Δεν βρέθηκε εικόνα στο πρόχειρο');
+      toast(t('Δεν βρέθηκε εικόνα στο πρόχειρο', 'No image found on the clipboard'));
       return;
     }
     const pic = await blobToPic(blob);
     board.addPicture(pic.src, pic.w, pic.h);
   } catch {
-    toast('Δεν επιτρέπεται η πρόσβαση στο πρόχειρο. Δοκίμασε Ctrl+V.', 5000);
+    toast(t('Δεν επιτρέπεται η πρόσβαση στο πρόχειρο. Δοκίμασε Ctrl+V.', 'Clipboard access isn’t allowed. Try Ctrl+V.'), 5000);
   }
 }
 

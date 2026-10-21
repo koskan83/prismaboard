@@ -1,6 +1,7 @@
 /** Καθαροί υπολογισμοί για μετρήσεις και ετικέτες: πλευρές, γωνίες, μορφοποίηση αριθμών. Δεν αγγίζουν τον καμβά. */
 
 import { AngleItem, Item, MeasOpts, Pt, Shape, TrigItem, angleEnds, axesRange, isPoly, trianglePts, unrot } from './model';
+import { locale, t } from './i18n';
 
 export function trigPoint(t: TrigItem): Pt {
   return [t.x + t.r * Math.cos(t.a), t.y - t.r * Math.sin(t.a)];
@@ -64,7 +65,7 @@ export function hlFlat(color: string, bg: [number, number, number]): string | nu
 }
 
 export function fmt(n: number): string {
-  return n.toLocaleString('el', { maximumFractionDigits: 1 });
+  return n.toLocaleString(locale, { maximumFractionDigits: 1 });
 }
 
 /** Μια πλευρά σχήματος που μετριέται: τα άκρα της, το μήκος της και η θέση της ετικέτας. */
@@ -235,7 +236,7 @@ export function sideSlope(m: { a: Pt; b: Pt }, u: Units): number | null {
 export function fmtU(n: number): string {
   const a = Math.abs(n);
   const d = a === 0 || a >= 10 ? 1 : a >= 1 ? 2 : a >= 0.1 ? 2 : 3;
-  return (+n.toFixed(d) || 0).toLocaleString('el', { maximumFractionDigits: d }).replace('-', '−');
+  return (+n.toFixed(d) || 0).toLocaleString(locale, { maximumFractionDigits: d }).replace('-', '−');
 }
 
 /**
@@ -246,7 +247,7 @@ export function sideText(m: { a: Pt; b: Pt; len: number }, u: Units, line: boole
   if (!u.axes) return fmt(m.len * u.kx);
   const len = sideLen(m, u), slope = sideSlope(m, u);
   const flat = slope !== null && Math.abs(m.b[1] - m.a[1]) <= m.len * 0.02;
-  const sl = slope === null || flat ? '' : `λ = ${fmtU(slope)}`;
+  const sl = slope === null || flat ? '' : `${t('λ', 'm')} = ${fmtU(slope)}`;
   if (len === null) return sl;
   return line && sl ? `${fmtU(len)}   ${sl}` : fmtU(len);
 }

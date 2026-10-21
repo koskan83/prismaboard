@@ -3,6 +3,7 @@
  * πλήρους οθόνης τις δείχνει και τις αλλάζει. Φυλάγονται μόνο οι λίστες που άλλαξαν· οι άλλες μένουν όπως έρχονται.
  */
 import { editReady, type ReadyEdit } from './dialog';
+import { t } from './i18n';
 import { READY_LISTS, readyCustom, readyWords, setReadyCustom } from './kids/ready-words';
 import { spellList } from './kids/spell-words';
 import { kvGet, kvSet } from './storage';
@@ -52,9 +53,9 @@ function parseSpell(text: string): { ok: string[]; bad: string[] } {
 }
 
 const HINTS: Record<string, string> = {
-  syllables: 'Οι λέξεις του 🎲 Νέα λέξη. Με παύλες ορίζεις εσύ τον χωρισμό (βι-βλι-ο-θή-κη).',
-  hangman: 'Οι λέξεις του 🎲 Νέα λέξη· γράφονται χωρίς τόνους, με κεφαλαία.',
-  spell: 'Οι έτοιμες λέξεις κάθε τάξης· κάθε παιχνίδι παίρνει 8 στην τύχη. Στα Αγγλικά γράψε και τη σημασία: apple = μήλο.',
+  syllables: t('Οι λέξεις του 🎲 Νέα λέξη. Με παύλες ορίζεις εσύ τον χωρισμό (βι-βλι-ο-θή-κη).', 'The words for 🎲 New word (Greek). Use dashes to set the split yourself (βι-βλι-ο-θή-κη).'),
+  hangman: t('Οι λέξεις του 🎲 Νέα λέξη· γράφονται χωρίς τόνους, με κεφαλαία.', 'The words for 🎲 New word (Greek); written in capitals, without accents.'),
+  spell: t('Οι έτοιμες λέξεις κάθε τάξης· κάθε παιχνίδι παίρνει 8 στην τύχη. Στα Αγγλικά γράψε και τη σημασία: apple = μήλο.', 'The ready words for each grade; each game picks 8 at random. For English words, add the meaning too: apple = (meaning).'),
 };
 
 /** Το παράθυρο με τις έτοιμες λέξεις ενός παιχνιδιού (Συλλαβές, Κρεμάλα, Ορθογραφία). */
@@ -63,7 +64,7 @@ export function openReady(game: string): Promise<void> {
   if (!lists.length) return Promise.resolve();
   const edit = (id: string): ReadyEdit => ({ id, name: lists.find((l) => l.id === id)!.name, words: readyWords(id), custom: !!readyCustom()[id] });
   return editReady({
-    title: `Έτοιμες λέξεις: ${game === 'spell' ? 'Ορθογραφία' : lists[0].name}`,
+    title: `${t('Έτοιμες λέξεις', 'Ready words')}: ${game === 'spell' ? t('Ορθογραφία', 'Spelling') : lists[0].name}`,
     hint: HINTS[game],
     lists: lists.map((l) => edit(l.id)),
     parse: game === 'hangman' ? parseHang : game === 'syllables' ? parseSyl : parseSpell,

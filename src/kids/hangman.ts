@@ -1,5 +1,6 @@
 /** Κρεμάλα. */
 import type { StampDef } from '../stamps';
+import { t } from '../i18n';
 import { bit, BLUE, GREEN, kid, RED, rrect, text } from './common';
 import { readyWords } from './ready-words';
 
@@ -35,7 +36,7 @@ function hangGeom(w: number, h: number): { kx: number; ky: number; kw: number; k
 
 export const HANGMAN_KIDS: Record<string, StampDef> = {
   hangman: kid({
-    label: 'Κρεμάλα', w: 800, h: 480, init: [0],
+    label: t('Κρεμάλα', 'Hangman'), w: 800, h: 480, init: [0],
     drawKid(c, w, h, v, env) {
       const st = hangState(v), g = hangGeom(w, h);
       c.lineCap = 'round';
@@ -66,8 +67,8 @@ export const HANGMAN_KIDS: Record<string, StampDef> = {
       c.stroke();
       c.restore();
       if (!st.word) {
-        text(c, 'Πάτα 🎲 για μια λέξη', w * 0.67, h * 0.2, h * 0.075, env.ink, 700);
-        text(c, 'ή ✏️ για να γράψεις τη δική σου', w * 0.67, h * 0.3, h * 0.05, env.ink, 500);
+        text(c, t('Πάτα 🎲 για μια λέξη', 'Press 🎲 for a word'), w * 0.67, h * 0.2, h * 0.075, env.ink, 700);
+        text(c, t('ή ✏️ για να γράψεις τη δική σου', 'or ✏️ to write your own'), w * 0.67, h * 0.3, h * 0.05, env.ink, 500);
       } else {
         // η λέξη: γράμμα ή παύλα· όταν χαθεί η παρτίδα φαίνονται κόκκινα όσα δεν βρέθηκαν
         const n = st.word.length, cw = Math.min(w * 0.075, (w * 0.62) / n), x0 = w * 0.67 - (cw * n) / 2, y = h * 0.2;
@@ -83,9 +84,9 @@ export const HANGMAN_KIDS: Record<string, StampDef> = {
           c.lineWidth = Math.max(3, cw * 0.07);
           c.stroke();
         });
-        if (st.won) text(c, '🎉 Μπράβο!', w * 0.67, h * 0.035, h * 0.06, GREEN, 800);
-        else if (st.lost) text(c, 'Τέλος! Η λέξη ήταν:', w * 0.67, h * 0.035, h * 0.05, RED, 700);
-        else text(c, `Λάθη: ${st.wrong} από ${HANG_MAX}`, w * 0.67, h * 0.035, h * 0.045, env.ink, 600);
+        if (st.won) text(c, t('🎉 Μπράβο!', '🎉 Well done!'), w * 0.67, h * 0.035, h * 0.06, GREEN, 800);
+        else if (st.lost) text(c, t('Τέλος! Η λέξη ήταν:', 'Game over! The word was:'), w * 0.67, h * 0.035, h * 0.05, RED, 700);
+        else text(c, t(`Λάθη: ${st.wrong} από ${HANG_MAX}`, `Mistakes: ${st.wrong} of ${HANG_MAX}`), w * 0.67, h * 0.035, h * 0.045, env.ink, 600);
       }
       // τα γράμματα: σωστά πράσινα, λάθος γκρίζα με γραμμή
       for (let i = 0; i < ABC.length; i++) {
@@ -104,7 +105,7 @@ export const HANGMAN_KIDS: Record<string, StampDef> = {
         text(c, ABC[i], x + g.kw / 2, y + g.kh / 2 + 1, g.kh * 0.5, hit ? '#ffffff' : env.ink, 700);
         c.restore();
       }
-      [['🎲 Νέα λέξη', 0], ['✏️ Δική μου λέξη', 1]].forEach(([label, k]) => {
+      [[t('🎲 Νέα λέξη', '🎲 New word'), 0], [t('✏️ Δική μου λέξη', '✏️ My own word'), 1]].forEach(([label, k]) => {
         const x = g.bx[k as number];
         rrect(c, x, g.by, g.bw, g.bh, g.bh * 0.3);
         c.save();
@@ -119,8 +120,8 @@ export const HANGMAN_KIDS: Record<string, StampDef> = {
       const g = hangGeom(w, h);
       if (y < g.by || y > g.by + g.bh || x < g.bx[1] || x > g.bx[1] + g.bw) return null;
       return {
-        title: 'Λέξη για την κρεμάλα',
-        hint: 'Από 2 έως 16 γράμματα. Φαίνεται ως κουκκίδες, για να μη τη δουν οι μαθητές.',
+        title: t('Λέξη για την κρεμάλα', 'Word for hangman'),
+        hint: t('Από 2 έως 16 γράμματα. Φαίνεται ως κουκκίδες, για να μη τη δουν οι μαθητές.', 'Greek letters only, 2 to 16 letters. It shows as dots, so the pupils can\'t see it.'),
         secret: true,
         apply(typed) {
           const next = hangStart(typed);

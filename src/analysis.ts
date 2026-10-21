@@ -1,11 +1,12 @@
 /** Αριθμητική ανάλυση για τις γραφικές παραστάσεις: ολοκληρώματα, όρια, ασύμπτωτες (όλα κατά προσέγγιση). */
+import { locale } from './i18n';
 
 type G = (x: number) => number;
 
-/** Αριθμός για εμφάνιση: έως 2 δεκαδικά, ελληνική υποδιαστολή, κανονικό μείον. */
+/** Αριθμός για εμφάνιση: έως 2 δεκαδικά, υποδιαστολή της γλώσσας, κανονικό μείον. */
 export function nf(v: number): string {
   if (!Number.isFinite(v)) return Number.isNaN(v) ? '—' : v > 0 ? '+∞' : '−∞';
-  return (+v.toFixed(2) || 0).toLocaleString('el', { maximumFractionDigits: 2 }).replace('-', '−');
+  return (+v.toFixed(2) || 0).toLocaleString(locale, { maximumFractionDigits: 2 }).replace('-', '−');
 }
 
 /** Εξίσωση ευθείας «y = 2x − 1». */

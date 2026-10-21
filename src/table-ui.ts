@@ -3,6 +3,7 @@
 import { TableStyle } from './model';
 import { $, board } from './app';
 import { closePopups, placeNear, refreshUi } from './main';
+import { t } from './i18n';
 
 const TBL_MAX = 6;
 let tblStyle: TableStyle = 'grid';
@@ -13,7 +14,7 @@ function paintTableMenu(): void {
   const tableMenu = $('tableMenu');
   tableMenu.querySelectorAll<HTMLElement>('[data-tbl]').forEach((b) => b.classList.toggle('on', b.dataset.tbl === tblStyle));
   tableMenu.querySelectorAll<HTMLElement>('#tblGrid button').forEach((b) => b.classList.toggle('on', +b.dataset.r! <= tblPick.r && +b.dataset.c! <= tblPick.c));
-  $('tblHint').textContent = `Πάτα το κελί που θες: τώρα ${tblPick.r} × ${tblPick.c} (γραμμές × στήλες)`;
+  $('tblHint').textContent = t(`Πάτα το κελί που θες: τώρα ${tblPick.r} × ${tblPick.c} (γραμμές × στήλες)`, `Tap the cell you want: now ${tblPick.r} × ${tblPick.c} (rows × columns)`);
 }
 
 export function openTableMenu(): void {

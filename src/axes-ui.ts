@@ -8,6 +8,7 @@ import { ask } from './dialog';
 import { $, board, esc, toast } from './app';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, placeNear, savePrefs, togglePopup } from './main';
+import { t } from './i18n';
 
 const labelMenu = $('labelMenu');
 const fnMenu = $('fnMenu');
@@ -90,7 +91,7 @@ export function toggleAnalysis(key: string): void {
   closePopups();
   const shown = (ax.fns ?? []).filter((f) => !f.hidden).length;
   if (!shown) {
-    toast('Γράψε πρώτα μια συνάρτηση με το f(x)');
+    toast(t('Γράψε πρώτα μια συνάρτηση με το f(x)', 'First write a function with f(x)'));
     return;
   }
   const r = axesRange(ax);
@@ -108,8 +109,8 @@ export function toggleAnalysis(key: string): void {
       const pair = two.length >= 2 ? enclosing(crossings(two[0], two[1], r.xmin * sx, r.xmax * sx), (an.int.a + an.int.b) / 2) : null;
       if (pair) {
         an.int = { ...an.int, a: pair[0], b: pair[1] };
-        toast('Τα άκρα μπήκαν στα σημεία τομής των δύο καμπυλών. Σύρε τα για άλλο χωρίο.', 4500);
-      } else toast('Οι δύο καμπύλες δεν τέμνονται δύο φορές μέσα στους άξονες. Όρισε τα άκρα σέρνοντάς τα.', 4500);
+        toast(t('Τα άκρα μπήκαν στα σημεία τομής των δύο καμπυλών. Σύρε τα για άλλο χωρίο.', 'The bounds were set at the intersections of the two curves. Drag them for another region.'), 4500);
+      } else toast(t('Οι δύο καμπύλες δεν τέμνονται δύο φορές μέσα στους άξονες. Όρισε τα άκρα σέρνοντάς τα.', 'The two curves do not intersect twice within the axes. Set the bounds by dragging them.'), 4500);
     }
     else delete an.int;
   } else if (key === 'sum') {
@@ -127,11 +128,11 @@ export function toggleAnalysis(key: string): void {
   board.updateAxes({ an });
 }
 $('labelMenu').addEventListener('click', async (e) => {
-  const t = e.target as HTMLElement;
-  let label = t.closest<HTMLElement>('[data-label]')?.dataset.label;
-  const other = !!t.closest('#labelOther');
+  const tg = e.target as HTMLElement;
+  let label = tg.closest<HTMLElement>('[data-label]')?.dataset.label;
+  const other = !!tg.closest('#labelOther');
   closePopups();
-  if (other) label = (await ask('Όνομα άξονα', { max: 12 }))?.trim() || undefined;
+  if (other) label = (await ask(t('Όνομα άξονα', 'Axis name'), { max: 12 }))?.trim() || undefined;
   if (label) board.setAxisLabel(labelAxis, label);
 });
 
@@ -139,9 +140,9 @@ const fnInput = $('fnInput') as HTMLInputElement;
 const FN_KEYS = [
   '7', '8', '9', '÷', 'x', 'x²', '^', '√',
   '4', '5', '6', '×', '(', ')', '|', 'π',
-  '1', '2', '3', '−', 'ημ(', 'συν(', 'εφ(', 'ln(',
+  '1', '2', '3', '−', t('ημ(', 'sin('), t('συν(', 'cos('), t('εφ(', 'tan('), 'ln(',
   '0', ',', '+', 'e', 'a', 'b', '⌫', 'C',
-  'σφ(', 'log(', 'c', 'k', 'λ', 'ω', '←', '→',
+  t('σφ(', 'cot('), 'log(', 'c', 'k', 'λ', 'ω', '←', '→',
 ];
 const FN_INSERT: Record<string, string> = { 'x²': '²', '÷': '/', '×': '·', '−': '-' };
 $('fnKeys').innerHTML = FN_KEYS.map((k) => `<button data-key="${k}"${/^[0-9,]$/.test(k) ? ' class="num"' : ''}>${k}</button>`).join('');
@@ -199,13 +200,13 @@ export function renderFns(): void {
   $('fnList').innerHTML = fns
     .map(
       (f, i) =>
-        `<div class="fnItem${f.hidden ? ' off' : ''}${i === fnEdit ? ' ed' : ''}"><button data-fnvis="${i}" class="vis" style="--c:${f.color}" title="Εμφάνιση / απόκρυψη"></button>` +
-        `<span data-fnedit="${i}" title="Πάτα για διόρθωση">${esc(f.expr)}</span><button data-fndel="${i}" title="Αφαίρεση">✕</button></div>`,
+        `<div class="fnItem${f.hidden ? ' off' : ''}${i === fnEdit ? ' ed' : ''}"><button data-fnvis="${i}" class="vis" style="--c:${f.color}" title="${t('Εμφάνιση / απόκρυψη', 'Show / hide')}"></button>` +
+        `<span data-fnedit="${i}" title="${t('Πάτα για διόρθωση', 'Tap to edit')}">${esc(f.expr)}</span><button data-fndel="${i}" title="${t('Αφαίρεση', 'Remove')}">✕</button></div>`,
     )
     .join('');
   $('fnPts').classList.toggle('on', !!ax?.points);
   renderFnParams();
-  if (!fnInput.value) $('fnErr').textContent = fns.length ? '' : 'Γράψε π.χ. x²-3x+2, ημ(x), 1/x, ή με παραμέτρους: ax²+b';
+  if (!fnInput.value) $('fnErr').textContent = fns.length ? '' : t('Γράψε π.χ. x²-3x+2, ημ(x), 1/x, ή με παραμέτρους: ax²+b', 'Type e.g. x²-3x+2, sin(x), 1/x, or with parameters: ax²+b');
   placeFnMenu();
 }
 /** Σχεδιάζει ζωντανά αυτό που γράφεται, χωρίς να το αποθηκεύει. */
@@ -242,7 +243,7 @@ function addFn(): void {
   try {
     compile(expr);
   } catch (err) {
-    $('fnErr').textContent = `Δεν το κατάλαβα: ${(err as Error).message}`;
+    $('fnErr').textContent = t(`Δεν το κατάλαβα: ${(err as Error).message}`, `I did not understand it: ${(err as Error).message}`);
     return;
   }
   const fns = ax.fns ?? [];

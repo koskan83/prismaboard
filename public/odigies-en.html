@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PrismaBoard – User guide</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm 16mm; }
+  :root { --ink: #1b2233; --mut: #5b6478; --teal: #0b7f8c; --violet: #7c68b0; --line: #dfe3ea; --soft: #f3f6f9; }
+  * { box-sizing: border-box; }
+  body { margin: 0; color: var(--ink); font: 11.5pt/1.5 "Segoe UI", "Noto Sans", "DejaVu Sans", system-ui, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  main { max-width: 180mm; margin: 0 auto; padding: 0; }
+  @media screen { main { padding: 24px 16px 60px; } }
+  h1 { font-size: 30pt; margin: 0; letter-spacing: -.5px; }
+  h2 { font-size: 16pt; margin: 0 0 6px; color: var(--teal); break-after: avoid; }
+  h3 { font-size: 12pt; margin: 14px 0 3px; break-after: avoid; }
+  p { margin: 5px 0; }
+  ul, ol { margin: 4px 0 6px; padding-left: 20px; }
+  li { margin: 2.5px 0; break-inside: avoid; }
+  h3 + p, h3 + ul, h3 + ol, h2 + p { break-before: avoid; }
+  section { margin-top: 22px; }
+  section.new { break-before: page; margin-top: 0; }
+  .cover { height: 258mm; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 10px; }
+  .cover img { width: 120px; height: 120px; }
+  .cover .sub { font-size: 15pt; color: var(--mut); }
+  .cover .small { font-size: 10pt; color: var(--mut); margin-top: 26px; }
+  .toc { margin-top: 30px; text-align: left; columns: 2; column-gap: 28px; font-size: 11pt; }
+  .toc div { margin: 3px 0; break-inside: avoid; }
+  .toc b { color: var(--teal); display: inline-block; width: 22px; }
+  figure { margin: 10px 0; break-inside: avoid; text-align: center; }
+  figure img { max-width: 100%; border: 1px solid var(--line); border-radius: 8px; }
+  figure.half img { max-width: 62%; }
+  figure.small img { max-width: 44%; }
+  /* animated clips: they play on a loop when you reach them; in print the last frame stays */
+  figure video { display: block; width: 100%; max-width: 760px; margin: 0 auto; aspect-ratio: 16 / 9; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  figcaption { font-size: 9.5pt; color: var(--mut); margin-top: 3px; }
+  .tip { background: var(--soft); border-left: 4px solid var(--teal); border-radius: 6px; padding: 7px 11px; margin: 9px 0; break-inside: avoid; }
+  .warn { background: #fff7ed; border-left: 4px solid #ea8a1a; border-radius: 6px; padding: 7px 11px; margin: 9px 0; break-inside: avoid; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10.5pt; break-inside: avoid; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--soft); font-weight: 600; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  kbd { font: inherit; font-weight: 600; background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 0 5px; white-space: nowrap; }
+  .two { break-inside: avoid; display: table; width: 100%; table-layout: fixed; }
+  .two > * { display: table-cell; vertical-align: top; }
+  .two > figure { margin: 0; padding-left: 14px; width: 46%; }
+  .two figure img { max-width: 100%; }
+  /* on screen the clips span the full width, below the text; in print they stay beside it */
+  @media print { figure video { width: 62%; } }
+  @media screen { .two:has(video) { display: block; } .two:has(video) > * { display: block; } .two > figure:has(video) { width: auto; padding: 0; margin: 12px 0; } }
+</style>
+</head>
+<body>
+<main>
+
+<style>@media print { .lang { display: none; } }</style>
+<div class="lang" style="text-align: right; font-size: 10.5pt;"><a href="./odigies.html" lang="el" hreflang="el">Ελληνικά</a></div>
+
+<div class="cover">
+  <img src="./logo.svg" alt="" />
+  <h1>PrismaBoard</h1>
+  <div class="sub">User guide</div>
+  <div class="toc">
+    <div><b>1</b> Getting started</div>
+    <div><b>2</b> The screen at a glance</div>
+    <div><b>3</b> Writing and erasing</div>
+    <div><b>4</b> Moving around and zoom</div>
+    <div><b>5</b> Select, move, rotate</div>
+    <div><b>6</b> Shapes and measurements</div>
+    <div><b>7</b> Functions and calculus</div>
+    <div><b>8</b> Tools, physics, presenting</div>
+    <div><b>9</b> Text and handwriting recognition</div>
+    <div><b>10</b> Pages, import, background</div>
+    <div><b>11</b> Lessons and saving</div>
+    <div><b>12</b> Export and sharing with students</div>
+    <div><b>13</b> Make the toolbar your own</div>
+    <div><b>14</b> Primary school</div>
+    <div><b>15</b> Troubleshooting</div>
+  </div>
+  <div class="small">Interactive whiteboard for the classroom · October 2026</div>
+</div>
+
+<section class="new">
+<h2>1. Getting started</h2>
+<p>PrismaBoard runs in your browser (Chrome or Edge). No account and no installation needed.</p>
+<ul>
+  <li><b>Address:</b> prismaboard.klabs.gr</li>
+  <li><b>Offline:</b> once it has opened one time with internet, it also opens without it. Internet is needed only for handwriting recognition and for uploading to Google Drive.</li>
+  <li><b>On Windows</b> it is also available as a standalone app, which can also write on top of other programs.</li>
+</ul>
+<div class="tip">Everything you write is saved automatically on the device. When you open the board again, your lesson is just as you left it.</div>
+</section>
+
+<section>
+<h2>2. The screen at a glance</h2>
+<figure><img src="./odigies/bar.png" alt="The toolbar" /><figcaption>The toolbar, at the bottom of the screen</figcaption></figure>
+<table>
+  <tr><th>Button</th><th>What it does</th></tr>
+  <tr><td>Select</td><td>Grab, move, resize, rotate or delete anything on the page.</td></tr>
+  <tr><td>Pen</td><td>Writing. Tap it again for thickness, the laser pointer and automatic recognition.</td></tr>
+  <tr><td>Highlighter</td><td>Always draws a straight line and doesn't get darker if you go over it again.</td></tr>
+  <tr><td>Text</td><td>Type text with a keyboard.</td></tr>
+  <tr><td>Eraser</td><td>Erases part of a stroke, a whole stroke, or the whole page.</td></tr>
+  <tr><td>Measure</td><td>Lengths, angles, area and perimeter on shapes.</td></tr>
+  <tr><td>Pan</td><td>Drag the page around with one finger.</td></tr>
+  <tr><td>Colors</td><td>Four quick colors and a palette for any other.</td></tr>
+  <tr><td>Undo / Redo</td><td>Undo and redo your most recent actions.</td></tr>
+  <tr><td>Import</td><td>Image, PDF or Word file, screenshot, paste, page from a template.</td></tr>
+  <tr><td>Tools</td><td>Shapes, axes and functions, geometry instruments, physics, presenting.</td></tr>
+  <tr><td>‹ 1 / 1 › · Page</td><td>Previous and next page, new page.</td></tr>
+</table>
+<p>At the top left are the <kbd>☰</kbd> menu and the lesson name. At the top right is the zoom.</p>
+</section>
+
+<section>
+<h2>3. Writing and erasing</h2>
+<ul>
+  <li><b>Write</b> with the stylus or with your finger. Two people can write at the same time.</li>
+  <li><b>Thickness:</b> tap <kbd>Write</kbd> again and pick one of the dots.</li>
+  <li><b>Neater handwriting:</b> anything you write with the pen loses the shakiness of your hand as soon as you lift the stylus, and the stroke gets slightly thinner at the start, at the end and wherever you wrote fast, like a real pen. The letters stay handwritten; no internet needed. Turn it off in <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Neater handwriting</kbd>.</li>
+  <li><b>Tidy up:</b> select what you wrote (text, an equation, a chemical reaction) with the lasso and tap <kbd>Tidy up</kbd> in the row above the toolbar. Each line gets straightened, words that drift up or down move onto the line, and the gaps between words become even. Exponents, subscripts (H₂O) and fractions keep their place. The writing stays handwritten; if you don't like it, one <kbd>Undo</kbd> brings it back.</li>
+  <li><b>Straight line by hand:</b> draw the line and hold the stylus still at the end. It turns into a proper straight line. While you are still holding the stylus, its end follows your hand and the <b>angle with the horizontal</b> is shown. Near 0°, 15°, 30°, 45°, 60°, 75° and 90° the line "snaps" exactly to that angle and the label turns green. The line and arrow from Shapes do the same. The same works for circles, rectangles, triangles, rhombuses and parallelograms: draw them roughly and hold the pen still at the end.</li>
+  <li><b>Laser pointer:</b> inside <kbd>Write</kbd>. Whatever you draw fades away on its own after a moment.</li>
+</ul>
+<h3>Eraser</h3>
+<ul>
+  <li>Tap <kbd>Eraser</kbd> again to choose: erase only what is inside the circle, or the whole stroke you touch.</li>
+  <li><b>With your palm or fist</b> you can erase without switching tools. A red circle appears.</li>
+  <li>Images, axes, the unit circle and physics diagrams can't be erased with the eraser. Select them and tap the trash can.</li>
+  <li><b>The whole page:</b> <kbd>☰</kbd> → <kbd>Clear page</kbd>.</li>
+</ul>
+<div class="tip">If you erase something by mistake, tap <kbd>Undo</kbd>. Undo also works for clearing the page.</div>
+</section>
+
+<section>
+<h2>4. Moving around and zoom</h2>
+<ul>
+  <li><b>Two fingers:</b> pinch to zoom in or out, drag to move. Works with any tool.</li>
+  <li><b>Buttons at the top right:</b> <kbd>−</kbd> and <kbd>+</kbd>. Tapping the percentage in the middle centers the page on the screen.</li>
+  <li><b>Mouse:</b> the scroll wheel zooms.</li>
+  <li><b>Lost?</b> <kbd>☰</kbd> → <kbd>Fit to screen</kbd>.</li>
+</ul>
+<p>The page has no edges: you can keep writing in any direction.</p>
+</section>
+
+<section>
+<h2>5. Select, move, rotate</h2>
+<p>With <kbd>Select</kbd>, tap an item to grab it, or drag around several items to grab them together.</p>
+<div class="two">
+<div>
+<ul>
+  <li><b>Move:</b> drag the selection.</li>
+  <li><b>Resize:</b> drag the blue dot at the corner of the frame.</li>
+  <li><b>Rotate:</b> drag the round handle above the frame. Near 15°, 30°, 45° and so on it "snaps".</li>
+  <li><b>Rotate with your whole hand:</b> with something selected, place four or five fingers anywhere on the board and turn your hand, as if turning a big knob. The selection rotates around its center and "snaps" every 15°. It also works for a group selection; one undo turns it back.</li>
+  <li><b>Rotate around a corner:</b> tap the rotation handle once without dragging. The center moves to a corner of the shape (a white circle with a blue dot). Each tap moves it to the next corner, and finally back to the center.</li>
+  <li>With something selected, the second row above the toolbar shows the actions: <b>Delete</b>, <b>Duplicate</b>, <b>Bigger</b>, <b>Smaller</b>, <b>Mirror</b>, <b>To page</b> (section 10), and next to them the options of the object itself (for example, of the axes). If you have selected handwriting, it also has <b>To text</b>, <b>To formula</b> and <b>Solve</b> (section 9). It is always in the same place and never covers the board.</li>
+</ul>
+</div>
+<figure><video class="clip" data-src="./odigies/select.webm" poster="./odigies/select.jpg" muted loop playsinline preload="none" aria-label="Selecting, resizing from the corner, rotating from the handle and Bigger from the toolbar"></video><figcaption>Grab the shape, resize it from the blue dot, turn it from the handle; the actions are in the row above the toolbar</figcaption></figure>
+</div>
+</section>
+
+<section>
+<h2>6. Shapes and measurements</h2>
+<p>At the top of <kbd>Tools</kbd>, the <b>Recent</b> row keeps the last six you used.</p>
+<p>The shapes are in <kbd>Tools</kbd>: line, arrow, rectangle, circle, triangle, rhombus, parallelogram, angle. Pick one and drag on the page.</p>
+<div class="two">
+<div>
+<h3>Measuring a shape</h3>
+<ol>
+  <li>Tap <kbd>Measure</kbd>.</li>
+  <li>Tap the shape. Its lengths and a small menu appear.</li>
+  <li>Turn <kbd>Lengths</kbd>, <kbd>Angles</kbd>, <kbd>Area</kbd>, <kbd>Perimeter</kbd> on or off.</li>
+</ol>
+<h3>Measuring on axes</h3>
+<p>A shape that sits on axes is measured in the units of the axes, not in centimeters. Horizontal sides are in x units, vertical sides in y units, and the area in their product (for example, a rectangle under a v–t graph gives the displacement). A line shows its slope, m. When the two axes have different scales, slanted sides show only their slope, and angles and perimeter are not shown.</p>
+<h3>Changing a measurement</h3>
+<p>Tap the number. A keyboard opens:</p>
+<ul>
+  <li><b>A number:</b> the side becomes that many centimeters, or the angle that many degrees. The shape changes.</li>
+  <li><b>A letter or a unit</b> (a, θ, 5 m): only the label changes.</li>
+  <li><b>Empty:</b> the real measurement comes back.</li>
+</ul>
+</div>
+<figure><video class="clip" data-src="./odigies/shapes.webm" poster="./odigies/shapes.jpg" muted loop playsinline preload="none" aria-label="A triangle from Tools and Measure with lengths, angles and area"></video><figcaption>Tools → Triangle, then drag; then Measure, tap the shape, and Angles, Area</figcaption></figure>
+</div>
+<h3>Table, determinant, matrix</h3>
+<p><kbd>Tools</kbd> → <kbd>Table…</kbd>. Choose a style (a table with lines, a determinant with two vertical bars, a matrix with brackets) and tap the cell that gives the number of rows and columns you want, up to 6 × 6. Write inside the cells with the pen. The eraser erases what you wrote without touching the table. To delete the table itself, select it and tap the trash can.</p>
+<h3>Angle between two lines</h3>
+<figure><video class="clip" data-src="./odigies/angle.webm" poster="./odigies/angle.jpg" muted loop playsinline preload="none" aria-label="Two lines with a common vertex and Measure inside the opening"></video><figcaption>Two lines with a common vertex; with Measure, one tap inside the opening gives the angle</figcaption></figure>
+<p>With <kbd>Measure</kbd>, tap inside the opening of the angle. It works on lines with a common vertex, on lines that cross, and on lines that almost touch. It does not measure freehand pen strokes that haven't become straight lines.</p>
+<h3>Erasing measurements</h3>
+<p>Run the eraser over the number or the arc. The measurement is erased; the shape stays. The same goes for the angle that appears on its own when a line or an arrow starts from the start of another: the angle is erased, the lines stay. To hide it or bring it back, select the line and tap <kbd>Angle</kbd> in the row above the toolbar.</p>
+<h3>Resultant of two arrows</h3>
+<p>Select two arrows with a common start (or an angle) together and tap <kbd>Resultant</kbd> in the row above the toolbar. If you later change one of the two arrows, the resultant follows.</p>
+<h3>Unit circle</h3>
+<p><kbd>Tools</kbd> → <kbd>Unit circle</kbd>. Drag the point around the circle and see the angle in degrees and in radians.</p>
+</section>
+
+<section>
+<h2>7. Functions and calculus</h2>
+<ol>
+  <li><kbd>Tools</kbd> → <kbd>Axes</kbd> (or <kbd>1st quadrant</kbd>, <kbd>x ≥ 0</kbd>).</li>
+  <li>With the axes selected, tap <kbd>f(x)</kbd> and type the function on the app's keyboard.</li>
+  <li>Tap <kbd>✓</kbd>. You can put several functions on the same axes.</li>
+</ol>
+<p><b>Scale:</b> if a function doesn't fit on the axes (for example, y = −200x) or comes out very flat, the vertical axis changes its scale on its own (for example, 200 per line) so the whole graph is visible. Common curves (x², 1/x, sin x) stay at 1 per line. For the horizontal axis, tap <kbd>×1</kbd> with the axes selected: a small bar opens and you choose how much one line is worth. The top row multiplies (×2, ×5, ×10, ×50, ×100) and the bottom row divides (÷2, ÷5, ÷10, ÷50, ÷100, so one line is worth 0.5 down to 0.01). <kbd>×1</kbd> takes you back to the original.</p>
+<p><b>Merging two graphs:</b> drag the axes of one graph onto the axes of the other and let go. Its functions move to the first axes in a different color, and the second axes go away. Undo separates them again.</p>
+<p><b>Axes without numbers:</b> with the axes selected, tap <kbd>123</kbd>. The numbers disappear and you write your own values with the stylus (for example, in steps of 10 or 20). New axes come out the way you left the last ones.</p>
+<table>
+  <tr><th>You type</th><th>Meaning</th></tr>
+  <tr><td>x²-3x+2 · 1/x · √x</td><td>Polynomials, fractions, roots</td></tr>
+  <tr><td>sin( · cos( · tan( · cot(</td><td>Trigonometric functions</td></tr>
+  <tr><td>ln( · log( · e · π</td><td>Logarithms and constants</td></tr>
+  <tr><td>a · b · c · k · λ · ω</td><td>Parameters: a slider appears for the value of each one</td></tr>
+</table>
+<p><kbd>• Points</kbd> shows roots, extrema and intersection points.</p>
+<h3>Calculus tools</h3>
+<p>They are in <kbd>Tools</kbd> and, with the axes selected, in the row above the toolbar.</p>
+<table>
+  <tr><th>Button</th><th>What it shows</th></tr>
+  <tr><td>∫</td><td>A definite integral as an area. Drag the two bounds along the axis. Second tap: the region between two functions; the bounds move by themselves to their intersection points and the area is shown. When you drag them, they "snap" to the intersection points (or to the roots).</td></tr>
+  <tr><td>Σ</td><td>Riemann sums. Each tap doubles the rectangles: 4, 8, 16, 32.</td></tr>
+  <tr><td>lim</td><td>Limit at a point. Drag the point along the curve toward x₀.</td></tr>
+  <tr><td>f′</td><td>Tangent line and derivative. Second tap: the secant line as well.</td></tr>
+  <tr><td>Asymptotes</td><td>Vertical, horizontal and slant.</td></tr>
+</table>
+<figure class="small"><img src="./odigies/integral.png" alt="Integral" /><figcaption>Integral of x²/4 from 1 to 3</figcaption></figure>
+<div class="warn">Values are computed numerically, meaning approximately, to two decimal places. They are for demonstration, not for proof.</div>
+</section>
+
+<section>
+<h2>8. Tools, physics, presenting</h2>
+<div class="two">
+<div>
+<h3>Geometry instruments</h3>
+<ul>
+  <li><b>Ruler</b> and <b>Protractor:</b> move and rotate them on the page.</li>
+  <li><b>Compass:</b> draws circles and arcs.</li>
+  <li><b>Random pick:</b> picks a random student from the class, or a number if the class has no names (section 11).</li>
+  <li><b>Poll:</b> a quick question for the whole class, with no phones and no connection. Write the question on the board and put the Poll next to it. Use <kbd>−</kbd> and <kbd>+</kbd> to set how many choices there are: two (<b>✓</b> and <b>✗</b>, for yes/no or true/false) up to five (A B C D E). Each tap on a color counts one vote: students come up and tap, or you count hands and tap yourself. While voting is open, only the number of votes is shown, so no one is influenced. <kbd>📊</kbd> shows the bar chart with counts and percentages; <kbd>⟳</kbd> resets it for a new question.</li>
+</ul>
+<h3>Physics</h3>
+<p><kbd>Physics…</kbd> opens ready-made diagrams. The springs come alive: pull the mass and let it go to make it oscillate. With a spring selected you can show the natural-length position, the equilibrium position and ±A, add damping, or stop it.</p>
+<h3>Presenting</h3>
+<ul>
+  <li><b>Timer</b> for timed exercises.</li>
+  <li><b>Curtain from top</b> and <b>from bottom:</b> they hide part of the page and you drag them by the handle. You can also write on them with the pen, like a second board.</li>
+  <li><b>Spotlight:</b> lights up just one spot.</li>
+  <li><b>Replay:</b> plays the page back step by step, in the order it was written.</li>
+</ul>
+</div>
+<figure><img src="./odigies/organa.png" alt="The Tools menu" /><figcaption>The "Tools" menu</figcaption></figure>
+</div>
+<figure class="half"><img src="./odigies/psifoforia.png" alt="Poll with a bar chart" /><figcaption>Poll: the result after <kbd>📊</kbd></figcaption></figure>
+</section>
+
+<section>
+<h2>9. Text and handwriting recognition</h2>
+<p>With <kbd>Text</kbd>, tap on the page and type.</p>
+<p><b>Handwriting recognition</b> turns handwriting into clean text or a typeset math formula:</p>
+<ul>
+  <li><b>On demand:</b> select the handwriting and, in the row above the toolbar, tap <kbd>To text</kbd> or <kbd>To formula</kbd>.</li>
+  <li><b>Automatically:</b> inside <kbd>Write</kbd>, turn on <kbd>Aa</kbd> or <kbd>√x</kbd>. Whatever you write is converted as soon as you stop.</li>
+</ul>
+<p><b>Solving an exercise:</b> select an equation or another exercise with the lasso and tap <kbd>Solve</kbd>. The solution is written out in print below the handwriting, which stays as it was. The solution is written by an AI service and may contain mistakes: check it before you show it to the class.</p>
+<p><b>Checking a student's solution:</b> select a student's solution with the lasso and tap <kbd>Check</kbd>. Below it, a note appears in green saying it is correct, or in red saying which line has the first mistake and what the correct form is. This is also written by an AI service: look at it yourself first.</p>
+<p><b>Graph from the lasso:</b> select a function or equation with the lasso (handwritten or from Word/PDF) and tap <kbd>Graph</kbd>. Axes with its curve are added. If the function has a restriction (for example, 0 ≤ t ≤ 5), it is drawn only there, and the axes are chosen to match: only the right half when x ≥ 0, only the 1st quadrant when the values are positive too. If the domain is large (for example, 0 ≤ t ≤ 50), the horizontal axis changes scale so all of it fits. Piecewise functions are added with all their pieces. Check that the formula next to the axes is the one you wrote.</p>
+<p><b>Diagram from a word problem:</b> select the text of a physics problem with the lasso (typed, handwritten or from Word/PDF) and tap <kbd>Diagram</kbd>. A simple diagram appears below the text: the ground or the inclined plane, the bodies, the vectors given in the problem (forces in red, velocities in blue) and the labels of the given data (m = 2 kg, θ = 30°). It does not solve the problem and does not show what is being asked. If the problem doesn't need a diagram, it says so and adds nothing. The diagram is made of ordinary board items (lines, arrows, rectangles, text): it comes in fully selected so you can drag it wherever you want, and then you can fix or delete each piece separately. One <kbd>↶</kbd> takes it all back. It is made by an AI service and is a rough draft: it often needs a fix to a position or a label, so look at it before you show it.</p>
+<p><b>Questions from Word or PDF:</b> <kbd>Solve</kbd> and <kbd>Check</kbd> see everything inside the area you circled with the lasso, even if it is part of a page that came from Word or PDF. Circle the question together with its choices: <kbd>Solve</kbd> writes which one is correct and why, and <kbd>Check</kbd> says whether the choice you marked with the pen is correct.</p>
+<div class="warn">Recognition needs internet and your own service key (Google Gemini or Anthropic Claude). You enter it once on each device in <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Handwriting recognition and solutions (key)…</kbd>. The key stays only on that device.</div>
+<h3>How to get a Gemini key (once, about 3 minutes)</h3>
+<ol>
+  <li>On a computer, open <b>aistudio.google.com/apikey</b> and sign in with your Google account. A personal account works best: on school accounts the service is often turned off by the administrator.</li>
+  <li>The first time, accept the terms of use. Google AI Studio then creates a first key on its own.</li>
+  <li>If the "API Keys" list is empty, click <kbd>Create API key</kbd>, choose the project it suggests and confirm.</li>
+  <li>Click the key and then <kbd>Copy</kbd>. It is a long string of letters and numbers.</li>
+  <li>In PrismaBoard: <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Handwriting recognition and solutions (key)…</kbd>. Leave "Service" set to <kbd>Gemini</kbd>, paste into the <b>API key</b> field and tap <kbd>✓ Save</kbd>. Leave "Model" as it is.</li>
+  <li>Try it: write a word with the pen, select it with <kbd>Select</kbd> and tap <kbd>To text</kbd>.</li>
+</ol>
+<p>If the classroom board has no keyboard, send the key to yourself (for example, by email), open it on the board and copy it from there. You can use the same key on as many devices as you like.</p>
+<ul>
+  <li><b>Cost:</b> the key comes with free usage, limited by requests per minute and per day, which is usually enough for a lesson. If you see a message about a limit, wait a minute and try again. You are charged only if you turn on billing in your Google account yourself.</li>
+  <li><b>The key is like a password:</b> don't show it on the classroom screen and don't give it to others. If someone sees it, delete it on the same Google AI Studio page and create a new one.</li>
+  <li><b>What is sent:</b> each time you tap recognition, solve or check, the image of the area you selected goes to Google. Don't include students' names or personal details in the selection.</li>
+  <li><b>On a shared board:</b> when you are done, <kbd>Delete key</kbd> in the same window removes it from the device.</li>
+</ul>
+</section>
+
+<section>
+<h2>10. Pages, import, background</h2>
+<ul>
+  <li><b>New page:</b> <kbd>Page</kbd>. Use <kbd>‹</kbd> <kbd>›</kbd> to change pages.</li>
+  <li><b>Delete page:</b> <kbd>☰</kbd> → <kbd>Delete page</kbd>. The page is deleted right away; if it was a mistake, tap <kbd>Undo</kbd> in the message that appears at the top for a few seconds.</li>
+  <li><b>Background:</b> <kbd>☰</kbd> → white or dark, plain, with a grid or with notebook lines.</li>
+  <li><b>A4 outline:</b> <kbd>☰</kbd> → "A4 outline" row → portrait or landscape. A faint dashed frame at real A4 size appears on the board (the grid is 1 cm), so you can line up what will be printed. The PDF and the PNG image then come out exactly the size of the frame, and anything outside it is left out. If a page has nothing inside the frame, it comes out as before, with all its items. <kbd>✕</kbd> removes it.</li>
+  <li><b>Move to another page:</b> select what you want and tap <kbd>To page</kbd> in the row above the toolbar. Choose the page number or <kbd>＋ New</kbd>. The items go to the same position on the other page and the board goes there too. One <kbd>Undo</kbd> brings them back. To copy instead of move, tap <kbd>Duplicate</kbd> first.</li>
+</ul>
+<h3>Import (the "Import" button)</h3>
+<ul>
+  <li><b>Image, PDF or Word (.docx) from a file.</b> You can also drag the file onto the board.</li>
+  <li><b>Screenshot:</b> captures another window and puts it on the page.</li>
+  <li><b>Paste</b> an image from the clipboard.</li>
+  <li><b>From another app on the board or tablet (Android):</b> with PrismaBoard installed, take a screenshot (or open an image or a PDF), tap <kbd>Share</kbd> and choose <b>PrismaBoard</b>: it goes onto the page of the lesson you had open.</li>
+  <li><b>Page from a template:</b> ready-made pages with one tap (Given – Find – Solution, Two columns, Studying a function; in Primary school: Fractions, Numbers to 1000, What time is it?, Times tables). You can also save your own page as a template to reuse it.</li>
+</ul>
+<h3>Choosing pages from a PDF or Word file</h3>
+<p>When the file has more than one page, a window with thumbnails opens. Tap a page to leave it out or put it back, then tap <kbd>Import</kbd>. Each page of the file becomes one page of the board, and you write on top of it.</p>
+<p>Only .docx files open from Word. The page layout may differ slightly from what you see in Word. If you want exactly the same look, save the document as a PDF.</p>
+<figure class="half"><img src="./odigies/pages.png" alt="Choosing pages" /><figcaption>The same window opens when exporting to PDF</figcaption></figure>
+</section>
+
+<section>
+<h2>11. Lessons and saving</h2>
+<p>Each board is a "lesson" with a name. It saves itself on the device while you work.</p>
+<h3>Where your lessons are</h3>
+<table>
+  <tr><th>Where</th><th>How it gets there</th><th>How to open it</th></tr>
+  <tr><td>On the device</td><td>Automatically, as you write. No button needed.</td><td>From the library, <kbd>☰</kbd> → <kbd>Lessons…</kbd></td></tr>
+  <tr><td>On Google Drive</td><td><kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To Google Drive</kbd> (the open lesson), or <kbd>☁ All to Drive</kbd> in the library</td><td><kbd>☰</kbd> → <kbd>Open…</kbd> → <kbd>From Google Drive…</kbd>, from any of your devices</td></tr>
+  <tr><td>In a file</td><td><kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To disk, as a file</kbd></td><td><kbd>☰</kbd> → <kbd>Open…</kbd> → <kbd>From disk, from a file…</kbd></td></tr>
+</table>
+<h3>From the board to your laptop and back, with Google Drive</h3>
+<ol>
+  <li>On the board: <kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To Google Drive</kbd>. The lesson is uploaded to your Drive, in the folder <b>PrismaBoard/B2</b> (the folder of its class; with no class, in <b>PrismaBoard</b>). The first time, you sign in with your Google account. The file is private.</li>
+  <li>On the laptop, with the same account: <kbd>☰</kbd> → <kbd>Open…</kbd> → <kbd>From Google Drive…</kbd>. You see the lessons by class, with a date and a label: <b>not here</b>, <b>newer on Drive</b>, <b>newer here</b> or <b>same as here</b>. Tap one and it opens.</li>
+  <li>When you are done, again <kbd>Save…</kbd> → <kbd>To Google Drive</kbd>. On the board, <kbd>Open…</kbd> → <kbd>From Google Drive…</kbd> brings the changes into the same lesson; no second copy is made.</li>
+</ol>
+<p>Next to the lesson name: <b>☁ ✓</b> means it is the same as on Drive; <b>☁ ↑</b> means it has changes that haven't been uploaded (tap it to upload them). If the device has a newer version than the one you are opening, the newer one is kept and the message offers <kbd>Open the older one as a copy</kbd>. The same applies to lesson files: they reopen as the same lesson, with their name and class.</p>
+<h3>The library</h3>
+<ul>
+  <li><b>Library:</b> tap the icon with the four squares, to the left of the lesson name, or <kbd>☰</kbd> → <kbd>Lessons…</kbd>.</li>
+  <li><b>Rename:</b> tap the lesson name and type the new one.</li>
+  <li><b>New lesson</b>, <b>Name</b>, <b>Duplicate</b>, <b>File</b> (saves it to a file, in the class folder) and <b>Delete</b> for each lesson. The card also shows <b>☁ ✓</b> or <b>☁ ↑</b> for Drive.</li>
+  <li><b>Classes:</b> with <b>Class</b> on a lesson, you write which class it belongs to (for example, B2). The classes then appear above the lessons: tap one to see only its lessons. A new lesson you create there goes into the same class.</li>
+  <li><b>Students in the class:</b> with a class chosen, tap <kbd>＋ Students in B2</kbd> (on the right, in the row of classes) and type or paste the names, one per line. From then on, in every lesson of that class, <b>Random pick</b> picks a name instead of a number: everyone gets a turn before anyone comes up again, and its <kbd>⟳</kbd> starts a new round. The names stay only on the device; they are included in "Backup to file", not on Drive.</li>
+  <li><b>☁ All to Drive:</b> uploads every lesson that changed to your Google Drive, each into its class folder. It also happens automatically every time you send a lesson to students with a QR code.</li>
+  <li><b>☁ Open from Drive…:</b> the same as <kbd>☰</kbd> → <kbd>Open…</kbd> → <kbd>From Google Drive…</kbd>. If there are many newer lessons on Drive, <kbd>Get all newer</kbd> brings them all at once.</li>
+  <li><b>Backup to file:</b> downloads all lessons into one file. With <b>Restore from file</b> you load them again, on another device too.</li>
+</ul>
+<figure class="half"><img src="./odigies/lib.png" alt="The lesson library" /><figcaption>The lesson library</figcaption></figure>
+<h3>"What are we doing today?"</h3>
+<p>The first time you open the board each day, it asks where you want to start: <b>Continue where you left off</b> (the last lesson), <kbd>＋ New lesson</kbd> next to each class (it gets a name like "B2 10/13/2026" that you can change any time), the last lesson of each class, or <kbd>All lessons</kbd>. Tapping outside the box closes it and you stay in the lesson that was open. It doesn't come up again the same day. If you don't want it at all, turn it off in <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>"What are we doing today?" on the first launch of the day</kbd>.</p>
+<p>Lessons with lots of photos or PDF pages save just as fast as empty ones: images are written to the device once, not on every change.</p>
+<div class="warn">Lessons live in the browser of that particular device. If the browser data is cleared, they are lost. Keep a copy on Drive: if a week goes by with changes and no backup, an orange dot appears next to the lesson name.</div>
+</section>
+
+<section>
+<h2>12. Export and sharing with students</h2>
+<div class="two">
+<div>
+<ul>
+  <li><b>PDF:</b> <kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To PDF…</kbd>. Choose which pages to include. The <kbd>Only the one I'm viewing</kbd> button keeps only the current page.</li>
+  <li><b>Image:</b> <kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>Page as PNG image</kbd>, for the current page.</li>
+  <li><b>Lesson file:</b> <kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To disk, as a file</kbd>. It opens again in PrismaBoard with <kbd>Open…</kbd> → <kbd>From disk, from a file…</kbd>, as the same lesson, and you keep working on it.</li>
+  <li><b>Logo on the PDF:</b> turn it on or off in <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Logo on PDF pages</kbd>.</li>
+</ul>
+</div>
+<figure><img src="./odigies/menu.png" alt="The menu" /><figcaption>The ☰ menu</figcaption></figure>
+</div>
+<h3>A folder for each class</h3>
+<p>The PDFs, lesson files and images of a lesson that belongs to a class go into the folder <b>PrismaBoard\B2</b> (for B2), with a name like <b>B2 – Fractions 17-10-2026.pdf</b>. If you save the same lesson again on the same day, the file is overwritten.</p>
+<ul>
+  <li><b>Windows app:</b> straight into <b>Documents\PrismaBoard\B2</b>. The message has <kbd>Open folder</kbd>.</li>
+  <li><b>Chrome or Edge on a computer:</b> the first time, it asks where: <kbd>📁 Choose folder</kbd> (for example, Documents, where the PrismaBoard folder is created) or <kbd>To Downloads</kbd>. You can change it in <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Folder for lesson files</kbd>. Every so often the browser asks for permission again; then the file goes to Downloads and the message has <kbd>📁 Also to the folder</kbd>.</li>
+  <li><b>Android (for example, interactive displays):</b> the browser can't create folders, so everything goes to Downloads, with the class at the start of the name so files are easy to tell apart.</li>
+  <li><b>Google Drive:</b> if <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Files also to Google Drive, in the class folder</kbd> is turned on, every PDF and PNG is also uploaded to <b>PrismaBoard/B2</b> on your Drive (private, only for you). The lesson file is uploaded as the lesson itself on Drive, just like <kbd>Save…</kbd> → <kbd>To Google Drive</kbd>. If the board isn't signed in to Google, the message has <kbd>☁ Also to Drive</kbd>. The PDF from "End of lesson" goes into the same folder.</li>
+</ul>
+<h3>End of lesson: a QR code in one tap</h3>
+<p><kbd>☰</kbd> → <kbd>End of lesson: QR for students</kbd>. The whole lesson becomes a PDF, it is uploaded to your Drive, and the QR code appears large on the screen, with no questions asked. The first time, you sign in with your Google account. While it's at it, it also uploads backups of the lessons that changed.</p>
+<h3>Sending with a choice of pages</h3>
+<ol>
+  <li><kbd>☰</kbd> → <kbd>Save…</kbd> → <kbd>To students, choosing pages…</kbd></li>
+  <li>Tap <kbd>Upload to Drive and QR</kbd>. The first time, you sign in with your Google account.</li>
+  <li>Choose pages. The PDF is uploaded to the "PrismaBoard" folder on your Drive.</li>
+  <li>Tap <kbd>Big QR</kbd>. Students scan it with their phones and open the lesson on a PrismaBoard page, with a <kbd>Download PDF</kbd> button. If your account doesn't allow sharing by link (for example, a school account), the QR code points straight to Drive.</li>
+</ol>
+<p>The app sees only the files it uploaded itself, not the rest of your Drive. Anyone who has the link or the QR code can see the file. You can stop sharing from Google Drive.</p>
+<p>Without Drive: <kbd>Share the PDF</kbd> downloads the file, or opens the device's share sheet where there is one.</p>
+</section>
+
+<section>
+<h2>13. Make the toolbar your own</h2>
+<p>The small handle at the top right of the toolbar has four buttons:</p>
+<ul>
+  <li><kbd>⠿</kbd> <b>Move:</b> drag the toolbar wherever suits you. At the side of the screen it becomes vertical.</li>
+  <li><kbd>−</kbd> <kbd>+</kbd> <b>Size:</b> smaller or larger buttons.</li>
+  <li><kbd>▾</kbd> <b>Collapse:</b> hides the toolbar so the whole screen is free.</li>
+</ul>
+<p><b>Printing:</b> right-click (or long-press) and choose <kbd>Print</kbd> from the browser menu, or press <kbd>Ctrl</kbd>+<kbd>P</kbd>. All the pages of the lesson are printed, always on white paper: on a dark board, white writing turns black and light colors get darker. The toolbar isn't printed and the logo goes at the bottom right.</p>
+<p>From <kbd>☰</kbd>: <kbd>Exit</kbd>, at the end of the menu, saves the lesson and closes the app. It appears only when PrismaBoard is installed (Windows app, Android or computer app); in a regular browser tab you just close the tab, and the lesson has already saved itself.</p>
+<p>From <kbd>☰</kbd>: <kbd>Full screen</kbd>. To leave it, tap the button with the four arrows that appears at the top right, next to the zoom (no Esc key needed). From <kbd>☰</kbd> → <kbd>Settings and files…</kbd>: <kbd>Labels under icons</kbd>.</p>
+</section>
+
+<section>
+<h2>14. Primary school</h2>
+<p>PrismaBoard has two modes: <b>Primary school</b> and <b>Secondary school</b>. You choose one on the first screen and can change it any time from <kbd>☰</kbd> → <kbd>Switch to Primary school</kbd> (or <kbd>Switch to Secondary school</kbd>). In Primary school the toolbar is simpler, with picture icons, and <kbd>Tools</kbd> has the tools for the younger grades, without axes, functions and physics.</p>
+<p>The Primary school <kbd>Tools</kbd> are split into five <b>tabs</b>: <kbd>Numbers</kbd>, <kbd>Fractions</kbd>, <kbd>Time · Money</kbd>, <kbd>Shapes</kbd> (together with the ruler, protractor, compass and curtains) and <kbd>Games</kbd> (together with the rewards). The tab you opened last stays open, and <b>Recent</b> is always shown above the tabs.</p>
+<h3>Spelling with the little monster 👾</h3>
+<p><kbd>Tools</kbd> → <kbd>Games</kbd> → <kbd>Spelling</kbd>. The game opens large, over almost the whole screen. It is played with a list of words or short sentences: the student writes each one, fixes whatever the first check points out, and any mistakes that remain are eaten by the little monster, which <b>grows a lot with every mistake it eats</b>. At the <b>tenth mistake</b> it becomes huge, fills the screen and… <b>eats the student</b>: darkness inside its mouth, which opens and closes with a "CHOMP!" at every bite, and a burp at the end. Then it shrinks back down and <b>the list starts over</b>.</p>
+<ol>
+  <li><b>Choose words.</b> At the top, choose the language, <kbd>Ελληνικά</kbd> or <kbd>English</kbd>. Then:
+    <ul>
+      <li>a grade, from <kbd>1st</kbd> to <kbd>6th</kbd>: 8 ready-made words are picked at random. Since no one has seen them before, each Greek word <b>is first shown in blue</b>; the children read it, and it hides as soon as the first letter is tapped ("look, cover, write"). For English words, the meaning is shown in Greek.</li>
+      <li>or <kbd>✏️ 🎤 My own words</kbd>: a large box opens where you <b>type or paste</b> the words (from Word, email, Excel), with their accents: separated by commas, one per line, or simply by spaces if they are single words. Numbering and bullets are ignored. Up to 20 words, each up to 40 letters. They are shown as dots so the students can't see them; <kbd>👁</kbd> shows them. With <kbd>🎤</kbd> you <b>say them instead of typing</b>: each time you tap it and speak, one word or sentence is added. A list can have both Greek and English words.</li>
+      <li><b>My lists:</b> type a name (for example, "Spelling Grade 2 – Unit 3") and tap <kbd>💾 Save</kbd> or go straight to <kbd>▶ Start</kbd>. The list is kept on the device and next time it appears at the very top of the same window: one tap and it's ready. <kbd>×</kbd> (two taps) deletes it. For <b>10 random words</b>, tap <kbd>🎲</kbd>: the lists at the top get a checkbox ☐, and with each check, 10 random words from all the checked lists go into the box. Another 🎲 gives ten different ones; tapped with no list checked, it closes. The random ten never overwrites any list. <kbd>⬇ All lists to a file</kbd> downloads them into one file for colleagues or another board, and <kbd>📂 Lists from a file</kbd> brings them back; it also accepts a plain text file (.txt, .csv), which becomes one list named after the file. The lists are also included in the lessons' "Backup to file". With <kbd>☁️ To Google Drive</kbd> they are all uploaded in one file ("Spelling lists") to the PrismaBoard folder on your Drive, and with <kbd>☁️ From Google Drive</kbd> they come to another device or another board with the same Google account. Uploading doesn't delete lists that exist only on Drive (from another device): it keeps them and brings them here too. The app sees only the files it uploaded itself on Drive; a list from a colleague needs <kbd>📂 Lists from a file</kbd>.</li>
+    </ul>
+  </li>
+  <li><b>The student writes</b> in one of two ways (switched with the third button, before starting to write):
+    <ul>
+      <li><b>⌨️ With keys:</b> the keys are in the positions of a regular keyboard, so children also learn the layout. For Greek words, the accent is typed as on a computer: first the orange <kbd>΄</kbd> (to the right of λ) and then the vowel; a second tap on <kbd>΄</kbd> gives a diaeresis (ϊ, ϋ) and a third gives accent plus diaeresis (ΐ, ΰ). For an English word the keys become English (QWERTY). To change a letter in the middle, the student taps it (it turns blue) and taps the correct one; <kbd>⌫</kbd> deletes the selected letter or the last one. <b>No internet or key needed.</b></li>
+      <li><b>✍️ By hand:</b> writes with the pencil inside the frame. If there is internet and the key from section 9, the handwriting is read by the recognition service when checking. Otherwise, the correct word is shown above the handwriting, the class compares them, and you tap <kbd>✓ Correct</kbd> or <kbd>✗ Wrong</kbd>.</li>
+    </ul>
+  </li>
+  <li><b>🔍 Check, in two steps.</b> The first time, the little monster "sniffs out" the mistakes, goes and eats them one by one (and grows): where each mistake was, an <b>empty box</b> is left, without showing the correct letter; the same where a letter was missing, while an extra letter simply disappears. The student writes the correct letter in the empty boxes (the first one is already selected) and taps <kbd>🔍 Check again</kbd>. Then any mistake that is still there gets eaten by the monster too: the correct letter is left in its place in green, and underneath, crossed out in red, what had been written.</li>
+  <li><kbd>▶ Next word</kbd>. At the top, one dot per word shows how it went: yellow = correct the first time, green = correct after fixing, purple = eaten by the monster. After the last word the results appear, with <kbd>↺ Same words again</kbd> and <kbd>✏️ New words</kbd>.</li>
+</ol>
+<p><b>The word is spoken:</b> the device says each new word out loud, and <kbd>🔊</kbd> repeats it as many times as needed. <kbd>👁</kbd> shows the correct word whenever needed (and hides it again). <kbd>✏️ Words</kbd> goes back to the start for other words.</p>
+<p><b>English with the meaning in Greek:</b> with the ready-made English words, the student sees the Greek word ("Write in English: γάτα"), hears it in English and writes <i>cat</i>. The meaning is shown large on the line until the student starts writing, and then stays below. For your own words, write the meaning after <kbd>=</kbd>, <kbd>-</kbd> or <kbd>:</kbd>: <kbd>apple = μήλο</kbd>, <kbd>good morning - καλημέρα</kbd>, or paste two columns from Excel (English | Greek); English words that are in the ready-made lists get it automatically.</p>
+<div class="warn">The word is spoken by the device's voice, if it has one for that language. If it doesn't (common on Linux, and in Chrome for Greek), a message appears once and you say the word yourself or show it with <kbd>👁</kbd>.</div>
+<p>Everything counts, just like in a notebook: a wrong vowel (in Greek: ι, η, υ, ει, οι · ο, ω · ε, αι), an accent that is missing or on the wrong letter, <b>σ</b> instead of <b>ς</b> at the end, a missing or extra letter. Capital letters and punctuation don't count.</p>
+<p><b>Words from the board:</b> write the words on the board (with <kbd>Text</kbd> or by hand), select them with Select or the lasso and tap <kbd>👾 Monster</kbd>. The word window opens with them inside, so you can correct or save them, and <kbd>▶ Start</kbd> begins a new game. Handwriting is read by the recognition service (needs a key); typed text is read without a key.</p>
+<div class="warn">Dictation with <kbd>🎤</kbd> works in Chrome and Edge and needs internet and microphone permission: the voice is turned into text by the browser's service. Tap <kbd>👁</kbd> in the window to see what it understood before you start, especially accents and names.</div>
+<div class="warn">When writing by hand with recognition, the result depends on how the service read the handwriting. It is asked to transcribe exactly what the child wrote, mistakes included, but it may "correct" a mistake on its own or misread a clear letter. The handwriting stays in the frame next to the result: compare them before commenting. With the keys, the check is always exact.</div>
+<h3>Practice with 🎯</h3>
+<p>The clock, the fractions, the times tables and the balance scale have a small <kbd>🎯</kbd> that turns them into an exercise for a student at the board:</p>
+<ul>
+  <li><b>Clock:</b> <kbd>🎯</kbd> (top right) writes a time under the clock, for example "Show 7:45". The student drags the hands; when they are left at the correct time, a green <b>✓</b> appears and confetti falls. Tapping <kbd>🎯</kbd> again gives another time; tapping the time box ends the exercise.</li>
+  <li><b>Fractions</b> (pie, bar, pizza, chocolate): <kbd>🎯</kbd> empties the shape and writes a fraction, for example 3/8. The student colors in pieces; when the right number is reached, the fraction turns green with a <b>✓</b> and confetti falls. Another tap gives a different fraction; <kbd>+</kbd> and <kbd>−</kbd> end the exercise.</li>
+  <li><b>Times tables:</b> the <kbd>🎯</kbd> is in the top left corner of the table and writes a product there, for example "Find 42". The student taps the box that gives it (6×7 or 7×6); wrong boxes simply open and show their own product. On the right one confetti falls, and another tap on the corner gives a different product. Tapping the corner before it is found ends the exercise.</li>
+  <li><b>Balance scale:</b> <kbd>🎯</kbd> (top left) puts two weights in the left pan and writes "Balance the scale". The student adds weights only on the right; the total is always over 10, so at least two are needed. When it balances, confetti falls and another tap gives different weights. Tapping before it balances ends the exercise and the weights on the left are yours to change again.</li>
+</ul>
+<figure class="half"><img src="./odigies/organa-pri.png" alt="The Primary school Tools" /><figcaption>The Primary school "Tools", in tabs</figcaption></figure>
+<p>The tools respond <b>to a tap</b>, whatever tool you are holding (pencil, highlighter, Select): tapping their buttons doesn't write on the board. To move or delete them you need the <kbd>Select</kbd> tool. Drag them, resize them from the corner and delete them like any shape. Tapping a button of a tool (a letter, +, a piece) doesn't select it; to select it (and bring up the bar with Delete and ×2), drag it a little, or tap a part of it that isn't a button.</p>
+<h3>Sounds, motion and celebrations</h3>
+<p>In Primary school the tools "come alive": the balance scale sways before it settles and goes "ding" when it balances, the die rolls, the random pick spins through the numbers with a drumroll, the bricks go "tock". In hangman a correct letter "pops" into place and a wrong one shakes the little figure; when the word is found, confetti falls. <kbd>Star</kbd>, <kbd>Smiley</kbd> and <kbd>Well done!</kbd> also bring confetti when you put them on the board.</p>
+<p>The sounds are quiet; you set the volume on the board itself. From <kbd>☰</kbd> you can turn off all <kbd>Sounds</kbd> or just the <kbd>"click" on tool buttons</kbd>, and the choice is kept on each device. No internet needed. Secondary school has none of these.</p>
+<table>
+  <tr><th>Tool</th><th>How it works</th></tr>
+  <tr><td>Number line</td><td><kbd>⟳</kbd> changes the range: 0–10, 0–20, 0–100, −10 to 10, 0–1 in tenths. Draw the "jumps" with the pen.</td></tr>
+  <tr><td>H T O</td><td>Base-ten blocks for hundreds, tens and ones. <kbd>＋ Thousands</kbd> at the bottom left adds a column for thousands (red cubes) and, with a second tap, for ten thousands, up to 99,999; <kbd>− column</kbd> at the bottom right removes them. Each column's <kbd>+</kbd> and <kbd>−</kbd> add or remove. If you go over 9 ones, they reset to zero and one ten is added (the same from tens to hundreds); if you subtract from 0, it "borrows" from the column on the left. Tapping the number at the bottom hides it ("What number is it?").</td></tr>
+  <tr><td>Hundred chart</td><td>Tap numbers to color them (multiples, even numbers, patterns).</td></tr>
+  <tr><td>Times tables</td><td>The products are hidden. Tap a box to show it; tap again to hide it.</td></tr>
+  <tr><td>Column arithmetic</td><td>A grid with Th H T O columns and a row for carrying. Write inside with the pen.</td></tr>
+  <tr><td>Balance scale</td><td>Under each pan are all the numbers from <kbd>1</kbd> to <kbd>10</kbd>: blue ones put a weight on the left, orange ones on the right (up to 12 weights on each side). The scale tips toward the larger total and balances when they are equal. Tap a weight to remove it. Tap the comparison (for example, 7 &lt; 10) to hide it.</td></tr>
+  <tr><td>Money</td><td>Tap a bill or coin in the top row and it goes onto the pile. Tap the pile to remove it. Tap "Total" to hide it.</td></tr>
+  <tr><td>Pie, Bar, Pizza, Chocolate</td><td>Fractions: tap pieces to color them, or, as <b>pizza</b> and <b>chocolate</b>, the pieces you take are shown whole and the rest faded. The small <kbd>🍕</kbd> (top right of the pie) and <kbd>🍫</kbd> (next to the bar's fraction) switch the look whenever you want. <kbd>+</kbd> and <kbd>−</kbd> change how many pieces it is cut into (up to 12). Two bars one under the other show equivalent fractions. <kbd>🎯</kbd> sets an exercise (see above).</td></tr>
+  <tr><td>Clock</td><td>Drag the hands: near the numbers you grab the minute hand (blue, one minute at a time), further in the hour hand (red). To move the clock, grab it by the time underneath. Tapping the time underneath hides it. <kbd>🎯</kbd> sets an exercise (see above).</td></tr>
+  <tr><td>Die, Random pick</td><td>Tap to roll the die. Random pick draws a random number from 1 up to whatever you set with <kbd>+</kbd> and <kbd>−</kbd>. If the lesson belongs to a class with student names (section 11), it picks a name, with no repeats until everyone has had a turn.</td></tr>
+  <tr><td>Poll</td><td>A question for the whole class with 2 to 5 choices: each tap on a color is one vote, <kbd>📊</kbd> shows the bar chart and <kbd>⟳</kbd> resets it (section 8).</td></tr>
+  <tr><td>Spelling</td><td>Spelling with the little monster (see above): a list of words, Greek or English; the student writes, the monster eats the mistakes and grows, and the student writes the correct letters in the gaps. The dots at the top turn green (correct the first time), yellow (fixed) or red (still wrong); tapping a dot shows the word.</td></tr>
+  <tr><td>🐸 Syllables</td><td>The word is at the top and its letters in order below it; in the middle there is a river, and on the left bank a little frog that wants to get across. <kbd>🎲 New word</kbd> picks a random word, <kbd>✏️ My own word</kbd> lets you enter yours (also with 🎤), and <kbd>🔊</kbd> says it out loud. The child drags a lily pad from the stack into the river for each syllable (one tap on the stack adds one at the end) and then drags each letter onto the lily pad of its syllable. A lily pad dragged out of the river goes away, and its letters return to their places. With <kbd>🐸 Jump!</kbd> the frog hops from pad to pad. On a pad with the wrong letters it sinks, and if a pad is missing it falls in the water; it goes back to the bank and the child fixes it. If everything is right, it reaches the other side and the word is shown split up (βά - τρα - χος). The board splits words using the rules of Greek grammar. If you want a different split, type the word with hyphens (βι-βλι-ο-θή-κη). Like Spelling and Hangman, it is played full screen; the <kbd>🚪</kbd> at the top right goes back to the board. Next to it, <kbd>📋 Words</kbd> shows the game's ready-made words (in Spelling, one list per grade, Greek and English): <kbd>×</kbd> removes a word, the field below adds words (several at once, with commas), and <kbd>↺ Defaults</kbd> brings back the app's words. Changes are kept on the device.</td></tr>
+  <tr><td>Hangman</td><td><kbd>🎲 New word</kbd> picks a random word; <kbd>✏️ My own word</kbd> opens a window to type your own; the word is shown as dots so the students can't see it (<kbd>👁</kbd> shows it). The first and last letters are shown from the start. Students tap letters: correct ones are revealed, each wrong one adds a piece to the little figure, and at 6 mistakes the word is revealed. Accents don't count.</td></tr>
+  <tr><td>Star, Smiley, Well done!</td><td>Reward stamps.</td></tr>
+  <tr><td>Number blocks</td><td>Characters made of blocks, 1 to 1000, on the board (with the four-corners button they also open full screen). In full screen, <kbd>−</kbd> and <kbd>+</kbd> at the top left zoom out and in, so large numbers fit too. Each number has its own color: 7 is a rainbow, 10 is white with a red outline, and from 11 on there are white tens with an outline in the color of the tens digit (red for 10–19, orange for 20–29 and so on), with the ones beside them. Above 100, the hundreds become white 10 × 10 squares (up to five in a row) and the scene zooms out on its own so they fit. Each character's number is written on its bottom block (for those lying down, beside it). From the top row of the bar, drag a number 1–10 into the scene. With <kbd>✋</kbd> you drag a character and drop it well on top of another, and they <b>join</b> (2 + 3 → 5, up to 1000); when it is just beside it or slightly above its head, they don't join. With <kbd>✂️</kbd> (the cursor becomes scissors) you tap or drag a block and it comes away together with everything above it (5 → 2 + 3). Every number up to 10 starts standing upright, in one column. <kbd>🔄</kbd> changes the shape with each tap (tower, rectangle, square, and for odd numbers two or three columns: 16 becomes 4 × 4), <kbd>🎩</kbd> puts on an accessory, with a little animated "hop" and sparkles: top hat, crown, bow, jockey cap, graduation cap, party hat, glasses, mustache, scooter, skateboard, balloon, cape (tap again to remove it, <kbd>🚫</kbd> removes them all). <kbd>🧽</kbd> erases the character you tap. <kbd>🔢</kbd> hides the numbers ("What number is it?"). The <kbd>⚖️</kbd> scale: whoever stands on the two pans gets weighed, the pan with the larger total goes down (wherever each one stands on it), and the comparison is shown above (for example, 5 &lt; 10). <kbd>+=</kbd> puts an <b>equation</b> high in the sky, [ ] + [ ] = [ ]: drag characters from the grass into the first two slots, <kbd>+</kbd> becomes <kbd>−</kbd> with one tap, and the blue <kbd>=</kbd> puts the result in the third slot. If the children have put their own answer there, <kbd>=</kbd> checks it (✓ with confetti, or ✗). The equation and the scale are never shown together. Drag a character to the <kbd>🗑️</kbd> to remove it; tapping the trash can empties everything.</td></tr>
+  <tr><td>Bricks</td><td><b>They open full screen</b>: the toolbar goes away and only the row of materials stays. The blue <kbd>🚪</kbd> at the end of the row takes you back to the board, where the build stays as a picture on the page; the four-corners button opens it full screen again. Several children can build at once, each with their own finger. Building like a game, on a 24 × 14 grid: pick a material from the row at the bottom (grass, dirt, stone, wood, bricks, water, glass…) and drag your finger to build. The material you hold is always placed, even on top of another brick. The row also has characters: boy, girl, piglet, little monster, flower, door. Erase with the sponge; the trash can empties everything. The top right shows how many bricks you have placed (good for counting, area, perimeter). To move the tool, grab it by the row of materials.</td></tr>
+  <tr><td>Pictures for counting</td><td>House, tree, fir tree, bush, full-figure boy and girl, apple, flower, sun, cloud, heart, ball, balloon: they are drawn and stay sharp no matter how much you enlarge them. There are also a few more as emoji (animals, car, candy…), which get blurry if enlarged a lot. With <kbd>×2 Duplicate</kbd> you make many for word problems ("3 apples and 2 apples").</td></tr>
+</table>
+<figure><video class="clip" data-src="./odigies/numcubes.webm" poster="./odigies/numcubes.jpg" muted loop playsinline preload="none" aria-label="Number blocks: 2 on top of 3 becomes 5, and the scale compares totals"></video><figcaption>Number blocks: 2 on top of 3 becomes 5; with the ⚖️ scale, the pan with the larger total goes down</figcaption></figure>
+<p><b>Notebook backgrounds:</b> in <kbd>☰</kbd>, in the "Background" row, there are two more: a handwriting notebook (lines with a dashed guide for lowercase letters) and a math notebook (large squares).</p>
+<p><b>Spelling:</b> select what a student wrote with the lasso and tap <kbd>Spelling</kbd>. A note below lists the words that need fixing. It needs the recognition key (section 9) and can make mistakes, so take a look.</p>
+<p><b>Read it aloud:</b> select some text and tap <kbd>Read it aloud</kbd>; the board reads it out loud. Text written with the <kbd>Text</kbd> tool is read without a key. Handwriting needs the recognition key. The voice comes from the browser: if the device has no voice for the language, it won't sound right.</p>
+
+<h2>15. Troubleshooting</h2>
+<table>
+  <tr><th>What you see</th><th>What to do</th></tr>
+  <tr><td>I can't see anything on the page</td><td><kbd>☰</kbd> → <kbd>Fit to screen</kbd>.</td></tr>
+  <tr><td>My palm leaves marks, or the stylus doesn't write</td><td><kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Touch/stylus diagnostics</kbd> to see what the screen detects.</td></tr>
+  <tr><td>The angle measurement doesn't appear</td><td>Tap in the gap between the lines, not on them. The lines must be straight lines, not freehand pen strokes.</td></tr>
+  <tr><td>The eraser doesn't erase an image or axes</td><td>Select it and tap the trash can.</td></tr>
+  <tr><td>Recognition doesn't work</td><td>It needs internet and a key in its settings (section 9).</td></tr>
+  <tr><td>Drive doesn't open a window</td><td>The browser blocked the pop-up. Allow pop-ups for the page and tap again.</td></tr>
+  <tr><td>I can't find my lesson</td><td>Tap the name at the top left for the library. Lessons appear only on the device and in the browser where they were written.</td></tr>
+</table>
+<p>At the bottom of <kbd>☰</kbd> → <kbd>Settings and files…</kbd> you can see the version (date) running on the device, and <kbd>What's new</kbd> shows the latest changes; it also appears on its own once after each update.</p>
+<p>In <kbd>☰</kbd> → <kbd>Settings and files…</kbd> → <kbd>Classroom test checklist</kbd> there is a short check for the first time you set up the board on a new screen.</p>
+<p>In the same menu, <kbd>What I use</kbd> shows the buttons you tap most often, the ones you have never tapped, and how long the app takes to open; <kbd>To file</kbd> downloads them as a list. The counters stay on the device and are not sent anywhere.</p>
+</section>
+
+</main>
+<script>
+  // clips download and play only when they come into view, and pause when they leave
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver((es) => {
+    for (const e of es) {
+      const v = e.target;
+      if (e.isIntersecting) {
+        if (!v.src) v.src = v.dataset.src;
+        v.play().catch(() => {});
+      } else v.pause();
+    }
+  }, { rootMargin: '200px' }) : null;
+  for (const v of document.querySelectorAll('video.clip')) {
+    if (io) io.observe(v);
+    else { v.src = v.dataset.src; v.autoplay = true; }
+  }
+</script>
+</body>
+</html>

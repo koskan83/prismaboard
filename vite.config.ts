@@ -7,7 +7,7 @@ function precacheList(): Plugin {
     name: 'precache-list',
     apply: 'build',
     generateBundle(_, bundle) {
-      const files = ['./', 'manifest.webmanifest', 'icon-256.png', 'icon-512.png', 'favicon.svg', 'logo.svg', 'logo-light.svg', 'odigies.html', 'adeies.html', 'privacy.html', ...Object.keys(bundle)];
+      const files = ['./', 'manifest.webmanifest', 'icon-256.png', 'icon-512.png', 'favicon.svg', 'logo.svg', 'logo-light.svg', 'odigies.html', 'odigies-en.html', 'adeies.html', 'adeies-en.html', 'privacy.html', ...Object.keys(bundle)];
       this.emitFile({ type: 'asset', fileName: 'precache.json', source: JSON.stringify(files) });
     },
   };

@@ -3,6 +3,8 @@
  * διαβάζονται από μακριά, πατιούνται με το δάχτυλο και δεν βγάζουν τον πίνακα από την πλήρη οθόνη.
  */
 
+import { t } from './i18n';
+
 export interface AskOptions {
   /** Αρχική τιμή του πεδίου. */
   value?: string;
@@ -80,11 +82,11 @@ function micButton(lang: string, add: (said: string) => number): Mic {
   const SR = (window as unknown as { SpeechRecognition?: new () => SpeechRec; webkitSpeechRecognition?: new () => SpeechRec });
   const Rec = SR.SpeechRecognition ?? SR.webkitSpeechRecognition;
   const btn = button('🎤', 'eye mic'), note = document.createElement('small');
-  btn.title = 'Πες τη λέξη ή την πρόταση';
+  btn.title = t('Πες τη λέξη ή την πρόταση', 'Say the word or sentence');
   btn.onclick = () => {
     if (rec) return rec.stop();
     if (!Rec) {
-      note.textContent = 'Η υπαγόρευση δεν υποστηρίζεται εδώ: θέλει Chrome ή Edge και ίντερνετ. Γράψε τις λέξεις με το πληκτρολόγιο.';
+      note.textContent = t('Η υπαγόρευση δεν υποστηρίζεται εδώ: θέλει Chrome ή Edge και ίντερνετ. Γράψε τις λέξεις με το πληκτρολόγιο.', 'Dictation is not supported here: it needs Chrome or Edge and an internet connection. Type the words with the keyboard.');
       return;
     }
     const r = (rec = new Rec());
@@ -92,16 +94,19 @@ function micButton(lang: string, add: (said: string) => number): Mic {
     r.interimResults = false;
     r.onresult = (e) => {
       const said = e.results[e.results.length - 1][0].transcript.replace(/[,;.!?·]/g, ' ').replace(/ +/g, ' ').trim();
-      if (said) note.textContent = `Μπήκε (${add(said)}). Πάτα ξανά το 🎤 για την επόμενη.`;
+      if (said) {
+        const n = add(said);
+        note.textContent = t(`Μπήκε (${n}). Πάτα ξανά το 🎤 για την επόμενη.`, `Added (${n}). Tap 🎤 again for the next one.`);
+      }
     };
     r.onerror = (e) => {
-      note.textContent = e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'Δεν δόθηκε άδεια για το μικρόφωνο.' : e.error === 'no-speech' ? 'Δεν άκουσα τίποτα. Πάτα το 🎤 και ξαναπές το.' : 'Η υπαγόρευση δεν δούλεψε (θέλει ίντερνετ). Γράψε τις λέξεις με το πληκτρολόγιο.';
+      note.textContent = e.error === 'not-allowed' || e.error === 'service-not-allowed' ? t('Δεν δόθηκε άδεια για το μικρόφωνο.', 'Microphone permission was not granted.') : e.error === 'no-speech' ? t('Δεν άκουσα τίποτα. Πάτα το 🎤 και ξαναπές το.', "I didn't hear anything. Tap 🎤 and say it again.") : t('Η υπαγόρευση δεν δούλεψε (θέλει ίντερνετ). Γράψε τις λέξεις με το πληκτρολόγιο.', "Dictation didn't work (it needs an internet connection). Type the words with the keyboard.");
     };
     r.onend = () => {
       rec = null;
       btn.classList.remove('on');
     };
-    note.textContent = 'Ακούω… πες τη λέξη ή την πρόταση.';
+    note.textContent = t('Ακούω… πες τη λέξη ή την πρόταση.', 'Listening… say the word or sentence.');
     btn.classList.add('on');
     try { r.start(); } catch { rec = null; btn.classList.remove('on'); }
   };
@@ -125,7 +130,7 @@ export function ask(title: string, o: AskOptions = {}): Promise<string | null> {
     if (o.secret) {
       inp.classList.add('secret');
       const eye = button('👁', 'eye');
-      eye.title = 'Εμφάνιση / απόκρυψη';
+      eye.title = t('Εμφάνιση / απόκρυψη', 'Show / hide');
       eye.onclick = () => {
         inp.classList.toggle('secret');
         inp.focus();
@@ -157,7 +162,7 @@ export function ask(title: string, o: AskOptions = {}): Promise<string | null> {
     }
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const no = button('Άκυρο', 'no'), yes = button(o.ok ?? 'Εντάξει', 'go');
+    const no = button(t('Άκυρο', 'Cancel'), 'no'), yes = button(o.ok ?? t('Εντάξει', 'OK'), 'go');
     acts.append(no, yes);
     box.append(acts);
     const done = (v: string | null): void => {
@@ -195,7 +200,7 @@ export function askLines(title: string, o: { value?: string; hint?: string; ok?:
     ta.rows = 10;
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const no = button('Άκυρο', 'no'), yes = button(o.ok ?? 'Εντάξει', 'go');
+    const no = button(t('Άκυρο', 'Cancel'), 'no'), yes = button(o.ok ?? t('Εντάξει', 'OK'), 'go');
     acts.append(no, yes);
     box.append(ta, acts);
     const done = (v: string | null): void => {
@@ -217,7 +222,7 @@ export function askLines(title: string, o: { value?: string; hint?: string; ok?:
 }
 
 /** Ζητά επιβεβαίωση. `danger`: το κουμπί της ενέργειας γίνεται κόκκινο (διαγραφές). */
-export function confirmBox(title: string, ok = 'Ναι', danger = false, hint?: string, noLabel = 'Άκυρο'): Promise<boolean> {
+export function confirmBox(title: string, ok = t('Ναι', 'Yes'), danger = false, hint?: string, noLabel = t('Άκυρο', 'Cancel')): Promise<boolean> {
   return new Promise((res) => {
     const { back, box } = shell(title, hint);
     const acts = document.createElement('div');
@@ -260,7 +265,7 @@ export interface NoticeOptions {
 }
 
 export function notice(title: string, lines: string[], o: NoticeOptions = {}): Promise<void> {
-  const { hint, more = [], moreLabel = 'Παλιότερα', extra } = o;
+  const { hint, more = [], moreLabel = t('Παλιότερα', 'Older'), extra } = o;
   return new Promise((res) => {
     const { back, box } = shell(title, hint);
     const ul = document.createElement('ul');
@@ -274,7 +279,7 @@ export function notice(title: string, lines: string[], o: NoticeOptions = {}): P
     add(lines);
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const yes = button('Εντάξει', 'go');
+    const yes = button(t('Εντάξει', 'OK'), 'go');
     // τα παλιότερα μένουν κρυμμένα πίσω από ένα κουμπί, για να διαβάζονται τα καινούρια με μια ματιά
     if (more.length) {
       const old = button(`${moreLabel} (${more.length})`, '');
@@ -362,12 +367,12 @@ export function chooseBox(title: string, items: Choice[], o: { hint?: string; em
     if (!items.length) {
       const s = document.createElement('small');
       s.className = 'chEmpty';
-      s.textContent = o.empty ?? 'Δεν υπάρχει τίποτα εδώ.';
+      s.textContent = o.empty ?? t('Δεν υπάρχει τίποτα εδώ.', 'Nothing here yet.');
       list.append(s);
     }
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const no = button('Άκυρο', 'no');
+    const no = button(t('Άκυρο', 'Cancel'), 'no');
     acts.append(no);
     for (const x of o.extra ?? []) {
       const b = button(x.label, 'go');
@@ -439,7 +444,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
     chips.className = 'askPicks wordLists';
     const name = document.createElement('input');
     name.className = 'wordName';
-    name.placeholder = 'Όνομα της λίστας, για να φυλαχτεί (π.χ. Γλώσσα – Ενότητα 3)';
+    name.placeholder = t('Όνομα της λίστας, για να φυλαχτεί (π.χ. Γλώσσα – Ενότητα 3)', 'List name, to save it (e.g. Spelling – Unit 3)');
     name.maxLength = 60;
     const row = document.createElement('div');
     row.className = 'askIn wordsIn';
@@ -447,12 +452,12 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
     ta.className = 'askText secret';
     ta.value = o.value ?? '';
     ta.spellcheck = false;
-    ta.placeholder = 'μήλο, σχολείο, καλή μέρα\nή μία σε κάθε γραμμή';
+    ta.placeholder = t('μήλο, σχολείο, καλή μέρα\nή μία σε κάθε γραμμή', 'apple, school, good morning\nor one per line');
     ta.rows = 7;
     const side = document.createElement('div');
     side.className = 'wordsSide';
     const eye = button('👁', 'eye');
-    eye.title = 'Εμφάνιση / απόκρυψη των λέξεων';
+    eye.title = t('Εμφάνιση / απόκρυψη των λέξεων', 'Show / hide the words');
     eye.onclick = () => ta.classList.toggle('secret');
     const mic = micButton(o.voice, (said) => {
       ta.value = ta.value.trim() ? `${ta.value.trim().replace(/,$/, '')}, ${said}` : said;
@@ -468,7 +473,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       if (!o.random) return;
       const src = lists.filter((l) => ticked.has(l.name));
       if (!src.length) {
-        info.textContent = '🎲 Τσέκαρε από πάνω μία ή περισσότερες λίστες: θα μπουν 10 λέξεις στην τύχη από αυτές.';
+        info.textContent = t('🎲 Τσέκαρε από πάνω μία ή περισσότερες λίστες: θα μπουν 10 λέξεις στην τύχη από αυτές.', '🎲 Check one or more lists above: 10 random words will be picked from them.');
         return;
       }
       const r = o.random(src.map((l) => l.text));
@@ -476,25 +481,25 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       // το όνομα σβήνει, για να μη γραφτεί η τυχαία δεκάδα πάνω σε λίστα
       name.value = '';
       update();
-      const label = src.length === 1 ? `τη λίστα «${src[0].name}»` : `${src.length} λίστες`;
-      info.textContent = `🎲 ${o.count(r.text)} στην τύχη από ${label} (${r.count} λέξεις). Πάτα ξανά το 🎲 για άλλες.`;
+      const label = src.length === 1 ? t(`τη λίστα «${src[0].name}»`, `the list “${src[0].name}”`) : t(`${src.length} λίστες`, `${src.length} lists`);
+      info.textContent = t(`🎲 ${o.count(r.text)} στην τύχη από ${label} (${r.count} λέξεις). Πάτα ξανά το 🎲 για άλλες.`, `🎲 ${o.count(r.text)} random from ${label} (${r.count} words). Tap 🎲 again for others.`);
     };
     if (o.random) {
       const random = o.random;
       dice = button('🎲', 'eye');
-      dice.title = 'Λέξεις στην τύχη: πάτα το 🎲 και τσέκαρε λίστες από πάνω';
+      dice.title = t('Λέξεις στην τύχη: πάτα το 🎲 και τσέκαρε λίστες από πάνω', 'Random words: tap 🎲 and check lists above');
       dice.onclick = () => {
         if (!lists.length) {
           // χωρίς φυλαγμένες λίστες: 10 στην τύχη από ό,τι είναι στο κουτί
           const r = random([ta.value]);
           if (!r.text) {
-            info.textContent = 'Δεν υπάρχουν λέξεις για να διαλέξω: γράψε λέξεις ή φύλαξε πρώτα μια λίστα.';
+            info.textContent = t('Δεν υπάρχουν λέξεις για να διαλέξω: γράψε λέξεις ή φύλαξε πρώτα μια λίστα.', 'There are no words to pick from: type some words or save a list first.');
             return;
           }
           ta.value = r.text;
           name.value = '';
           update();
-          info.textContent = `🎲 ${o.count(r.text)} στην τύχη από τις λέξεις του κουτιού (${r.count} λέξεις).`;
+          info.textContent = t(`🎲 ${o.count(r.text)} στην τύχη από τις λέξεις του κουτιού (${r.count} λέξεις).`, `🎲 ${o.count(r.text)} random from the words in the box (${r.count} words).`);
           return;
         }
         // ξανά 🎲 με τσεκαρισμένες λίστες: νέα δεκάδα· χωρίς καμία, το τσεκάρισμα κλείνει
@@ -503,7 +508,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
         dice!.classList.toggle('on', picking);
         draw();
         if (picking) roll();
-        else info.textContent = 'Το 🎲 έκλεισε: πάτημα σε λίστα τη φορτώνει ολόκληρη.';
+        else info.textContent = t('Το 🎲 έκλεισε: πάτημα σε λίστα τη φορτώνει ολόκληρη.', '🎲 is off: tapping a list loads all of it.');
       };
       side.append(dice);
     }
@@ -515,12 +520,12 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
     pick.type = 'file';
     pick.accept = '.txt,.csv,.json,text/plain,text/csv,application/json';
     pick.hidden = true;
-    const open1 = button('📂 Λίστες από αρχείο', ''), save1 = button('⬇ Όλες οι λίστες σε αρχείο', '');
+    const open1 = button(t('📂 Λίστες από αρχείο', '📂 Lists from file'), ''), save1 = button(t('⬇ Όλες οι λίστες σε αρχείο', '⬇ All lists to file'), '');
     open1.onclick = () => pick.click();
     save1.onclick = () => o.exportAll();
     files.append(open1, save1, pick);
     if (o.drive) {
-      const drive = o.drive, up = button('☁️ Στο Google Drive', ''), down = button('☁️ Από το Google Drive', '');
+      const drive = o.drive, up = button(t('☁️ Στο Google Drive', '☁️ To Google Drive'), ''), down = button(t('☁️ Από το Google Drive', '☁️ From Google Drive'), '');
       const run = (b: HTMLButtonElement, wait: string, job: () => Promise<{ lists: WordList[]; added: number }>, ok: (n: number) => string): void => {
         b.disabled = true;
         info.textContent = wait;
@@ -530,22 +535,22 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
           draw();
           info.textContent = ok(r.added);
         }, (err: unknown) => {
-          info.textContent = `Το Google Drive δεν απάντησε: ${err instanceof Error ? err.message : err}`;
+          info.textContent = t(`Το Google Drive δεν απάντησε: ${err instanceof Error ? err.message : err}`, `Google Drive did not respond: ${err instanceof Error ? err.message : err}`);
         }).finally(() => { b.disabled = false; });
       };
-      up.onclick = () => run(up, 'Ανεβαίνουν οι λίστες στο Drive…', drive.save, (n) => `Στο Drive υπάρχουν τώρα ${n === 1 ? '1 λίστα' : `${n} λίστες`} (φάκελος PrismaBoard).`);
-      down.onclick = () => run(down, 'Φέρνω τις λίστες από το Drive…', drive.load, (n) => (n < 0 ? 'Δεν υπάρχουν ακόμη λίστες στο Drive: πάτα πρώτα «Στο Google Drive» από τη συσκευή που τις έχει.' : n ? `Ήρθαν ${n === 1 ? '1 λίστα' : `${n} λίστες`} από το Drive.` : 'Το Drive δεν είχε λίστες.'));
+      up.onclick = () => run(up, t('Ανεβαίνουν οι λίστες στο Drive…', 'Uploading lists to Drive…'), drive.save, (n) => t(`Στο Drive υπάρχουν τώρα ${n === 1 ? '1 λίστα' : `${n} λίστες`} (φάκελος PrismaBoard).`, `Drive now has ${n === 1 ? '1 list' : `${n} lists`} (PrismaBoard folder).`));
+      down.onclick = () => run(down, t('Φέρνω τις λίστες από το Drive…', 'Getting lists from Drive…'), drive.load, (n) => (n < 0 ? t('Δεν υπάρχουν ακόμη λίστες στο Drive: πάτα πρώτα «Στο Google Drive» από τη συσκευή που τις έχει.', 'There are no lists on Drive yet: first tap “To Google Drive” on the device that has them.') : n ? t(`Ήρθαν ${n === 1 ? '1 λίστα' : `${n} λίστες`} από το Drive.`, `Got ${n === 1 ? '1 list' : `${n} lists`} from Drive.`) : t('Το Drive δεν είχε λίστες.', 'Drive had no lists.')));
       files.append(up, down);
     }
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const no = button('Άκυρο', 'no'), keep = button('💾 Φύλαξε', ''), yes = button('▶ Ξεκίνα', 'go');
+    const no = button(t('Άκυρο', 'Cancel'), 'no'), keep = button(t('💾 Φύλαξε', '💾 Save'), ''), yes = button(t('▶ Ξεκίνα', '▶ Start'), 'go');
     acts.append(no, keep, yes);
     box.append(chips, name, row, info, mic.note, files, acts);
 
     const update = (): void => {
       const n = o.count(ta.value);
-      info.textContent = !n ? 'Γράψε ή επικόλλησε λέξεις, ή διάλεξε μια λίστα από πάνω.' : `${n === 1 ? '1 λέξη' : `${n} λέξεις`}${n >= o.max ? ` (μπαίνουν οι πρώτες ${o.max})` : ''}`;
+      info.textContent = !n ? t('Γράψε ή επικόλλησε λέξεις, ή διάλεξε μια λίστα από πάνω.', 'Type or paste words, or pick a list above.') : t(`${n === 1 ? '1 λέξη' : `${n} λέξεις`}${n >= o.max ? ` (μπαίνουν οι πρώτες ${o.max})` : ''}`, `${n === 1 ? '1 word' : `${n} words`}${n >= o.max ? ` (the first ${o.max} are used)` : ''}`);
       yes.disabled = keep.disabled = !n;
       keep.disabled ||= !name.value.trim();
       chips.querySelectorAll<HTMLElement>('[data-name]').forEach((c) => c.classList.toggle('on', picking ? ticked.has(c.dataset.name!) : c.dataset.name === name.value.trim()));
@@ -554,7 +559,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       chips.replaceChildren();
       if (!lists.length) {
         const none = document.createElement('small');
-        none.textContent = 'Δεν έχεις ακόμη φυλαγμένες λίστες: γράψε λέξεις, δώσε όνομα και πάτα «Φύλαξε».';
+        none.textContent = t('Δεν έχεις ακόμη φυλαγμένες λίστες: γράψε λέξεις, δώσε όνομα και πάτα «Φύλαξε».', 'You have no saved lists yet: type some words, give them a name and tap “Save”.');
         chips.append(none);
       }
       // λίστα που σβήστηκε δεν μένει τσεκαρισμένη
@@ -580,7 +585,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
         // το × θέλει δεύτερο πάτημα, για να μη σβηστεί λίστα κατά λάθος
         const x = document.createElement('span');
         x.className = 'wordDel';
-        x.textContent = armed === l.name ? 'Σβήσ’ την;' : '×';
+        x.textContent = armed === l.name ? t('Σβήσ’ την;', 'Delete?') : '×';
         x.onclick = (e) => {
           e.stopPropagation();
           if (armed !== l.name) {
@@ -600,12 +605,12 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
       if (!f) return;
       void o.importFile(f).then((got) => {
         if (!got) {
-          info.textContent = 'Το αρχείο δεν διαβάστηκε: θέλει απλό κείμενο (.txt, .csv) ή αρχείο λιστών του PrismaBoard (.json).';
+          info.textContent = t('Το αρχείο δεν διαβάστηκε: θέλει απλό κείμενο (.txt, .csv) ή αρχείο λιστών του PrismaBoard (.json).', 'The file could not be read: use plain text (.txt, .csv) or a PrismaBoard lists file (.json).');
           return;
         }
         lists = got;
         draw();
-        info.textContent = 'Οι λίστες του αρχείου μπήκαν στις λίστες σου.';
+        info.textContent = t('Οι λίστες του αρχείου μπήκαν στις λίστες σου.', 'The lists from the file were added to your lists.');
       });
     };
     const store = async (): Promise<void> => {
@@ -622,7 +627,7 @@ export function askWords(o: AskWordsOptions): Promise<string | null> {
     const cancel = (): void => done(null);
     open = cancel;
     no.onclick = cancel;
-    keep.onclick = () => void store().then(() => { draw(); info.textContent = `Φυλάχτηκε η λίστα «${name.value.trim()}».`; });
+    keep.onclick = () => void store().then(() => { draw(); info.textContent = t(`Φυλάχτηκε η λίστα «${name.value.trim()}».`, `Saved the list “${name.value.trim()}”.`); });
     yes.onclick = () => void store().then(() => done(ta.value));
     ta.oninput = name.oninput = update;
     for (const el of [ta, name] as HTMLElement[]) {
@@ -670,13 +675,13 @@ export function editReady(o: {
     row.className = 'askIn';
     const input = document.createElement('input');
     input.className = 'askText';
-    input.placeholder = 'Νέες λέξεις, χωρισμένες με κόμμα';
+    input.placeholder = t('Νέες λέξεις, χωρισμένες με κόμμα', 'New words, separated by commas');
     input.spellcheck = false;
-    const add = button('＋ Πρόσθεσε', 'readyAdd');
+    const add = button(t('＋ Πρόσθεσε', '＋ Add'), 'readyAdd');
     row.append(input, add);
     const acts = document.createElement('div');
     acts.className = 'askActs';
-    const reset = button('↺ Αρχικές', 'no'), yes = button('Κλείσιμο', 'go');
+    const reset = button(t('↺ Αρχικές', '↺ Defaults'), 'no'), yes = button(t('Κλείσιμο', 'Close'), 'go');
     acts.append(reset, yes);
     if (lists.length > 1) box.append(tabs);
     box.append(words, info, row, acts);
@@ -704,34 +709,34 @@ export function editReady(o: {
         const x = document.createElement('button');
         x.className = 'wordDel';
         x.textContent = '×';
-        x.title = 'Αφαίρεση';
+        x.title = t('Αφαίρεση', 'Remove');
         x.onclick = () => {
           if (l.words.length <= 1) {
-            info.textContent = 'Μένει τουλάχιστον μία λέξη· πρόσθεσε πρώτα άλλη.';
+            info.textContent = t('Μένει τουλάχιστον μία λέξη· πρόσθεσε πρώτα άλλη.', 'At least one word must stay; add another one first.');
             return;
           }
-          store(l.words.filter((y) => y !== w), `Βγήκε η «${chip.firstChild!.textContent}».`);
+          store(l.words.filter((y) => y !== w), t(`Βγήκε η «${chip.firstChild!.textContent}».`, `Removed “${chip.firstChild!.textContent}”.`));
         };
         chip.append(x);
         return chip;
       }));
-      info.textContent = `${l.words.length === 1 ? '1 λέξη' : `${l.words.length} λέξεις`} · ${l.custom ? 'με τις δικές σου αλλαγές' : 'οι αρχικές της εφαρμογής'}`;
+      info.textContent = t(`${l.words.length === 1 ? '1 λέξη' : `${l.words.length} λέξεις`} · ${l.custom ? 'με τις δικές σου αλλαγές' : 'οι αρχικές της εφαρμογής'}`, `${l.words.length === 1 ? '1 word' : `${l.words.length} words`} · ${l.custom ? 'with your changes' : 'the app defaults'}`);
       reset.disabled = !l.custom;
     };
     const addWords = (): void => {
       const l = lists[cur], { ok, bad } = o.parse(input.value);
       const fresh = ok.filter((w) => !l.words.includes(w));
       if (!fresh.length && !bad.length) {
-        info.textContent = ok.length ? 'Αυτές οι λέξεις υπάρχουν ήδη.' : 'Γράψε πρώτα μια λέξη.';
+        info.textContent = ok.length ? t('Αυτές οι λέξεις υπάρχουν ήδη.', 'These words are already in the list.') : t('Γράψε πρώτα μια λέξη.', 'Type a word first.');
         return;
       }
       input.value = bad.join(', ');
-      const msg = `${fresh.length ? (fresh.length === 1 ? 'Μπήκε 1 λέξη.' : `Μπήκαν ${fresh.length} λέξεις.`) : ''}${bad.length ? ` Δεν μπαίνουν: ${bad.join(', ')}.` : ''}`.trim();
+      const msg = `${fresh.length ? (fresh.length === 1 ? t('Μπήκε 1 λέξη.', 'Added 1 word.') : t(`Μπήκαν ${fresh.length} λέξεις.`, `Added ${fresh.length} words.`)) : ''}${bad.length ? t(` Δεν μπαίνουν: ${bad.join(', ')}.`, ` Can't add: ${bad.join(', ')}.`) : ''}`.trim();
       if (fresh.length) store([...l.words, ...fresh], msg);
       else info.textContent = msg;
     };
     add.onclick = addWords;
-    reset.onclick = () => store(null, 'Ξαναμπήκαν οι αρχικές λέξεις.');
+    reset.onclick = () => store(null, t('Ξαναμπήκαν οι αρχικές λέξεις.', 'The default words are back.'));
     const done = (): void => {
       if (open !== done) return;
       open = null;

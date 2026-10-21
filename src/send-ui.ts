@@ -8,6 +8,7 @@ import { buildPdf } from './pdf';
 import { $, board, download, toast } from './app';
 import { closePopups, lessons } from './main';
 import { classFileName, safeName } from './class-files';
+import { t } from './i18n';
 
 /** Αν οι σελίδες του PDF παίρνουν το λογότυπο σε μια γωνία (ρύθμιση ανά συσκευή). */
 export let pdfLogo = true;
@@ -64,11 +65,11 @@ void loadLogo().then((m) => { printMark = m; });
 /** Το PDF του μαθήματος. `all`: όλες οι σελίδες, χωρίς ερώτηση. */
 export async function lessonPdf(all = false): Promise<Blob | null> {
   const total = board.doc.pages.length;
-  const only = total > 1 && !all ? await pickPages('Ποιες σελίδες θα μπουν στο PDF;', 'Εξαγωγή', total, (i, w) => board.pageThumb(i, w), board.cur) : undefined;
+  const only = total > 1 && !all ? await pickPages(t('Ποιες σελίδες θα μπουν στο PDF;', 'Which pages go in the PDF?'), t('Εξαγωγή', 'Export'), total, (i, w) => board.pageThumb(i, w), board.cur) : undefined;
   if (only === null) return null;
   const mark = pdfLogo ? await loadLogo() : null;
-  const pages = await board.exportJpegPages((d, n) => toast(`Ετοιμάζεται το PDF… σελίδα ${d + 1} από ${n}`, 0), mark ?? undefined, only);
-  toast(pages.length === 1 ? 'Το PDF είναι έτοιμο (1 σελίδα)' : `Το PDF είναι έτοιμο (${pages.length} σελίδες)`);
+  const pages = await board.exportJpegPages((d, n) => toast(t(`Ετοιμάζεται το PDF… σελίδα ${d + 1} από ${n}`, `Preparing the PDF… page ${d + 1} of ${n}`), 0), mark ?? undefined, only);
+  toast(pages.length === 1 ? t('Το PDF είναι έτοιμο (1 σελίδα)', 'The PDF is ready (1 page)') : t(`Το PDF είναι έτοιμο (${pages.length} σελίδες)`, `The PDF is ready (${pages.length} pages)`));
   return buildPdf(pages);
 }
 
@@ -98,7 +99,7 @@ export function pickPages(title: string, okText: string, n: number, thumb: (i: n
     const paint = (): void => {
       cells.forEach((b, i) => b.classList.toggle('on', on.has(i)));
       ok.disabled = on.size === 0;
-      ok.textContent = on.size === n ? `${okText}: όλες (${n})` : on.size === 1 ? `${okText}: 1 σελίδα` : `${okText}: ${on.size} σελίδες`;
+      ok.textContent = on.size === n ? t(`${okText}: όλες (${n})`, `${okText}: all (${n})`) : on.size === 1 ? t(`${okText}: 1 σελίδα`, `${okText}: 1 page`) : t(`${okText}: ${on.size} σελίδες`, `${okText}: ${on.size} pages`);
     };
     const set = (list: number[]): void => { on.clear(); list.forEach((i) => on.add(i)); paint(); };
     const done = (r: number[] | null): void => {
@@ -190,64 +191,70 @@ $('sendIdSave').onclick = () => {
   renderSend();
 };
 $('sendDrive').onclick = async () => {
-  const name = classFileName(lessons?.current?.name ?? 'Μάθημα', lessons?.current?.group, 'pdf');
+  const name = classFileName(lessons?.current?.name ?? t('Μάθημα', 'Lesson'), lessons?.current?.group, 'pdf');
   try {
     // η σύνδεση πρώτα, όσο «μετράει» ακόμα το πάτημα: αλλιώς ο browser μπλοκάρει το παράθυρο της Google
     await driveConnect();
     const pdf = await lessonPdf();
     if (!pdf) return;
-    toast('Ανεβαίνει στο Google Drive…', 0);
+    toast(t('Ανεβαίνει στο Google Drive…', 'Uploading to Google Drive…'), 0);
     const up = await uploadToDrive(pdf, name, classGroup());
     sendUrl = studentUrl(up);
     drawQr($('sendQr') as HTMLCanvasElement, sendUrl);
     $('sendUrl').textContent = sendUrl;
     $('sendNote').textContent = up.shared
-      ? `Το αρχείο είναι στον φάκελο «PrismaBoard${classGroup() ? `/${classGroup()}` : ''}» του Drive. Όποιος έχει τον σύνδεσμο ή το QR το βλέπει σε σελίδα του PrismaBoard, με κουμπί λήψης.`
-      : `Το αρχείο ανέβηκε στον φάκελο «PrismaBoard${classGroup() ? `/${classGroup()}` : ''}», αλλά ο λογαριασμός δεν επιτρέπει κοινή χρήση με σύνδεσμο. Άνοιξέ το στο Drive και μοίρασέ το από εκεί.`;
+      ? t(`Το αρχείο είναι στον φάκελο «PrismaBoard${classGroup() ? `/${classGroup()}` : ''}» του Drive. Όποιος έχει τον σύνδεσμο ή το QR το βλέπει σε σελίδα του PrismaBoard, με κουμπί λήψης.`,
+        `The file is in the “PrismaBoard${classGroup() ? `/${classGroup()}` : ''}” folder on Drive. Anyone with the link or the QR code can view it on a PrismaBoard page, with a download button.`)
+      : notShared();
     $('sendOut').classList.remove('hidden');
     showSend();
-    toast('Ανέβηκε');
+    toast(t('Ανέβηκε', 'Uploaded'));
     // με την ευκαιρία της σύνδεσης, αντίγραφο ασφαλείας των μαθημάτων που άλλαξαν
     void lessons?.cloudBackup(true);
   } catch (err) {
     console.error(err);
-    toast(`Δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 8000);
+    const msg = err instanceof Error ? err.message : err;
+    toast(t(`Δεν ανέβηκε: ${msg}`, `Upload failed: ${msg}`), 8000);
   }
 };
 /** Ο φάκελος του τμήματος στο Drive, με το ίδιο όνομα όπως στον υπολογιστή (βλ. class-files.ts). */
 const classGroup = (): string | undefined => (lessons?.current?.group ? safeName(lessons.current.group) : undefined);
+/** Το μήνυμα όταν ο λογαριασμός δεν επιτρέπει κοινή χρήση με σύνδεσμο. */
+const notShared = (): string => t(`Το αρχείο ανέβηκε στον φάκελο «PrismaBoard${classGroup() ? `/${classGroup()}` : ''}», αλλά ο λογαριασμός δεν επιτρέπει κοινή χρήση με σύνδεσμο. Άνοιξέ το στο Drive και μοίρασέ το από εκεί.`,
+  `The file was uploaded to the “PrismaBoard${classGroup() ? `/${classGroup()}` : ''}” folder, but this account doesn't allow sharing by link. Open it in Drive and share it from there.`);
 
 /** «Τέλος μαθήματος»: όλο το μάθημα σε PDF, στο Drive, και μεγάλο QR στην οθόνη, με ένα πάτημα. */
 export async function endLesson(): Promise<void> {
   if (!driveClientId()) return openSend();
-  const name = classFileName(lessons?.current?.name ?? 'Μάθημα', lessons?.current?.group, 'pdf');
+  const name = classFileName(lessons?.current?.name ?? t('Μάθημα', 'Lesson'), lessons?.current?.group, 'pdf');
   try {
     // η σύνδεση πρώτα, όσο «μετράει» ακόμα το πάτημα: αλλιώς ο browser μπλοκάρει το παράθυρο της Google
     await driveConnect();
     const pdf = await lessonPdf(true);
     if (!pdf) return;
-    toast('Ανεβαίνει στο Google Drive…', 0);
+    toast(t('Ανεβαίνει στο Google Drive…', 'Uploading to Google Drive…'), 0);
     const up = await uploadToDrive(pdf, name, classGroup());
     sendUrl = studentUrl(up);
     if (up.shared) {
       showBigQr();
-      toast('Έτοιμο: οι μαθητές σκανάρουν το QR');
+      toast(t('Έτοιμο: οι μαθητές σκανάρουν το QR', 'Ready: students scan the QR code'));
     } else {
       // χωρίς κοινή χρήση το QR δεν θα άνοιγε στους μαθητές: δείχνουμε το παράθυρο με την εξήγηση
       drawQr($('sendQr') as HTMLCanvasElement, up.url);
       $('sendUrl').textContent = up.url;
-      $('sendNote').textContent = `Το αρχείο ανέβηκε στον φάκελο «PrismaBoard${classGroup() ? `/${classGroup()}` : ''}», αλλά ο λογαριασμός δεν επιτρέπει κοινή χρήση με σύνδεσμο. Άνοιξέ το στο Drive και μοίρασέ το από εκεί.`;
+      $('sendNote').textContent = notShared();
       renderSend();
       $('sendOut').classList.remove('hidden');
       showSend();
-      toast('Ανέβηκε');
+      toast(t('Ανέβηκε', 'Uploaded'));
     }
     void lessons?.cloudBackup(true);
   } catch (err) {
     console.error(err);
     // χωρίς Drive (π.χ. έπεσε το Wi-Fi στο κουδούνι) το μάθημα φεύγει τουλάχιστον ως PDF στη συσκευή
-    toast(`Δεν ανέβηκε: ${err instanceof Error ? err.message : err}`, 15000, {
-      label: 'PDF στη συσκευή',
+    const msg = err instanceof Error ? err.message : err;
+    toast(t(`Δεν ανέβηκε: ${msg}`, `Upload failed: ${msg}`), 15000, {
+      label: t('PDF στη συσκευή', 'PDF to device'),
       run: () => void lessonPdf(true).then((pdf) => pdf && download(pdf, name)),
     });
   }
@@ -255,13 +262,13 @@ export async function endLesson(): Promise<void> {
 function showBigQr(): void {
   const big = $('qrBig');
   drawQr(big.querySelector('canvas')!, sendUrl);
-  big.querySelector('div')!.textContent = 'Σκανάρετε για τις σημειώσεις του μαθήματος · πάτημα για κλείσιμο';
+  big.querySelector('div')!.textContent = t('Σκανάρετε για τις σημειώσεις του μαθήματος · πάτημα για κλείσιμο', 'Scan for the lesson notes · tap to close');
   big.classList.remove('hidden');
   closePopups();
 }
 $('sendShare').onclick = async () => {
   try {
-    const name = classFileName(lessons?.current?.name ?? 'Μάθημα', lessons?.current?.group, 'pdf');
+    const name = classFileName(lessons?.current?.name ?? t('Μάθημα', 'Lesson'), lessons?.current?.group, 'pdf');
     const pdf = await lessonPdf();
     if (!pdf) return;
     const file = new File([pdf], name, { type: 'application/pdf' });
@@ -270,11 +277,11 @@ $('sendShare').onclick = async () => {
     else if (!isNative && navigator.canShare?.({ files: [file] })) await navigator.share({ files: [file], title: name });
     else download(file, name);
   } catch (err) {
-    if ((err as Error)?.name !== 'AbortError') toast('Η κοινοποίηση απέτυχε', 5000);
+    if ((err as Error)?.name !== 'AbortError') toast(t('Η κοινοποίηση απέτυχε', 'Sharing failed'), 5000);
   }
 };
 $('sendCopy').onclick = () => {
-  navigator.clipboard?.writeText(sendUrl).then(() => toast('Ο σύνδεσμος αντιγράφηκε'), () => toast('Δεν έγινε αντιγραφή', 4000));
+  navigator.clipboard?.writeText(sendUrl).then(() => toast(t('Ο σύνδεσμος αντιγράφηκε', 'Link copied')), () => toast(t('Δεν έγινε αντιγραφή', "Couldn't copy"), 4000));
 };
 $('sendBig').onclick = showBigQr;
 $('qrBig').onclick = () => $('qrBig').classList.add('hidden');

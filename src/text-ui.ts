@@ -2,6 +2,7 @@
 
 import { TextItem, isDark } from './model';
 import { $, SIZES, board } from './app';
+import { t } from './i18n';
 
 const TEXT_SIZES = [20, 28, 44, 72];
 let textCtx: { x: number; y: number; existing?: TextItem } | null = null;
@@ -57,12 +58,13 @@ export function initText(): void {
 export function initDiag(): void {
   const diag = $('diag');
   diag.innerHTML = `
-  <b>Διάγνωση εισόδου</b>
-  <pre id="diagText">Άγγιξε ή γράψε στον πίνακα…</pre>
-  <label>Όριο παλάμης (px): <span id="palmV"></span>
+  <b>${t('Διάγνωση εισόδου', 'Input diagnostics')}</b>
+  <pre id="diagText">${t('Άγγιξε ή γράψε στον πίνακα…', 'Touch or write on the board…')}</pre>
+  <label>${t('Όριο παλάμης (px):', 'Palm threshold (px):')} <span id="palmV"></span>
     <input id="palm" type="range" min="10" max="120" step="1" /></label>
-  <small>Αν η γραφίδα του πίνακα εμφανίζεται ως «touch», το μέγεθος επαφής ξεχωρίζει στυλό από παλάμη.
-  Επαφές μεγαλύτερες από το όριο λειτουργούν ως γόμα.</small>`;
+  <small>${t(`Αν η γραφίδα του πίνακα εμφανίζεται ως «touch», το μέγεθος επαφής ξεχωρίζει στυλό από παλάμη.
+  Επαφές μεγαλύτερες από το όριο λειτουργούν ως γόμα.`, `If the board's pen shows up as “touch”, the contact size tells pen from palm.
+  Contacts larger than the threshold act as an eraser.`)}</small>`;
   const palm = diag.querySelector<HTMLInputElement>('#palm')!;
   palm.value = String(board.palmThreshold);
   const palmV = diag.querySelector<HTMLElement>('#palmV')!;
@@ -79,12 +81,12 @@ export function initDiag(): void {
     if (e.type === 'pointerdown') maxContact = size;
     else maxContact = Math.max(maxContact, size);
     diagText.textContent =
-      `τύπος:        ${e.pointerType}\n` +
-      `επαφή:        ${e.width.toFixed(1)} × ${e.height.toFixed(1)} px\n` +
-      `μέγιστη επαφή:${maxContact.toFixed(1)} px\n` +
-      `πίεση:        ${e.pressure.toFixed(2)}\n` +
-      `κουμπιά:      ${e.buttons}\n` +
-      `ταυτόχρονοι δείκτες: ${n}\n` +
+      t(`τύπος:        ${e.pointerType}\n`, `type:         ${e.pointerType}\n`) +
+      t(`επαφή:        ${e.width.toFixed(1)} × ${e.height.toFixed(1)} px\n`, `contact:      ${e.width.toFixed(1)} × ${e.height.toFixed(1)} px\n`) +
+      t(`μέγιστη επαφή:${maxContact.toFixed(1)} px\n`, `max contact:  ${maxContact.toFixed(1)} px\n`) +
+      t(`πίεση:        ${e.pressure.toFixed(2)}\n`, `pressure:     ${e.pressure.toFixed(2)}\n`) +
+      t(`κουμπιά:      ${e.buttons}\n`, `buttons:      ${e.buttons}\n`) +
+      t(`ταυτόχρονοι δείκτες: ${n}\n`, `simultaneous pointers: ${n}\n`) +
       `pointerId:    ${e.pointerId}`;
   };
 }

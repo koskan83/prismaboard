@@ -1,5 +1,5 @@
 /**
- * Η σελίδα «Άδειες τρίτων» (public/adeies.html) φτιάχνεται σε κάθε build από τις βιβλιοθήκες που μπαίνουν στην εφαρμογή:
+ * Η σελίδα «Άδειες τρίτων» (public/adeies.html και η αγγλική public/adeies-en.html) φτιάχνεται σε κάθε build από τις βιβλιοθήκες που μπαίνουν στην εφαρμογή:
  * τα πακέτα npm που δεν είναι μόνο για την ανάπτυξη, και τα crates του Rust του προγράμματος Windows.
  * Τα crates τα δίνει το cargo· όπου δεν υπάρχει cargo, κρατιέται η λίστα του προηγούμενου build (scripts/rust-crates.json).
  */
@@ -7,7 +7,7 @@ import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const OUT = 'public/adeies.html', RUST = 'scripts/rust-crates.json';
+const RUST = 'scripts/rust-crates.json';
 // πακέτα που τα χρειάζεται μόνο το Node (π.χ. το pdf.js εκτός browser) και δεν μπαίνουν στην εφαρμογή
 const NODE_ONLY = /^@napi-rs\//;
 
@@ -56,7 +56,7 @@ function rustCrates() {
     }
     const crates = meta.packages
       .filter((p) => keep.has(p.id) && p.id !== root)
-      .map((p) => ({ name: p.name, version: p.version, license: p.license ?? (p.license_file ? 'δείτε το αρχείο της άδειας' : '—'), url: p.repository ?? '' }))
+      .map((p) => ({ name: p.name, version: p.version, license: p.license ?? (p.license_file ? 'LICENSE' : '—'), url: p.repository ?? '' }))
       .sort((a, b) => a.name.localeCompare(b.name));
     writeFileSync(RUST, JSON.stringify(crates, null, 1) + '\n');
     return crates;
@@ -70,12 +70,15 @@ function rustCrates() {
 const npm = npmPackages(), rust = rustCrates();
 const link = (url, text) => (url ? `<a href="${esc(url)}" rel="noopener" target="_blank">${esc(text)}</a>` : esc(text));
 
-const html = `<!doctype html>
-<html lang="el">
+/** Η σελίδα σε μία γλώσσα: L(ελληνικά, αγγλικά). */
+const page = (en) => {
+const L = (el, eng) => (en ? eng : el);
+return `<!doctype html>
+<html lang="${L('el', 'en')}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>PrismaBoard – Άδειες τρίτων</title>
+<title>PrismaBoard – ${L('Άδειες τρίτων', 'Third-party licenses')}</title>
 <!-- φτιάχνεται από το scripts/adeies.mjs σε κάθε build· οι αλλαγές με το χέρι χάνονται -->
 <style>
   :root { color-scheme: light dark; }
@@ -97,19 +100,20 @@ const html = `<!doctype html>
 <body>
 <main>
   <img src="./logo.svg" alt="PrismaBoard" width="64" height="64" />
-  <h1>Άδειες τρίτων</h1>
-  <p>Το PrismaBoard χρησιμοποιεί τις παρακάτω βιβλιοθήκες ανοιχτού κώδικα. Ευχαριστούμε τους δημιουργούς τους. Κάθε βιβλιοθήκη διανέμεται με τη δική της άδεια, που ακολουθεί.</p>
-  <p><a href="./privacy.html">Πολιτική απορρήτου</a></p>
+  <p><a href="./${L('adeies-en.html', 'adeies.html')}">${L('English', 'Ελληνικά')}</a></p>
+  <h1>${L('Άδειες τρίτων', 'Third-party licenses')}</h1>
+  <p>${L('Το PrismaBoard χρησιμοποιεί τις παρακάτω βιβλιοθήκες ανοιχτού κώδικα. Ευχαριστούμε τους δημιουργούς τους. Κάθε βιβλιοθήκη διανέμεται με τη δική της άδεια, που ακολουθεί.', 'PrismaBoard uses the open-source libraries below. Thanks to their authors. Each library is distributed under its own license, shown below.')}</p>
+  <p><a href="./privacy.html">${L('Πολιτική απορρήτου', 'Privacy policy')}</a></p>
 
-  <h2>Βιβλιοθήκες της εφαρμογής</h2>
+  <h2>${L('Βιβλιοθήκες της εφαρμογής', 'App libraries')}</h2>
 ${npm.map((p) => `  <details>
     <summary><b>${esc(p.name)}</b> ${esc(p.version)} · ${esc(p.license)}</summary>
     <p>${link(p.url, p.url ?? '')}</p>
-    ${p.text ? `<pre>${esc(p.text)}</pre>` : `<p class="mut">Άδεια ${esc(p.license)}.</p>`}
+    ${p.text ? `<pre>${esc(p.text)}</pre>` : `<p class="mut">${L('Άδεια', 'License')} ${esc(p.license)}.</p>`}
   </details>`).join('\n')}
 ${rust.length ? `
-  <h2>Πρόγραμμα για Windows</h2>
-  <p>Το πρόγραμμα για Windows είναι χτισμένο με το ${link('https://tauri.app', 'Tauri')} και περιέχει επιπλέον τα παρακάτω crates του Rust. Τα πλήρη κείμενα των αδειών τους υπάρχουν στον σύνδεσμο του καθενός.</p>
+  <h2>${L('Πρόγραμμα για Windows', 'Windows app')}</h2>
+  <p>${L(`Το πρόγραμμα για Windows είναι χτισμένο με το ${link('https://tauri.app', 'Tauri')} και περιέχει επιπλέον τα παρακάτω crates του Rust. Τα πλήρη κείμενα των αδειών τους υπάρχουν στον σύνδεσμο του καθενός.`, `The Windows app is built with ${link('https://tauri.app', 'Tauri')} and also contains the Rust crates below. The full texts of their licenses are at each link.`)}</p>
   <table>
 ${rust.map((c) => `    <tr><td>${link(c.url, c.name)}</td><td>${esc(c.version)}</td><td>${esc(c.license)}</td></tr>`).join('\n')}
   </table>` : ''}
@@ -117,5 +121,7 @@ ${rust.map((c) => `    <tr><td>${link(c.url, c.name)}</td><td>${esc(c.version)}<
 </body>
 </html>
 `;
-writeFileSync(OUT, html);
+};
+writeFileSync('public/adeies.html', page(false));
+writeFileSync('public/adeies-en.html', page(true));
 console.log(`adeies: ${npm.length} πακέτα npm, ${rust.length} crates`);

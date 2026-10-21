@@ -24,9 +24,9 @@ describe('μεταγλωττιστής εκφράσεων', () => {
     expect(compile('ημ x^2')(2)).toBeCloseTo(Math.sin(4));
   });
 
-  it('τα αγγλικά ονόματα απορρίπτονται με υπόδειξη', () => {
-    expect(() => compile('sin(x)')).toThrow(/ημ/);
-    expect(() => compile('sqrt(x)')).toThrow();
+  it('δέχεται και τα αγγλικά ονόματα (μάθημα από την αγγλική έκδοση)', () => {
+    expect(compile('sin(x)')(1)).toBeCloseTo(Math.sin(1));
+    expect(compile('sqrt(x)+pi')(4)).toBeCloseTo(2 + Math.PI);
   });
 
   it('λάθος εκφράσεις πετάνε σφάλμα και η compileCached δίνει null', () => {

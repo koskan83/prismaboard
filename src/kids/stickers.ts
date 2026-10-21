@@ -1,5 +1,6 @@
 /** Εικόνες για μέτρημα και προβλήματα, και σφραγίδες επιβράβευσης. */
 import type { StampDef } from '../stamps';
+import { t } from '../i18n';
 import { BLUE, type C, GREEN, kid, ORANGE, PURPLE, RED, rrect, star, text, YELLOW } from './common';
 
 // Οι βασικές είναι σχεδιασμένες με γραμμές και γεμίσματα, ώστε να μένουν καθαρές σε όποιο μέγεθος· οι υπόλοιπες είναι emoji.
@@ -200,18 +201,18 @@ const balloon: Draw = (c, w, h) => {
 
 /** `draw`: σχεδιασμένη εικόνα με το δικό της αρχικό μέγεθος· χωρίς αυτό, ζωγραφίζεται το emoji. */
 export const PICS: [key: string, emoji: string, label: string, draw?: Draw, w?: number, h?: number][] = [
-  ['house', '🏠', 'Σπίτι', house, 200, 180], ['tree', '🌳', 'Δέντρο', tree, 150, 190], ['pine', '🌲', 'Έλατο', pine, 140, 190], ['bush', '🌿', 'Θάμνος', bush, 170, 120],
-  ['boy', '👦', 'Αγόρι', child(false), 110, 190], ['girl', '👧', 'Κορίτσι', child(true), 110, 190],
-  ['apple', '🍎', 'Μήλο', apple], ['flower', '🌸', 'Λουλούδι', flower, 110, 160], ['sun', '☀️', 'Ήλιος', sun, 150, 150], ['cloud', '☁️', 'Σύννεφο', cloud, 200, 140],
-  ['heart', '❤️', 'Καρδιά', heart], ['ball', '⚽', 'Μπάλα', ball], ['balloon', '🎈', 'Μπαλόνι', balloon, 100, 170],
-  ['dog', '🐶', 'Σκύλος'], ['cat', '🐱', 'Γάτα'], ['fish', '🐟', 'Ψάρι'], ['bird', '🐦', 'Πουλί'],
-  ['car', '🚗', 'Αυτοκίνητο'], ['candy', '🍬', 'Καραμέλα'], ['book', '📕', 'Βιβλίο'], ['pencil', '✏️', 'Μολύβι'], ['cookie', '🍪', 'Μπισκότο'],
+  ['house', '🏠', t('Σπίτι', 'House'), house, 200, 180], ['tree', '🌳', t('Δέντρο', 'Tree'), tree, 150, 190], ['pine', '🌲', t('Έλατο', 'Fir tree'), pine, 140, 190], ['bush', '🌿', t('Θάμνος', 'Bush'), bush, 170, 120],
+  ['boy', '👦', t('Αγόρι', 'Boy'), child(false), 110, 190], ['girl', '👧', t('Κορίτσι', 'Girl'), child(true), 110, 190],
+  ['apple', '🍎', t('Μήλο', 'Apple'), apple], ['flower', '🌸', t('Λουλούδι', 'Flower'), flower, 110, 160], ['sun', '☀️', t('Ήλιος', 'Sun'), sun, 150, 150], ['cloud', '☁️', t('Σύννεφο', 'Cloud'), cloud, 200, 140],
+  ['heart', '❤️', t('Καρδιά', 'Heart'), heart], ['ball', '⚽', t('Μπάλα', 'Ball'), ball], ['balloon', '🎈', t('Μπαλόνι', 'Balloon'), balloon, 100, 170],
+  ['dog', '🐶', t('Σκύλος', 'Dog')], ['cat', '🐱', t('Γάτα', 'Cat')], ['fish', '🐟', t('Ψάρι', 'Fish')], ['bird', '🐦', t('Πουλί', 'Bird')],
+  ['car', '🚗', t('Αυτοκίνητο', 'Car')], ['candy', '🍬', t('Καραμέλα', 'Candy')], ['book', '📕', t('Βιβλίο', 'Book')], ['pencil', '✏️', t('Μολύβι', 'Pencil')], ['cookie', '🍪', t('Μπισκότο', 'Cookie')],
 ];
 const EMOJI_FONT = '"Segoe UI Emoji", "Noto Color Emoji", "Apple Color Emoji", sans-serif';
 
 export const STICKER_KIDS: Record<string, StampDef> = {
   star: kid({
-    label: 'Αστέρι', w: 140, h: 140, cheer: true,
+    label: t('Αστέρι', 'Star'), w: 140, h: 140, cheer: true,
     drawKid(c, w, h) {
       star(c, w / 2, h * 0.53, w * 0.48);
       c.fillStyle = YELLOW;
@@ -224,7 +225,7 @@ export const STICKER_KIDS: Record<string, StampDef> = {
   }),
 
   smile: kid({
-    label: 'Φατσούλα', w: 140, h: 140, cheer: true,
+    label: t('Φατσούλα', 'Smiley'), w: 140, h: 140, cheer: true,
     drawKid(c, w, h) {
       const r = w * 0.46;
       c.beginPath();
@@ -248,7 +249,7 @@ export const STICKER_KIDS: Record<string, StampDef> = {
   }),
 
   bravo: kid({
-    label: 'Μπράβο!', w: 300, h: 120, cheer: true,
+    label: t('Μπράβο!', 'Well done!'), w: 300, h: 120, cheer: true,
     drawKid(c, w, h) {
       rrect(c, 3, 3, w - 6, h - 6, h * 0.3);
       c.fillStyle = GREEN;
@@ -259,7 +260,7 @@ export const STICKER_KIDS: Record<string, StampDef> = {
       star(c, h * 0.52, h * 0.52, h * 0.3);
       c.fillStyle = YELLOW;
       c.fill();
-      text(c, 'Μπράβο!', w * 0.6, h * 0.53, h * 0.42, '#ffffff', 800);
+      text(c, t('Μπράβο!', 'Well done!'), w * 0.6, h * 0.53, h * 0.42, '#ffffff', 800);
     },
   }),
 };

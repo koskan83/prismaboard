@@ -1,5 +1,6 @@
 /** Κυβάκια και αριθμοί: χαρακτήρες-αριθμοί που χτίζονται, κόβονται, ντύνονται, ζυγίζονται στη ζυγαριά και μπαίνουν σε πράξεις. */
 import type { StampDef } from '../stamps';
+import { t as tr } from '../i18n';
 import { type C, FONT, fullIcon, kid, rrect, text } from './common';
 
 /**
@@ -1141,7 +1142,7 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
 
 export const NUMCUBE_KIDS: Record<string, StampDef> = {
   numcubes: kid({
-    label: 'Κυβάκια και αριθμοί', w: 960, h: 640, animMs: NC_ANIM_MS,
+    label: tr('Κυβάκια και αριθμοί', 'Number cubes'), w: 960, h: 640, animMs: NC_ANIM_MS,
     init: [0, 0, 0, ...[1, 2, 3, 4, 5].flatMap((n) => [10 + n * 45, 130, n, ncStartH(n), 0, 0, 0])],
     drawKid(c, w, h, v, env) {
       const s = ncState(v), g = ncGeom(w, h, ncZoom(s.flags));

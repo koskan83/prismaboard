@@ -8,6 +8,7 @@
 import type { Board } from './board';
 import { spellState } from './kids/spell-words';
 import type { StampItem } from './model';
+import { t } from './i18n';
 import { openReady } from './ready-ui';
 import { STAMPS } from './stamps';
 
@@ -38,12 +39,12 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
   const door = document.createElement('button');
   door.className = 'gameDoor';
   door.textContent = '🚪';
-  door.title = 'Πίσω στον πίνακα (Esc)';
+  door.title = t('Πίσω στον πίνακα (Esc)', 'Back to the board (Esc)');
   // οι έτοιμες λέξεις του παιχνιδιού (του 🎲 ή των τάξεων): φαίνονται και αλλάζουν
   const words = document.createElement('button');
   words.className = 'gameWords';
-  words.textContent = '📋 Λέξεις';
-  words.title = 'Οι έτοιμες λέξεις του παιχνιδιού: δες τες, πρόσθεσε ή βγάλε';
+  words.textContent = t('📋 Λέξεις', '📋 Words');
+  words.title = t('Οι έτοιμες λέξεις του παιχνιδιού: δες τες, πρόσθεσε ή βγάλε', 'The game\'s ready words: see them, add or remove');
   words.onclick = () => void openReady(name);
   root.append(cv, words, door);
   document.body.append(root);

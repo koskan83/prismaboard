@@ -7,6 +7,10 @@ import { ask, askLines, chooseBox, confirmBox, type Choice, type WordList } from
 import { classFileName, safeName, saveClassFile } from './class-files';
 import { loadLists, mergeLists } from './spell-lists';
 import { mascot } from './mascot';
+import { isEn, t } from './i18n';
+
+/** Η γλώσσα για τις ημερομηνίες που φαίνονται. */
+const LOC = isEn ? 'en-US' : 'el';
 
 export interface LessonMeta {
   id: string;
@@ -114,21 +118,21 @@ export class Lessons {
   constructor(private host: LessonHost, parent: HTMLElement) {
     parent.insertAdjacentHTML(
       'beforeend',
-      `<button id="lessonName" class="fab hidden" title="Μετονομασία μαθήματος"><i id="libOpen" title="Μαθήματα"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></svg></i><span></span><em class="cl"></em></button>
+      `<button id="lessonName" class="fab hidden" title="${t('Μετονομασία μαθήματος', 'Rename lesson')}"><i id="libOpen" title="${t('Μαθήματα', 'Lessons')}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></svg></i><span></span><em class="cl"></em></button>
       <div id="lib" class="hidden">
         <div id="libHead">
           <img class="lg onDark" src="./logo-light.svg" alt="" /><img class="lg onLight" src="./logo.svg" alt="" />
-          <b>Μαθήματα</b>
-          <button data-lib="new" class="go">＋ Νέο μάθημα</button>
+          <b>${t('Μαθήματα', 'Lessons')}</b>
+          <button data-lib="new" class="go">${t('＋ Νέο μάθημα', '＋ New lesson')}</button>
           <span class="sp"></span>
-          <button data-lib="backup" title="Κατεβάζει όλα τα μαθήματα σε ένα αρχείο">Αντίγραφο σε αρχείο</button>
-          <button data-lib="restore" title="Φέρνει πίσω μαθήματα από αρχείο αντιγράφου">Επαναφορά από αρχείο</button>
-          <button data-lib="close" title="Κλείσιμο">✕</button>
+          <button data-lib="backup" title="${t('Κατεβάζει όλα τα μαθήματα σε ένα αρχείο', 'Downloads all lessons in one file')}">${t('Αντίγραφο σε αρχείο', 'Back up to file')}</button>
+          <button data-lib="restore" title="${t('Φέρνει πίσω μαθήματα από αρχείο αντιγράφου', 'Brings back lessons from a backup file')}">${t('Επαναφορά από αρχείο', 'Restore from file')}</button>
+          <button data-lib="close" title="${t('Κλείσιμο', 'Close')}">✕</button>
         </div>
         <div id="libSafe">
           <span id="libSafeMsg"></span>
-          <button data-lib="cloud" class="go" title="Ανεβάζει στο δικό σου Google Drive όσα μαθήματα άλλαξαν, το καθένα στον φάκελο του τμήματός του">☁ Όλα στο Drive</button>
-          <button data-lib="cloudGet" title="Διαλέγεις ένα μάθημα από το Google Drive σου (από οποιαδήποτε συσκευή) και ανοίγει εδώ">☁ Άνοιγμα από το Drive…</button>
+          <button data-lib="cloud" class="go" title="${t('Ανεβάζει στο δικό σου Google Drive όσα μαθήματα άλλαξαν, το καθένα στον φάκελο του τμήματός του', 'Uploads changed lessons to your own Google Drive, each in its class folder')}">${t('☁ Όλα στο Drive', '☁ All to Drive')}</button>
+          <button data-lib="cloudGet" title="${t('Διαλέγεις ένα μάθημα από το Google Drive σου (από οποιαδήποτε συσκευή) και ανοίγει εδώ', 'Pick a lesson from your Google Drive (from any device) and it opens here')}">${t('☁ Άνοιγμα από το Drive…', '☁ Open from Drive…')}</button>
         </div>
         <div id="libGroups"></div>
         <div id="libGrid"></div>
@@ -164,7 +168,7 @@ export class Lessons {
 
   /** «Μάθημα 14/10/2026» (ή «Β2 14/10/2026» για τμήμα), με αρίθμηση αν υπάρχει ήδη. */
   private defaultName(group = ''): string {
-    const base = `${group || 'Μάθημα'} ${new Date().toLocaleDateString('el')}`;
+    const base = `${group || t('Μάθημα', 'Lesson')} ${new Date().toLocaleDateString('el')}`;
     let name = base;
     for (let n = 2; this.index.some((m) => m.name === name); n++) name = `${base} (${n})`;
     return name;
@@ -200,10 +204,11 @@ export class Lessons {
   /** Αλλάζει τη λίστα μαθητών ενός τμήματος: ένα όνομα σε κάθε γραμμή. */
   private async editRoster(group: string): Promise<void> {
     const have = this.rosters[group] ?? [];
-    const text = await askLines(`Μαθητές του ${group}`, {
+    const text = await askLines(t(`Μαθητές του ${group}`, `Students in ${group}`), {
       value: have.join('\n'),
-      hint: 'Ένα όνομα σε κάθε γραμμή (μπορείς να τα επικολλήσεις από λίστα). Μένουν μόνο σε αυτή τη συσκευή. Με αυτά η Κλήρωση βγάζει όνομα αντί για αριθμό.',
-      ok: 'Αποθήκευση',
+      hint: t('Ένα όνομα σε κάθε γραμμή (μπορείς να τα επικολλήσεις από λίστα). Μένουν μόνο σε αυτή τη συσκευή. Με αυτά η Κλήρωση βγάζει όνομα αντί για αριθμό.',
+        'One name per line (you can paste them from a list). They stay on this device only. With them, the Random picker draws a name instead of a number.'),
+      ok: t('Αποθήκευση', 'Save'),
     });
     if (text === null) return;
     const names = [...new Set(text.split(/\r?\n/).map((s) => s.trim().slice(0, 40)).filter(Boolean))].slice(0, 60);
@@ -224,24 +229,24 @@ export class Lessons {
     if (day(cur.updated) === day(Date.now())) return;
     // μία μόνο άγραφη σελίδα: δεν υπάρχει κάτι να συνεχίσεις ή να διαλέξεις
     if (this.index.length === 1 && this.host.getDoc().pages.every((p) => p.items.length === 0)) return;
-    const when = (t: number): string => new Date(t).toLocaleDateString('el', { weekday: 'long', day: 'numeric', month: 'long' });
+    const when = (ms: number): string => new Date(ms).toLocaleDateString(LOC, { weekday: 'long', day: 'numeric', month: 'long' });
     const last = (g: string): LessonMeta | undefined => this.index.filter((m) => m.group === g).sort((a, b) => b.updated - a.updated)[0];
     const rows = this.groups
       .map((g) => ({ g, m: last(g)! }))
       .sort((a, b) => b.m.updated - a.m.updated)
       .slice(0, 6)
       .map(({ g, m }) => `<div class="row"><span class="grp">${esc(g)}</span>
-        <button data-st="new" data-g="${esc(g)}">＋ Νέο μάθημα</button>
-        ${m.id === cur.id ? '' : `<button data-st="open" data-id="${esc(m.id)}" class="last"><small>Τελευταίο · ${new Date(m.updated).toLocaleDateString('el', { day: 'numeric', month: 'numeric' })}</small>${esc(m.name)}</button>`}</div>`)
+        <button data-st="new" data-g="${esc(g)}">${t('＋ Νέο μάθημα', '＋ New lesson')}</button>
+        ${m.id === cur.id ? '' : `<button data-st="open" data-id="${esc(m.id)}" class="last"><small>${t('Τελευταίο', 'Latest')} · ${new Date(m.updated).toLocaleDateString(LOC, { day: 'numeric', month: 'numeric' })}</small>${esc(m.name)}</button>`}</div>`)
       .join('');
     this.startEl.querySelector('#stBox')!.innerHTML = `
-      <div id="stHead"><b>${new Date().getHours() < 12 ? 'Καλημέρα' : 'Καλησπέρα'}! Τι κάνουμε σήμερα;</b><span>${when(Date.now())}</span></div>
+      <div id="stHead"><b>${new Date().getHours() < 12 ? t('Καλημέρα', 'Good morning') : t('Καλησπέρα', 'Good afternoon')}! ${t('Τι κάνουμε σήμερα;', 'What are we doing today?')}</b><span>${when(Date.now())}</span></div>
       <button id="stCont" data-st="cont">
         <span class="th">${cur.thumb ? `<img src="${esc(cur.thumb)}" alt="" />` : ''}</span>
-        <span class="tx"><small>Συνέχισε από εκεί που έμεινες</small><b>${cur.group ? `<i class="grp">${esc(cur.group)}</i>` : ''}${esc(cur.name)}</b><small>${when(cur.updated)} · ${cur.pages} ${cur.pages === 1 ? 'σελίδα' : 'σελίδες'}</small></span>
+        <span class="tx"><small>${t('Συνέχισε από εκεί που έμεινες', 'Pick up where you left off')}</small><b>${cur.group ? `<i class="grp">${esc(cur.group)}</i>` : ''}${esc(cur.name)}</b><small>${when(cur.updated)} · ${cur.pages} ${cur.pages === 1 ? t('σελίδα', 'page') : t('σελίδες', 'pages')}</small></span>
       </button>
       ${rows ? `<div id="stGroups">${rows}</div>` : ''}
-      <div id="stActs"><button data-st="lib">Όλα τα μαθήματα</button><button data-st="new" data-g="" class="go">＋ Νέο μάθημα</button></div>`;
+      <div id="stActs"><button data-st="lib">${t('Όλα τα μαθήματα', 'All lessons')}</button><button data-st="new" data-g="" class="go">${t('＋ Νέο μάθημα', '＋ New lesson')}</button></div>`;
     // το τερατάκι λέει την καλημέρα
     this.startEl.querySelector('#stHead')!.prepend(mascot(76, 1.4));
     this.startEl.classList.remove('hidden');
@@ -287,7 +292,7 @@ export class Lessons {
       if (!this.failAt) return void (this.failAt = 1);
       if (Date.now() - this.failAt < 5 * 60000) return;
       this.failAt = Date.now();
-      this.host.toast('Το μάθημα δεν αποθηκεύεται σε αυτή τη συσκευή (ίσως γέμισε ο χώρος). Κράτησε τώρα αντίγραφο σε αρχείο.', 0, { label: 'Αντίγραφο σε αρχείο', run: () => this.rescue() });
+      this.host.toast(t('Το μάθημα δεν αποθηκεύεται σε αυτή τη συσκευή (ίσως γέμισε ο χώρος). Κράτησε τώρα αντίγραφο σε αρχείο.', "The lesson can't be saved on this device (storage may be full). Back it up to a file now."), 0, { label: t('Αντίγραφο σε αρχείο', 'Back up to file'), run: () => this.rescue() });
     });
   }
 
@@ -304,7 +309,8 @@ export class Lessons {
     if (!e?.quota || !e.usage || e.usage / e.quota < 0.85 || Date.now() - (this.safe.full ?? 0) < DAY) return;
     this.safe.full = Date.now();
     this.saveSafe();
-    this.host.toast(`Ο χώρος για τα μαθήματα σε αυτή τη συσκευή έχει γεμίσει κατά ${Math.round((e.usage / e.quota) * 100)}%. Κράτησε αντίγραφο και σβήσε μαθήματα που δεν χρειάζεσαι.`, 0, { label: 'Αντίγραφο σε αρχείο', run: () => void this.backup() });
+    const pct = Math.round((e.usage / e.quota) * 100);
+    this.host.toast(t(`Ο χώρος για τα μαθήματα σε αυτή τη συσκευή έχει γεμίσει κατά ${pct}%. Κράτησε αντίγραφο και σβήσε μαθήματα που δεν χρειάζεσαι.`, `Lesson storage on this device is ${pct}% full. Make a backup and delete lessons you don't need.`), 0, { label: t('Αντίγραφο σε αρχείο', 'Back up to file'), run: () => void this.backup() });
   }
 
   /** Γράφει τώρα το ανοιχτό μάθημα στη συσκευή. */
@@ -374,7 +380,9 @@ export class Lessons {
 
   /** Δεν διαβάζεται (π.χ. από νεότερη έκδοση ή σφάλμα της αποθήκης): μένει ανέγγιχτο, και ανοίγει άλλο μάθημα ή ένα νέο, ώστε να μη γραφτεί ποτέ από πάνω του. */
   private async showFailed(id: string, err: unknown): Promise<void> {
-    this.host.toast(`Το «${this.index.find((m) => m.id === id)?.name ?? ''}» δεν άνοιξε: ${err instanceof Error ? err.message : err}`, 8000);
+    const nm = this.index.find((m) => m.id === id)?.name ?? '';
+    const msg = err instanceof Error ? err.message : err;
+    this.host.toast(t(`Το «${nm}» δεν άνοιξε: ${msg}`, `“${nm}” didn't open: ${msg}`), 8000);
     this.failed.add(id);
     const other = this.index.find((m) => !this.failed.has(m.id));
     return other ? this.show(other.id) : this.show((await this.add(newDoc(), this.defaultName())).id, true);
@@ -382,7 +390,7 @@ export class Lessons {
 
   private async rename(meta: LessonMeta | undefined): Promise<void> {
     if (!meta) return;
-    const name = (await ask('Όνομα μαθήματος', { value: meta.name }))?.trim();
+    const name = (await ask(t('Όνομα μαθήματος', 'Lesson name'), { value: meta.name }))?.trim();
     if (!name || name === meta.name) return;
     meta.name = name.slice(0, 60);
     meta.updated = Date.now();
@@ -400,7 +408,7 @@ export class Lessons {
     const cl = this.label.querySelector<HTMLElement>('.cl')!;
     cl.className = `cl ${st}`;
     cl.textContent = CLOUD[st];
-    cl.title = st === 'ok' ? 'Αποθηκευμένο και στο Google Drive' : st === 'chg' ? 'Έχει αλλαγές που δεν έχουν ανέβει στο Drive: πάτα για ανέβασμα' : '';
+    cl.title = st === 'ok' ? t('Αποθηκευμένο και στο Google Drive', 'Also saved to Google Drive') : st === 'chg' ? t('Έχει αλλαγές που δεν έχουν ανέβει στο Drive: πάτα για ανέβασμα', 'Has changes not yet on Drive: tap to upload') : '';
   }
 
   /** Η κατάσταση ενός μαθήματος στο Drive: 'ok' ανεβασμένο όπως είναι, 'chg' άλλαξε μετά, '' δεν έχει ανέβει ποτέ από εδώ. */
@@ -422,7 +430,7 @@ export class Lessons {
    */
   private async uploadOne(meta: LessonMeta, remote?: RemoteLesson | null): Promise<string> {
     const doc = await loadLesson(meta.id);
-    if (!doc) throw new Error('το μάθημα δεν διαβάστηκε');
+    if (!doc) throw new Error(t('το μάθημα δεν διαβάστηκε', "the lesson couldn't be read"));
     if (remote === undefined) remote = (await listLessonBackups()).find((r) => r.id === meta.id) ?? null;
     // άλλαξε στο Drive από άλλη συσκευή μετά το τελευταίο ανέβασμα από εδώ: εκείνη η μορφή μένει ως χωριστό μάθημα πριν τη γράψουμε από πάνω
     if (remote && remote.updated > (this.safe.ids[meta.id] ?? meta.updated)) {
@@ -434,10 +442,10 @@ export class Lessons {
         // χαλασμένο αντίγραφο: δεν έχει κάτι να κρατήσουμε
       }
       if (theirs) {
-        const copy = await this.add(theirs, `${meta.name} (από άλλη συσκευή)`);
+        const copy = await this.add(theirs, t(`${meta.name} (από άλλη συσκευή)`, `${meta.name} (from another device)`));
         copy.group = meta.group;
         await kvSet(INDEX, this.index);
-        this.host.toast(`Το «${meta.name}» είχε αλλάξει και σε άλλη συσκευή: εκείνη η μορφή κρατήθηκε ως «${copy.name}»`, 8000);
+        this.host.toast(t(`Το «${meta.name}» είχε αλλάξει και σε άλλη συσκευή: εκείνη η μορφή κρατήθηκε ως «${copy.name}»`, `“${meta.name}” had also changed on another device: that version was kept as “${copy.name}”`), 8000);
       }
     }
     const where = await backupLesson(meta.id, safeName(meta.name), meta.updated, this.lessonBlob(meta, doc), meta.group ? safeName(meta.group) : undefined, remote ?? undefined);
@@ -458,12 +466,13 @@ export class Lessons {
       await this.flush(true);
       const meta = this.current;
       if (!meta) return;
-      this.host.toast(`Αποθήκευση του «${meta.name}» στο Drive…`, 0);
+      this.host.toast(t(`Αποθήκευση του «${meta.name}» στο Drive…`, `Saving “${meta.name}” to Drive…`), 0);
       const where = await this.uploadOne(meta);
-      this.host.toast(`Αποθηκεύτηκε στο Google Drive, στο «${where}». Ανοίγει από κάθε συσκευή με ☰ → «Άνοιγμα από το Google Drive».`, 7000);
+      this.host.toast(t(`Αποθηκεύτηκε στο Google Drive, στο «${where}». Ανοίγει από κάθε συσκευή με ☰ → «Άνοιγμα από το Google Drive».`, `Saved to Google Drive, in “${where}”. Open it from any device with ☰ → “Open from Google Drive”.`), 7000);
     } catch (err) {
       console.error(err);
-      this.host.toast(`Δεν αποθηκεύτηκε στο Drive: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      this.host.toast(t(`Δεν αποθηκεύτηκε στο Drive: ${msg}`, `Couldn't save to Drive: ${msg}`), 8000);
     } finally {
       this.busy = false;
     }
@@ -486,44 +495,48 @@ export class Lessons {
     let list: RemoteLesson[];
     try {
       await driveConnect();
-      this.host.toast('Ψάχνω στο Drive…', 0);
+      this.host.toast(t('Ψάχνω στο Drive…', 'Searching Drive…'), 0);
       await this.flush(false);
       list = await listDriveLessons();
       this.host.toast('', 1);
     } catch (err) {
       console.error(err);
-      return this.host.toast(`Δεν άνοιξε το Drive: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      return this.host.toast(t(`Δεν άνοιξε το Drive: ${msg}`, `Couldn't open Drive: ${msg}`), 8000);
     } finally {
       this.busy = false;
     }
     const known = (r: RemoteLesson): LessonMeta | undefined => (r.id ? this.index.find((m) => m.id === r.id) : undefined);
-    const NONE = 'Χωρίς τμήμα';
+    const NONE = t('Χωρίς τμήμα', 'No class');
     const sec = (r: RemoteLesson): string => r.group || known(r)?.group || NONE;
-    const when = (t: number): string => `${new Date(t).toLocaleDateString('el', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}, ${new Date(t).toLocaleTimeString('el', { hour: '2-digit', minute: '2-digit' })}`;
+    const when = (ms: number): string => `${new Date(ms).toLocaleDateString(LOC, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}, ${new Date(ms).toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' })}`;
     const rows = list
       .map((r) => ({ r, s: sec(r) }))
       .sort((a, b) => (a.s === b.s ? b.r.updated - a.r.updated : a.s === NONE ? 1 : b.s === NONE ? -1 : a.s.localeCompare(b.s, 'el')));
     const items: Choice[] = rows.map(({ r, s }) => {
       const have = known(r);
-      const badge = !r.id ? 'αρχείο' : !have ? 'δεν είναι εδώ' : r.updated > have.updated ? 'νεότερο στο Drive' : r.updated < have.updated ? 'νεότερο εδώ' : 'ίδιο με εδώ';
+      const badge = !r.id ? t('αρχείο', 'file') : !have ? t('δεν είναι εδώ', 'not here') : r.updated > have.updated ? t('νεότερο στο Drive', 'newer on Drive') : r.updated < have.updated ? t('νεότερο εδώ', 'newer here') : t('ίδιο με εδώ', 'same as here');
       return { key: r.fileId, title: r.name, sub: when(r.updated), badge, badgeGo: !!r.id && (!have || r.updated > have.updated), section: s };
     });
     const newer = list.filter((r) => r.id && !this.safe.gone.includes(r.id) && r.updated > (known(r)?.updated ?? 0)).length;
-    const pick = await chooseBox('Άνοιγμα από το Google Drive', items, {
-      hint: 'Τα μαθήματα που έχεις αποθηκεύσει στο Google Drive σου, από όλες τις συσκευές. Στο Drive είναι στον φάκελο PrismaBoard, με έναν υποφάκελο για κάθε τμήμα.',
-      empty: 'Δεν υπάρχουν ακόμα μαθήματα στο Drive. Αποθήκευσε ένα από ☰ → «Αποθήκευση…» → «Στο Google Drive».',
-      extra: newer > 1 ? [{ key: '*', label: `Φέρε όλα τα νεότερα (${newer})` }] : [],
+    const pick = await chooseBox(t('Άνοιγμα από το Google Drive', 'Open from Google Drive'), items, {
+      hint: t('Τα μαθήματα που έχεις αποθηκεύσει στο Google Drive σου, από όλες τις συσκευές. Στο Drive είναι στον φάκελο PrismaBoard, με έναν υποφάκελο για κάθε τμήμα.',
+        'The lessons you have saved to your Google Drive, from all devices. On Drive they are in the PrismaBoard folder, with a subfolder for each class.'),
+      empty: t('Δεν υπάρχουν ακόμα μαθήματα στο Drive. Αποθήκευσε ένα από ☰ → «Αποθήκευση…» → «Στο Google Drive».',
+        'There are no lessons on Drive yet. Save one from ☰ → “Save…” → “To Google Drive”.'),
+      extra: newer > 1 ? [{ key: '*', label: t(`Φέρε όλα τα νεότερα (${newer})`, `Get all newer ones (${newer})`) }] : [],
     });
     if (!pick) return;
     if (pick === '*') return this.cloudRestore();
     const r = list.find((x) => x.fileId === pick);
     if (!r) return;
-    this.host.toast(`Κατεβαίνει το «${r.name}»…`, 0);
+    this.host.toast(t(`Κατεβαίνει το «${r.name}»…`, `Downloading “${r.name}”…`), 0);
     try {
       await this.openJson(await readBackup(r.fileId), r.name, r);
     } catch (err) {
       console.error(err);
-      this.host.toast(`Το «${r.name}» δεν άνοιξε: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      this.host.toast(t(`Το «${r.name}» δεν άνοιξε: ${msg}`, `“${r.name}” didn't open: ${msg}`), 8000);
     }
   }
 
@@ -535,16 +548,16 @@ export class Lessons {
    */
   async openJson(text: string, name: string, remote?: RemoteLesson): Promise<void> {
     const data = JSON.parse(text) as Partial<Backup> & Partial<Doc>;
-    const src = remote ? 'το Drive' : 'το αρχείο';
+    const src = remote ? t('το Drive', 'Drive') : t('το αρχείο', 'the file');
     if (data.grafida === 'backup' && Array.isArray(data.lessons)) {
       if (data.lessons.length !== 1 || data.rosters || data.spellLists) return this.restoreAll(data);
       const { meta, doc } = data.lessons[0];
-      if (!meta?.id) throw new Error('άγνωστη μορφή');
+      if (!meta?.id) throw new Error(t('άγνωστη μορφή', 'unknown format'));
       await this.flush(false);
       const was = this.index.find((m) => m.id === meta.id)?.updated ?? 0;
       this.safe.gone = this.safe.gone.filter((g) => g !== meta.id);
       const r = await this.put(meta, doc);
-      if (!this.index.some((m) => m.id === meta.id)) throw new Error('το μάθημα δεν διαβάζεται');
+      if (!this.index.some((m) => m.id === meta.id)) throw new Error(t('το μάθημα δεν διαβάζεται', "the lesson can't be read"));
       // από το Drive και ίδιο πια με εκεί: ☁ ✓
       if (remote && (r || was === meta.updated)) this.safe.ids[meta.id] = meta.updated;
       this.saveSafe();
@@ -553,21 +566,21 @@ export class Lessons {
       this.close();
       this.renderLabel();
       const nm = this.current?.name ?? name;
-      if (r === 'upd') this.host.toast(`Άνοιξε το «${nm}», με τις αλλαγές από ${src}`, 6000);
+      if (r === 'upd') this.host.toast(t(`Άνοιξε το «${nm}», με τις αλλαγές από ${src}`, `Opened “${nm}”, with the changes from ${src}`), 6000);
       else if (!r && was > meta.updated) {
-        this.host.toast(`Άνοιξε το «${nm}» όπως είναι σε αυτή τη συσκευή: είναι νεότερο από ${src}`, 10000, {
-          label: 'Άνοιγμα του παλιότερου ως αντίγραφο',
-          run: () => void this.createFrom(readDoc(doc), `${meta.name} (από ${remote ? 'Drive' : 'αρχείο'})`.slice(0, 60), meta.group),
+        this.host.toast(t(`Άνοιξε το «${nm}» όπως είναι σε αυτή τη συσκευή: είναι νεότερο από ${src}`, `Opened “${nm}” as it is on this device: it's newer than ${src}`), 10000, {
+          label: t('Άνοιγμα του παλιότερου ως αντίγραφο', 'Open the older one as a copy'),
+          run: () => void this.createFrom(readDoc(doc), t(`${meta.name} (από ${remote ? 'Drive' : 'αρχείο'})`, `${meta.name} (from ${remote ? 'Drive' : 'file'})`).slice(0, 60), meta.group),
         });
-      } else this.host.toast(`Άνοιξε το «${nm}»`);
+      } else this.host.toast(t(`Άνοιξε το «${nm}»`, `Opened “${nm}”`));
       return;
     }
     if (typeof data.v === 'number' && Array.isArray(data.pages)) {
       await this.createFrom(readDoc(data), name.replace(/\.json$/i, '').slice(0, 60));
       this.close();
-      return this.host.toast('Το αρχείο άνοιξε ως νέο μάθημα');
+      return this.host.toast(t('Το αρχείο άνοιξε ως νέο μάθημα', 'The file opened as a new lesson'));
     }
-    throw new Error('άγνωστη μορφή');
+    throw new Error(t('άγνωστη μορφή', 'unknown format'));
   }
 
 
@@ -594,12 +607,14 @@ export class Lessons {
     box.classList.toggle('hidden', !driveClientId());
     const n = this.pending.length;
     const days = Math.floor((Date.now() - this.safe.at) / DAY);
-    const when = days === 0 ? 'σήμερα' : days === 1 ? 'χθες' : `πριν από ${days} μέρες`;
+    const when = days === 0 ? t('σήμερα', 'today') : days === 1 ? t('χθες', 'yesterday') : t(`πριν από ${days} μέρες`, `${days} days ago`);
     const msg = !this.safe.done
-      ? 'Τα μαθήματα υπάρχουν μόνο σε αυτή τη συσκευή. Κράτα αντίγραφο στο Google Drive σου.'
+      ? t('Τα μαθήματα υπάρχουν μόνο σε αυτή τη συσκευή. Κράτα αντίγραφο στο Google Drive σου.', 'Your lessons exist only on this device. Keep a backup on your Google Drive.')
       : n === 0
-        ? `Όλα τα μαθήματα έχουν αντίγραφο στο Drive (τελευταίο: ${when}).`
-        : `${n === 1 ? '1 μάθημα άλλαξε' : `${n} μαθήματα άλλαξαν`} μετά το τελευταίο αντίγραφο (${when}).`;
+        ? t(`Όλα τα μαθήματα έχουν αντίγραφο στο Drive (τελευταίο: ${when}).`, `All lessons are backed up on Drive (latest: ${when}).`)
+        : isEn
+          ? `${n === 1 ? '1 lesson has' : `${n} lessons have`} changed since the last backup (${when}).`
+          : `${n === 1 ? '1 μάθημα άλλαξε' : `${n} μαθήματα άλλαξαν`} μετά το τελευταίο αντίγραφο (${when}).`;
     box.querySelector('#libSafeMsg')!.textContent = msg;
     box.classList.toggle('warn', this.overdue || !this.safe.done);
     box.querySelector<HTMLElement>('[data-lib="cloud"]')!.classList.toggle('go', n > 0);
@@ -619,16 +634,16 @@ export class Lessons {
       const todo = this.pending;
       const gone = this.safe.gone;
       if (todo.length === 0 && gone.length === 0) {
-        if (!quiet) this.host.toast('Όλα τα μαθήματα έχουν ήδη αντίγραφο στο Drive');
+        if (!quiet) this.host.toast(t('Όλα τα μαθήματα έχουν ήδη αντίγραφο στο Drive', 'All lessons are already backed up on Drive'));
         return;
       }
       const remote = await listLessonBackups();
       let done = 0;
       for (const meta of todo) {
-        if (!quiet) this.host.toast(`Αντίγραφο στο Drive… ${done + 1} από ${todo.length}`, 0);
+        if (!quiet) this.host.toast(t(`Αντίγραφο στο Drive… ${done + 1} από ${todo.length}`, `Backing up to Drive… ${done + 1} of ${todo.length}`), 0);
         await this.uploadOne(meta, remote.find((r) => r.id === meta.id) ?? null).catch((err) => {
           // μάθημα που δεν διαβάζεται από τη συσκευή: το προσπερνάμε
-          if (!/δεν διαβάστηκε/.test(String(err))) throw err;
+          if (!/δεν διαβάστηκε|couldn't be read/.test(String(err))) throw err;
         });
         done++;
       }
@@ -642,10 +657,11 @@ export class Lessons {
       this.safe.at = Date.now();
       this.safe.done = true;
       this.saveSafe();
-      if (!quiet) this.host.toast(done === 1 ? 'Ανέβηκε αντίγραφο 1 μαθήματος στο Drive' : `Ανέβηκαν αντίγραφα ${done} μαθημάτων στο Drive`, 5000);
+      if (!quiet) this.host.toast(done === 1 ? t('Ανέβηκε αντίγραφο 1 μαθήματος στο Drive', 'Backed up 1 lesson to Drive') : t(`Ανέβηκαν αντίγραφα ${done} μαθημάτων στο Drive`, `Backed up ${done} lessons to Drive`), 5000);
     } catch (err) {
       console.error(err);
-      if (!quiet) this.host.toast(`Το αντίγραφο δεν ολοκληρώθηκε: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      if (!quiet) this.host.toast(t(`Το αντίγραφο δεν ολοκληρώθηκε: ${msg}`, `The backup didn't finish: ${msg}`), 8000);
     } finally {
       this.busy = false;
       this.renderLabel();
@@ -663,12 +679,12 @@ export class Lessons {
       const remote = (await listLessonBackups()).filter((r) => !this.safe.gone.includes(r.id));
       const want = remote.filter((r) => r.updated > (this.index.find((m) => m.id === r.id)?.updated ?? 0));
       if (want.length === 0) {
-        this.host.toast(remote.length ? 'Η συσκευή έχει ήδη ό,τι υπάρχει στο Drive' : 'Δεν βρέθηκαν αντίγραφα μαθημάτων στο Drive', 5000);
+        this.host.toast(remote.length ? t('Η συσκευή έχει ήδη ό,τι υπάρχει στο Drive', 'This device already has everything on Drive') : t('Δεν βρέθηκαν αντίγραφα μαθημάτων στο Drive', 'No lesson backups found on Drive'), 5000);
         return;
       }
       let got = 0;
       for (const r of want) {
-        this.host.toast(`Κατεβαίνει από το Drive… ${got + 1} από ${want.length}`, 0);
+        this.host.toast(t(`Κατεβαίνει από το Drive… ${got + 1} από ${want.length}`, `Downloading from Drive… ${got + 1} of ${want.length}`), 0);
         const data = JSON.parse(await readBackup(r.fileId)) as Partial<Backup>;
         for (const l of data.lessons ?? []) {
           if (await this.put(l.meta, l.doc)) {
@@ -680,10 +696,11 @@ export class Lessons {
       this.saveSafe();
       await kvSet(INDEX, this.index);
       this.render();
-      this.host.toast(got === 1 ? 'Ήρθε 1 μάθημα από το Drive' : `Ήρθαν ${got} μαθήματα από το Drive`, 5000);
+      this.host.toast(got === 1 ? t('Ήρθε 1 μάθημα από το Drive', 'Got 1 lesson from Drive') : t(`Ήρθαν ${got} μαθήματα από το Drive`, `Got ${got} lessons from Drive`), 5000);
     } catch (err) {
       console.error(err);
-      this.host.toast(`Δεν ολοκληρώθηκε: ${err instanceof Error ? err.message : err}`, 8000);
+      const msg = err instanceof Error ? err.message : err;
+      this.host.toast(t(`Δεν ολοκληρώθηκε: ${msg}`, `Didn't finish: ${msg}`), 8000);
     } finally {
       this.busy = false;
       this.renderSafe();
@@ -750,28 +767,28 @@ export class Lessons {
     if (this.filter && !groups.includes(this.filter)) this.setFilter('');
     const bar = this.el.querySelector<HTMLElement>('#libGroups')!;
     bar.classList.toggle('hidden', groups.length === 0);
-    bar.innerHTML = `<span>Τμήμα</span>` + ['', ...groups]
-      .map((g) => `<button data-group="${esc(g)}" class="${g === this.filter ? 'on' : ''}">${g ? esc(g) : 'Όλα'} <small>${this.index.filter((m) => !g || m.group === g).length}</small></button>`)
+    bar.innerHTML = `<span>${t('Τμήμα', 'Class')}</span>` + ['', ...groups]
+      .map((g) => `<button data-group="${esc(g)}" class="${g === this.filter ? 'on' : ''}">${g ? esc(g) : t('Όλα', 'All')} <small>${this.index.filter((m) => !g || m.group === g).length}</small></button>`)
       .join('');
     if (this.filter) {
       const n = this.rosters[this.filter]?.length ?? 0;
-      bar.innerHTML += `<button data-lib="roster" class="roster" title="Τα ονόματα των μαθητών του τμήματος, για την Κλήρωση">${n ? `Μαθητές του ${esc(this.filter)} <small>${n}</small>` : `＋ Μαθητές του ${esc(this.filter)}`}</button>`;
+      bar.innerHTML += `<button data-lib="roster" class="roster" title="${t('Τα ονόματα των μαθητών του τμήματος, για την Κλήρωση', 'The names of the students in this class, for the Random picker')}">${n ? t(`Μαθητές του ${esc(this.filter)} <small>${n}</small>`, `Students in ${esc(this.filter)} <small>${n}</small>`) : t(`＋ Μαθητές του ${esc(this.filter)}`, `＋ Students in ${esc(this.filter)}`)}</button>`;
     }
     const list = [...this.index].filter((m) => !this.filter || m.group === this.filter).sort((a, b) => b.updated - a.updated);
     this.el.querySelector('#libGrid')!.innerHTML = list
       .map((m) => {
         const d = new Date(m.updated);
-        const when = `${d.toLocaleDateString('el')} ${d.toLocaleTimeString('el', { hour: '2-digit', minute: '2-digit' })}`;
+        const when = `${d.toLocaleDateString(LOC)} ${d.toLocaleTimeString(LOC, { hour: '2-digit', minute: '2-digit' })}`;
         return `<div class="card${m.id === this.cur ? ' on' : ''}" data-id="${esc(m.id)}">
           <div class="th">${m.thumb ? `<img src="${esc(m.thumb)}" alt="" />` : ''}</div>
           <div class="nm">${m.group ? `<span class="grp">${esc(m.group)}</span>` : ''}${esc(m.name)}</div>
-          <div class="info">${when} · ${m.pages} ${m.pages === 1 ? 'σελίδα' : 'σελίδες'}${this.cloud(m) ? ` · <span class="cl ${this.cloud(m)}">${CLOUD[this.cloud(m)]}</span>` : ''}</div>
+          <div class="info">${when} · ${m.pages} ${m.pages === 1 ? t('σελίδα', 'page') : t('σελίδες', 'pages')}${this.cloud(m) ? ` · <span class="cl ${this.cloud(m)}">${CLOUD[this.cloud(m)]}</span>` : ''}</div>
           <div class="acts">
-            <button data-card="rename">Όνομα</button>
-            <button data-card="group">Τμήμα</button>
-            <button data-card="copy">Αντίγραφο</button>
-            <button data-card="file">Αρχείο</button>
-            <button data-card="del" class="danger">Διαγραφή</button>
+            <button data-card="rename">${t('Όνομα', 'Name')}</button>
+            <button data-card="group">${t('Τμήμα', 'Class')}</button>
+            <button data-card="copy">${t('Αντίγραφο', 'Duplicate')}</button>
+            <button data-card="file">${t('Αρχείο', 'File')}</button>
+            <button data-card="del" class="danger">${t('Διαγραφή', 'Delete')}</button>
           </div>
         </div>`;
       })
@@ -779,11 +796,11 @@ export class Lessons {
   }
 
   private async click(e: Event): Promise<void> {
-    const t = e.target as HTMLElement;
-    const top = t.closest<HTMLElement>('[data-lib]')?.dataset.lib;
+    const tg = e.target as HTMLElement;
+    const top = tg.closest<HTMLElement>('[data-lib]')?.dataset.lib;
     if (top === 'close') return this.close();
     if (top === 'new') {
-      const name = (await ask('Όνομα νέου μαθήματος', { value: this.defaultName(), hint: 'π.χ. Β2 Τριγωνομετρία' }))?.trim();
+      const name = (await ask(t('Όνομα νέου μαθήματος', 'New lesson name'), { value: this.defaultName(), hint: t('π.χ. Β2 Τριγωνομετρία', 'e.g. 5B Fractions') }))?.trim();
       if (!name) return;
       const meta = await this.add(newDoc(), name.slice(0, 60));
       // μέσα σε τμήμα, το νέο μάθημα ανήκει σε αυτό
@@ -798,7 +815,7 @@ export class Lessons {
       if (this.filter) await this.editRoster(this.filter);
       return this.render();
     }
-    const grp = t.closest<HTMLElement>('[data-group]');
+    const grp = tg.closest<HTMLElement>('[data-group]');
     if (grp) {
       this.setFilter(grp.dataset.group ?? '');
       return this.render();
@@ -808,10 +825,10 @@ export class Lessons {
     if (top === 'cloudGet') return void this.openFromDrive();
     if (top === 'restore') return this.el.querySelector<HTMLInputElement>('#libFile')!.click();
 
-    const card = t.closest<HTMLElement>('.card');
+    const card = tg.closest<HTMLElement>('.card');
     const meta = card && this.index.find((m) => m.id === card.dataset.id);
     if (!meta) return;
-    const act = t.closest<HTMLElement>('[data-card]')?.dataset.card;
+    const act = tg.closest<HTMLElement>('[data-card]')?.dataset.card;
     if (!act) {
       if (meta.id !== this.cur) await this.show(meta.id);
       return this.close();
@@ -820,19 +837,19 @@ export class Lessons {
       await this.rename(meta);
     } else if (act === 'group') {
       const have = this.groups;
-      const g = await ask('Τμήμα ή τάξη του μαθήματος', { value: meta.group ?? this.filter, hint: 'π.χ. Β2. Άφησέ το κενό για κανένα.', picks: have, max: 20 });
+      const g = await ask(t('Τμήμα ή τάξη του μαθήματος', 'Class or grade of the lesson'), { value: meta.group ?? this.filter, hint: t('π.χ. Β2. Άφησέ το κενό για κανένα.', 'e.g. 5B. Leave it empty for none.'), picks: have, max: 20 });
       if (g === null) return;
       meta.group = g.trim().slice(0, 20) || undefined;
       meta.updated = Date.now();
       await kvSet(INDEX, this.index);
     } else if (act === 'copy') {
       const doc = await loadLesson(meta.id);
-      if (doc) Object.assign(await this.add(doc, `${meta.name} (αντίγραφο)`), { thumb: meta.thumb, group: meta.group });
+      if (doc) Object.assign(await this.add(doc, t(`${meta.name} (αντίγραφο)`, `${meta.name} (copy)`)), { thumb: meta.thumb, group: meta.group });
       await kvSet(INDEX, this.index);
     } else if (act === 'file') {
       await this.exportFile(meta);
     } else if (act === 'del') {
-      if (!(await confirmBox(`Να διαγραφεί το μάθημα «${meta.name}»;`, 'Διαγραφή', true, 'Δεν αναιρείται.'))) return;
+      if (!(await confirmBox(t(`Να διαγραφεί το μάθημα «${meta.name}»;`, `Delete the lesson “${meta.name}”?`), t('Διαγραφή', 'Delete'), true, t('Δεν αναιρείται.', "This can't be undone.")))) return;
       this.index = this.index.filter((m) => m.id !== meta.id);
       await deleteLesson(meta.id);
       // αν έχει αντίγραφο στο Drive, θα πάει στον κάδο του στο επόμενο αντίγραφο και δεν θα ξαναέρθει από εκεί
@@ -860,9 +877,9 @@ export class Lessons {
     this.safe.told = Date.now();
     this.saveSafe();
     const days = last ? Math.floor((Date.now() - last) / DAY) : 0;
-    const msg = last ? `Τελευταίο αντίγραφο των μαθημάτων πριν από ${days} μέρες` : 'Τα μαθήματα υπάρχουν μόνο σε αυτή τη συσκευή';
-    if (driveClientId()) this.host.toast(msg, 15000, { label: '☁ Αντίγραφο στο Drive', run: () => void this.cloudBackup() });
-    else this.host.toast(msg, 15000, { label: 'Αντίγραφο σε αρχείο', run: () => void this.backup() });
+    const msg = last ? t(`Τελευταίο αντίγραφο των μαθημάτων πριν από ${days} μέρες`, `Last lesson backup was ${days} days ago`) : t('Τα μαθήματα υπάρχουν μόνο σε αυτή τη συσκευή', 'Your lessons exist only on this device');
+    if (driveClientId()) this.host.toast(msg, 15000, { label: t('☁ Αντίγραφο στο Drive', '☁ Back up to Drive'), run: () => void this.cloudBackup() });
+    else this.host.toast(msg, 15000, { label: t('Αντίγραφο σε αρχείο', 'Back up to file'), run: () => void this.backup() });
   }
 
   /** Όλα τα μαθήματα, τα τμήματα και οι λίστες λέξεων σε ένα αρχείο (ανοίγει με «Επαναφορά από αρχείο»). */
@@ -884,7 +901,8 @@ export class Lessons {
     try {
       await this.openJson(await f.text(), f.name);
     } catch (err) {
-      this.host.toast(`Το αρχείο δεν είναι μάθημα ή αντίγραφο μαθημάτων (${err instanceof Error ? err.message : err})`, 6000);
+      const msg = err instanceof Error ? err.message : err;
+      this.host.toast(t(`Το αρχείο δεν είναι μάθημα ή αντίγραφο μαθημάτων (${msg})`, `The file isn't a lesson or a lesson backup (${msg})`), 6000);
     }
   }
 
@@ -908,6 +926,6 @@ export class Lessons {
     if (Array.isArray(data.spellLists)) await mergeLists(data.spellLists, false);
     this.render();
     this.host.redraw();
-    this.host.toast(`Επαναφορά: ${added} νέα, ${updated} ενημερώθηκαν, ${skipped} έμειναν όπως ήταν`, 6000);
+    this.host.toast(t(`Επαναφορά: ${added} νέα, ${updated} ενημερώθηκαν, ${skipped} έμειναν όπως ήταν`, `Restore: ${added} new, ${updated} updated, ${skipped} unchanged`), 6000);
   }
 }

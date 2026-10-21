@@ -1,5 +1,6 @@
 /** Κοινά για τα εργαλεία του Δημοτικού: χρώματα, κείμενο, κουμπιά και το περιβάλλον σχεδίασης. */
 import type { StampDef } from '../stamps';
+import { locale } from '../i18n';
 
 export type C = CanvasRenderingContext2D;
 
@@ -20,7 +21,7 @@ export interface KidEnv {
   names?: string[];
 }
 
-export const el = (n: number, d = 2): string => (+n.toFixed(d) || 0).toLocaleString('el', { maximumFractionDigits: d }).replace('-', '−');
+export const el = (n: number, d = 2): string => (+n.toFixed(d) || 0).toLocaleString(locale, { maximumFractionDigits: d }).replace('-', '−');
 
 export function text(c: C, t: string, x: number, y: number, size: number, color?: string, weight = 600): void {
   c.save();

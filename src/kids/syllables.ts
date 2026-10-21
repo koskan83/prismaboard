@@ -9,6 +9,7 @@
  */
 import type { StampDef } from '../stamps';
 import { syllableStarts } from '../syllabify';
+import { t as tr } from '../i18n';
 import { BLUE, FONT, GOOD, kid, RED, rrect, text } from './common';
 import { readyWords } from './ready-words';
 
@@ -309,7 +310,7 @@ const ease = (t: number): number => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2
 
 export const SYLLABLE_KIDS: Record<string, StampDef> = {
   syllables: kid({
-    label: 'Συλλαβές', w: 960, h: 640, init: [0], big: true, animMs: 9000,
+    label: tr('Συλλαβές', 'Syllables'), w: 960, h: 640, init: [0], big: true, animMs: 9000,
     drawKid(c, w, h, v, env) {
       const s = sylState(v), n = s.letters.length, g = geom(w, h, n, s.pads);
       // δικό του φόντο, για να μη φαίνεται από πίσω ό,τι έχει η σελίδα· μετά το τοπίο: όχθες και ποτάμι
@@ -361,7 +362,7 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
       const jumpEnd = (landings + (s.res === 2 ? 0 : 1)) * SYL_HOP;
       const done = t >= jumpEnd;
       if (!n) {
-        text(c, 'Πάτα 🎲 για λέξη, ή ✏️ για δική σου', w / 2, g.wordY, g.wordSize * 0.6, env.ink, 700);
+        text(c, tr('Πάτα 🎲 για λέξη, ή ✏️ για δική σου', 'Press 🎲 for a word, or ✏️ for your own'), w / 2, g.wordY, g.wordSize * 0.6, env.ink, 700);
       } else if (s.res === 1 && done) text(c, sylParts(s).join(' - '), w / 2, g.wordY, g.wordSize, GOOD, 800);
       else text(c, s.letters.join(''), w / 2, g.wordY, g.wordSize, env.ink, 800);
       if (n) {
@@ -394,7 +395,7 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
       // η στοίβα με τα νούφαρα στην αριστερή όχθη
       const [sx, sy, sr] = g.stack;
       for (let k = 2; k >= 0; k--) lilyPad(c, sx + k * sr * 0.1, sy - k * sr * 0.16, sr, P >= MAX_PADS ? '#bbf7d0' : undefined, false);
-      text(c, 'νούφαρα', sx, sy + sr * 1.35, sr * 0.48, '#14532d', 700);
+      text(c, tr('νούφαρα', 'lily pads'), sx, sy + sr * 1.35, sr * 0.48, '#14532d', 700);
 
       // τα νούφαρα του ποταμού (όχι αυτό που σέρνεται), με όσα γράμματα έχουν μπει
       const sinking = s.res === 2 && jumping && t >= jumpEnd && t < jumpEnd + SINK ? (t - jumpEnd) / SINK : 0;
@@ -452,10 +453,10 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
       c.restore();
 
       // μήνυμα κάτω από το ποτάμι
-      const msg = !n ? '' : s.res === 1 && done ? '🎉 Μπράβο! Πέρασε απέναντι!'
-        : s.res === 2 && t >= jumpEnd ? `Πλουφ! Το ${s.fail + 1}ο νούφαρο δεν έχει σωστή συλλαβή.`
-        : s.res === 3 && t >= jumpEnd ? 'Πλουφ! Λείπει νούφαρο: μία συλλαβή, ένα νούφαρο.'
-        : s.res === 0 ? (P === 0 ? 'Σύρε ένα νούφαρο στο ποτάμι για κάθε συλλαβή.' : 'Σύρε κάθε γράμμα στο νούφαρο της συλλαβής του.') : '';
+      const msg = !n ? '' : s.res === 1 && done ? tr('🎉 Μπράβο! Πέρασε απέναντι!', '🎉 Well done! You crossed the river!')
+        : s.res === 2 && t >= jumpEnd ? tr(`Πλουφ! Το ${s.fail + 1}ο νούφαρο δεν έχει σωστή συλλαβή.`, `Splash! Lily pad ${s.fail + 1} has the wrong syllable.`)
+        : s.res === 3 && t >= jumpEnd ? tr('Πλουφ! Λείπει νούφαρο: μία συλλαβή, ένα νούφαρο.', 'Splash! A lily pad is missing: one syllable, one lily pad.')
+        : s.res === 0 ? (P === 0 ? tr('Σύρε ένα νούφαρο στο ποτάμι για κάθε συλλαβή.', 'Drag one lily pad onto the river for each syllable.') : tr('Σύρε κάθε γράμμα στο νούφαρο της συλλαβής του.', 'Drag each letter onto the lily pad of its syllable.')) : '';
       if (msg) {
         // σε λευκή «ταμπέλα», για να διαβάζεται πάνω στο ποτάμι
         const fs = h * 0.04, my = g.bottom - h * 0.04;
@@ -478,9 +479,9 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
         c.restore();
       }
 
-      button(c, '🎲 Νέα λέξη', g.bx[0], g.by, g.bw, g.bh, BLUE);
-      button(c, '✏️ Δική μου λέξη', g.bx[1], g.by, g.bw, g.bh, BLUE);
-      button(c, '🐸 Πήδα!', g.bx[2], g.by, g.bw, g.bh, '#16a34a');
+      button(c, tr('🎲 Νέα λέξη', '🎲 New word'), g.bx[0], g.by, g.bw, g.bh, BLUE);
+      button(c, tr('✏️ Δική μου λέξη', '✏️ My own word'), g.bx[1], g.by, g.bw, g.bh, BLUE);
+      button(c, tr('🐸 Πήδα!', '🐸 Jump!'), g.bx[2], g.by, g.bw, g.bh, '#16a34a');
     },
     paint(v, x, y, w, h, _st, first) {
       const s = sylState(v), n = s.letters.length, g = geom(w, h, n, s.pads);
@@ -559,8 +560,8 @@ export const SYLLABLE_KIDS: Record<string, StampDef> = {
       const s = sylState(v), g = geom(w, h, s.letters.length, s.pads);
       if (y < g.by || y > g.by + g.bh || x < g.bx[1] || x > g.bx[1] + g.bw) return null;
       return {
-        title: 'Λέξη για τις συλλαβές',
-        hint: `Μία λέξη, ως ${MAX_LETTERS} γράμματα. Ο πίνακας τη χωρίζει μόνος του· για άλλον χωρισμό γράψ' τη με παύλες, π.χ. βι-βλι-ο-θή-κη.`,
+        title: tr('Λέξη για τις συλλαβές', 'Word for syllables'),
+        hint: tr(`Μία λέξη, ως ${MAX_LETTERS} γράμματα. Ο πίνακας τη χωρίζει μόνος του· για άλλον χωρισμό γράψ' τη με παύλες, π.χ. βι-βλι-ο-θή-κη.`, `One Greek word, up to ${MAX_LETTERS} letters. The board splits it by itself; for a different split, write it with dashes, e.g. βι-βλι-ο-θή-κη.`),
         voice: 'el-GR',
         max: 30,
         apply: (typed) => sylStart(typed, s),

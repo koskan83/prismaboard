@@ -3,6 +3,7 @@
  * και βγαίνουν ή μπαίνουν και μόνες τους σε αρχείο (για συναδέλφους ή άλλον πίνακα).
  */
 import { askWords, type WordList } from './dialog';
+import { t as tr } from './i18n';
 import { spellList } from './kids/spell-words';
 import { kvGet, kvSet } from './storage';
 import { readSpellLists, saveSpellLists } from './drive';
@@ -119,7 +120,7 @@ async function exportAll(download: (blob: Blob, name: string) => void): Promise<
 export async function askSpellWords(o: { title: string; hint?: string; voice: string; value?: string; download: (blob: Blob, name: string) => void }): Promise<string | null> {
   return askWords({
     title: o.title,
-    hint: o.hint ?? 'Επικόλλησε ή γράψε λέξεις, χωρισμένες με κόμμα ή μία σε κάθε γραμμή. Στα αγγλικά βάζεις και τη σημασία: apple = μήλο (ή apple - μήλο, ή δύο στήλες από Excel). Με όνομα, η λίστα φυλάγεται για την επόμενη φορά.',
+    hint: o.hint ?? tr('Επικόλλησε ή γράψε λέξεις, χωρισμένες με κόμμα ή μία σε κάθε γραμμή. Στα αγγλικά βάζεις και τη σημασία: apple = μήλο (ή apple - μήλο, ή δύο στήλες από Excel). Με όνομα, η λίστα φυλάγεται για την επόμενη φορά.', 'Paste or type words, separated by commas or one per line. For English words, add the meaning too: apple = (meaning) (or apple - meaning, or two columns from Excel). With a name, the list is kept for next time.'),
     value: o.value,
     voice: o.voice,
     lists: await loadLists(),

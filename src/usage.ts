@@ -2,6 +2,8 @@
  * Μετρητές χρήσης: πόσες φορές πατήθηκε κάθε κουμπί (εργαλείο, όργανο, ενέργεια μενού) και πότε τελευταία.
  * Μένουν μόνο σε αυτή τη συσκευή (localStorage) και δεν στέλνονται πουθενά· χρησιμεύουν για να φανεί τι δεν χρησιμοποιείται.
  */
+import { t } from './i18n';
+
 const KEY = 'grafida.usage';
 /** Τα χαρακτηριστικά που ξεχωρίζουν ένα κουμπί· όποιο δεν έχει κανένα μετριέται με το id του. */
 const ATTRS = ['tool', 'pen', 'shape', 'axes', 'ins', 'anq', 'gadget', 'view', 'kid', 'act', 'imp', 'rec', 'an', 'eraser', 'tbl', 'meas', 'auto', 'speak', 'rp'];
@@ -49,7 +51,12 @@ export function usageReport(): string {
   });
   const keys = [...new Set([...Object.keys(usage.n), ...label.keys()])].sort((a, b) => (usage.n[b]?.[0] ?? 0) - (usage.n[a]?.[0] ?? 0) || a.localeCompare(b));
   const row = (k: string): string => `${String(usage.n[k]?.[0] ?? 0).padStart(6)}  ${usage.n[k]?.[1] ?? '    —     '}  ${k.padEnd(22)}  ${label.get(k) ?? ''}`;
-  return [`PrismaBoard: μετρητές χρήσης σε αυτή τη συσκευή, από ${usage.since} έως ${today()}`, '', 'πατήματα  τελευταία   κουμπί                  όνομα', ...keys.map(row), ''].join('\n');
+  return [
+    t(`PrismaBoard: μετρητές χρήσης σε αυτή τη συσκευή, από ${usage.since} έως ${today()}`, `PrismaBoard: usage counters on this device, from ${usage.since} to ${today()}`),
+    '',
+    t('πατήματα  τελευταία   κουμπί                  όνομα', '   taps  last        button                  name'),
+    ...keys.map(row), '',
+  ].join('\n');
 }
 
 /** Κουμπιά που είναι «λειτουργίες» (εργαλεία, όργανα, επιλογές μενού), όχι πλήκτρα ή μέρη παραθύρων. */

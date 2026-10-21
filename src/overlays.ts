@@ -1,5 +1,7 @@
 /** Κουρτίνες και προβολέας: στρώματα πάνω από τον πίνακα. */
 
+import { t } from './i18n';
+
 function dragX(el: HTMLElement, onMove: (x: number, y: number) => void): void {
   let on = false;
   el.addEventListener('pointerdown', (e) => {
@@ -54,8 +56,8 @@ export class Curtain {
     this.pos = side === 'top' ? 0.3 : 0.6;
     const el = document.createElement('div');
     el.className = `curtain ${side} hidden`;
-    el.innerHTML = `<canvas></canvas><div class="chandle"><span>⇕ Σύρε · γράφεις και πάνω της</span>
-      <button data-c="clear" title="Σβήσιμο όσων γράφτηκαν στην κουρτίνα">⌫</button><button data-c="close" title="Κλείσιμο">✕</button></div>`;
+    el.innerHTML = `<canvas></canvas><div class="chandle"><span>${t('⇕ Σύρε · γράφεις και πάνω της', '⇕ Drag · you can write on it too')}</span>
+      <button data-c="clear" title="${t('Σβήσιμο όσων γράφτηκαν στην κουρτίνα', 'Erase what was written on the curtain')}">⌫</button><button data-c="close" title="${t('Κλείσιμο', 'Close')}">✕</button></div>`;
     parent.append(el);
     this.el = el;
     this.cv = el.querySelector('canvas')!;
@@ -237,7 +239,7 @@ export class Spotlight {
     parent.insertAdjacentHTML(
       'beforeend',
       `<div id="spot" class="hidden"><div class="sctl">
-        <button data-s="-" title="Μικρότερος">−</button><button data-s="+" title="Μεγαλύτερος">＋</button><button data-s="x" title="Κλείσιμο">✕</button></div></div>`,
+        <button data-s="-" title="${t('Μικρότερος', 'Smaller')}">−</button><button data-s="+" title="${t('Μεγαλύτερος', 'Bigger')}">＋</button><button data-s="x" title="${t('Κλείσιμο', 'Close')}">✕</button></div></div>`,
     );
     this.el = parent.querySelector<HTMLElement>('#spot')!;
     dragX(this.el, (x, y) => {

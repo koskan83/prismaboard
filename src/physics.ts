@@ -6,6 +6,7 @@
 
 import { hatch, label, path, zigzag } from './draw-util';
 import type { SpringState, StampDef, STAMP_CATS } from './stamps';
+import { t } from './i18n';
 
 type C = CanvasRenderingContext2D;
 type P2 = [number, number];
@@ -222,41 +223,41 @@ function branch(k: Kit, x0: number, x1: number, top: number, y: number, name: st
 const circ = (title: string, W: number, H: number, body: (k: Kit) => void): StampDef => fig(title, 'circ', W, H, body);
 
 const CIRCUITS: Record<string, StampDef> = {
-  circSeries2: circ('Δύο σε σειρά', 380, 220, (k) => {
+  circSeries2: circ(t('Δύο σε σειρά', 'Two in series'), 380, 220, (k) => {
     k.res(20, 190, 50, 'R₁');
     k.res(190, 360, 50, 'R₂');
     loop(k, 20, 360, 50, 190);
   }),
-  circPar2: circ('Δύο παράλληλα', 340, 270, (k) => {
+  circPar2: circ(t('Δύο παράλληλα', 'Two in parallel'), 340, 270, (k) => {
     k.res(20, 320, 50, 'R₁');
     branch(k, 80, 260, 50, 130, 'R₂');
     loop(k, 20, 320, 50, 230);
   }),
-  circSeries3: circ('Τρεις σε σειρά', 520, 220, (k) => {
+  circSeries3: circ(t('Τρεις σε σειρά', 'Three in series'), 520, 220, (k) => {
     k.res(20, 180, 50, 'R₁');
     k.res(180, 340, 50, 'R₂');
     k.res(340, 500, 50, 'R₃');
     loop(k, 20, 500, 50, 190);
   }),
-  circPar3: circ('Τρεις παράλληλα', 340, 350, (k) => {
+  circPar3: circ(t('Τρεις παράλληλα', 'Three in parallel'), 340, 350, (k) => {
     k.res(20, 320, 50, 'R₁');
     branch(k, 80, 260, 50, 130, 'R₂');
     branch(k, 80, 260, 130, 210, 'R₃');
     loop(k, 20, 320, 50, 310);
   }),
-  circSeriesPar3: circ('R₁, R₂ σε σειρά, παράλληλα με R₃', 420, 270, (k) => {
+  circSeriesPar3: circ(t('R₁, R₂ σε σειρά, παράλληλα με R₃', 'R₁, R₂ in series, parallel with R₃'), 420, 270, (k) => {
     k.res(20, 210, 50, 'R₁');
     k.res(210, 400, 50, 'R₂');
     branch(k, 60, 360, 50, 130, 'R₃');
     loop(k, 20, 400, 50, 230);
   }),
-  circParSeries3: circ('R₁ ∥ R₂, σε σειρά με R₃', 440, 270, (k) => {
+  circParSeries3: circ(t('R₁ ∥ R₂, σε σειρά με R₃', 'R₁ ∥ R₂, in series with R₃'), 440, 270, (k) => {
     k.res(20, 240, 50, 'R₁');
     k.res(240, 420, 50, 'R₃');
     branch(k, 60, 240, 50, 130, 'R₂');
     loop(k, 20, 420, 50, 230);
   }),
-  circMeters: circ('Με αμπερόμετρο και βολτόμετρο', 400, 290, (k) => {
+  circMeters: circ(t('Με αμπερόμετρο και βολτόμετρο', 'With ammeter and voltmeter'), 400, 290, (k) => {
     k.meter(20, 130, 130, 'A');
     k.res(130, 380, 130, 'R');
     // το βολτόμετρο παράλληλα στον αντιστάτη
@@ -267,12 +268,12 @@ const CIRCUITS: Record<string, StampDef> = {
     k.dot(320, 130);
     loop(k, 20, 380, 130, 250);
   }),
-  circLamp: circ('Λάμπα με διακόπτη', 380, 220, (k) => {
+  circLamp: circ(t('Λάμπα με διακόπτη', 'Lamp with switch'), 380, 220, (k) => {
     k.sw(20, 170, 60);
     k.lamp(170, 360, 60, 'Λ');
     loop(k, 20, 360, 60, 180);
   }),
-  circLamps2: circ('Δύο λάμπες παράλληλα, με διακόπτη', 400, 300, (k) => {
+  circLamps2: circ(t('Δύο λάμπες παράλληλα, με διακόπτη', 'Two lamps in parallel, with switch'), 400, 300, (k) => {
     k.sw(20, 150, 60);
     k.lamp(150, 380, 60, 'Λ₁');
     k.line([220, 60], [220, 150]);
@@ -282,7 +283,7 @@ const CIRCUITS: Record<string, StampDef> = {
     k.dot(340, 60);
     loop(k, 20, 380, 60, 250);
   }),
-  circKirchhoff: circ('Δύο πηγές (Kirchhoff)', 460, 290, (k) => {
+  circKirchhoff: circ(t('Δύο πηγές (Kirchhoff)', 'Two sources (Kirchhoff)'), 460, 290, (k) => {
     k.res(30, 230, 40, 'R₁');
     k.res(230, 430, 40, 'R₂');
     k.line([30, 250], [430, 250]);
@@ -346,7 +347,7 @@ function intoPage(k: Kit, x: number, y: number, r: number, into: boolean): void 
 
 export const PHYSICS: Record<string, StampDef> = {
   // Δυνάμεις και κινήσεις
-  friction: fig('Σώμα με τριβή', 'mech', 380, 240, (k) => {
+  friction: fig(t('Σώμα με τριβή', 'Body with friction'), 'mech', 380, 240, (k) => {
     k.ground(10, 370, 170);
     k.block(140, 100, 240, 170, 'm');
     k.arrow(240, 135, 330, 135, 'F');
@@ -354,7 +355,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.arrow(190, 135, 190, 225, 'B', [208, 215]);
     k.arrow(190, 135, 190, 40, 'N', [172, 52]);
   }),
-  projectile: fig('Οριζόντια βολή', 'mech', 420, 350, (k, st) => {
+  projectile: fig(t('Οριζόντια βολή', 'Horizontal projectile'), 'mech', 420, 350, (k, st) => {
     const G = 250;
     k.ground(10, 410, G);
     k.line([10, 60], [70, 60], [70, G]);
@@ -387,7 +388,7 @@ export const PHYSICS: Record<string, StampDef> = {
     vel(0.5);
     vel(1);
   }, true),
-  circular: fig('Ομαλή κυκλική κίνηση', 'mech', 300, 300, (k, st) => {
+  circular: fig(t('Ομαλή κυκλική κίνηση', 'Uniform circular motion'), 'mech', 300, 300, (k, st) => {
     const cx = 150, cy = 150, R = 100;
     k.circle(cx, cy, R);
     k.dot(cx, cy);
@@ -402,7 +403,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.arrow(x, y, x + 70 * tx, y + 70 * ty, 'υ', [x + 78 * tx + 14 * ty, y + 78 * ty - 14 * tx]);
     k.arrow(x, y, x - 50 * Math.cos(a), y - 50 * Math.sin(a), 'Fκ', [x - 32 * Math.cos(a) + 22 * tx, y - 32 * Math.sin(a) + 22 * ty]);
   }, true),
-  lever: fig('Ράβδος με άρθρωση', 'mech', 400, 240, (k) => {
+  lever: fig(t('Ράβδος με άρθρωση', 'Hinged rod'), 'mech', 400, 240, (k) => {
     k.wall(30, 50, 200);
     k.c.save();
     k.c.lineWidth *= 1.6;
@@ -420,17 +421,17 @@ export const PHYSICS: Record<string, StampDef> = {
   }),
 
   // Ορμή και κρούσεις
-  collision: fig('Κεντρική κρούση', 'mom', 440, 250, (k, st) => {
+  collision: fig(t('Κεντρική κρούση', 'Head-on collision'), 'mom', 440, 250, (k, st) => {
     // ίδιο μέγεθος (οι μάζες φαίνονται από τα ονόματα)
     const r1 = 26, r2 = 26;
     if (st?.t === undefined) {
-      k.text('πριν', 34, 30, 17, false);
+      k.text(t('πριν', 'before'), 34, 30, 17, false);
       k.ground(10, 430, 112);
       k.ball(110, 112 - r1, r1, 'm₁');
       k.ball(320, 112 - r2, r2, 'm₂');
       k.arrow(146, 112 - r1, 216, 112 - r1, 'υ₁');
       k.arrow(290, 112 - r2, 230, 112 - r2, 'υ₂');
-      k.text('μετά', 34, 150, 17, false);
+      k.text(t('μετά', 'after'), 34, 150, 17, false);
       k.ground(10, 430, 232);
       k.ball(150, 232 - r1, r1, 'm₁');
       k.ball(300, 232 - r2, r2, 'm₂');
@@ -455,7 +456,7 @@ export const PHYSICS: Record<string, StampDef> = {
       k.arrow(x2, y - r2 * 2 - 14, x2 + 100, y - r2 * 2 - 14, 'υ₂′');
     }
   }, true),
-  bullet: fig('Βλήμα σε ξύλο', 'mom', 440, 210, (k) => {
+  bullet: fig(t('Βλήμα σε ξύλο', 'Bullet into wood'), 'mom', 440, 210, (k) => {
     k.ground(10, 430, 170);
     k.poly([[60, 134], [92, 134], [102, 140], [92, 146], [60, 146]], true);
     k.text('m', 80, 116, 19);
@@ -469,7 +470,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.poly([[330, 134], [346, 134], [352, 140], [346, 146], [330, 146]], true);
     k.arrow(340, 80, 410, 80, 'V');
   }),
-  explosion: fig('Έκρηξη σε δύο κομμάτια', 'mom', 420, 200, (k) => {
+  explosion: fig(t('Έκρηξη σε δύο κομμάτια', 'Explosion into two pieces'), 'mom', 420, 200, (k) => {
     k.c.save();
     k.c.setLineDash([7 * k.s, 6 * k.s]);
     k.circle(210, 100, 30);
@@ -483,7 +484,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.ball(320, 100, 24, 'm₂');
     k.arrow(350, 100, 400, 100, 'υ₂');
   }),
-  oblique: fig('Πλάγια κρούση', 'mom', 420, 290, (k) => {
+  oblique: fig(t('Πλάγια κρούση', 'Oblique collision'), 'mom', 420, 290, (k) => {
     k.c.save();
     k.c.setLineDash([7 * k.s, 6 * k.s]);
     k.circle(60, 145, 22);
@@ -502,7 +503,7 @@ export const PHYSICS: Record<string, StampDef> = {
   }),
 
   // Ταλαντώσεις
-  springHit: fig('Ελατήριο και κρούση', 'osc', 460, 150, (k) => {
+  springHit: fig(t('Ελατήριο και κρούση', 'Spring and collision'), 'osc', 460, 150, (k) => {
     k.wall(14, 20, 130);
     k.ground(14, 450, 130);
     k.line(...(zigzag(14, 200, 92, 14, 14) as P2[]));
@@ -512,7 +513,7 @@ export const PHYSICS: Record<string, StampDef> = {
   }),
 
   // Κύματα
-  waveT: fig('Εγκάρσιο κύμα', 'wave', 470, 210, (k, st) => {
+  waveT: fig(t('Εγκάρσιο κύμα', 'Transverse wave'), 'wave', 470, 210, (k, st) => {
     const y0 = 105, A = 50, lam = 180, x0 = 20, x1 = 450;
     const ph = ((st?.t ?? 0) / 1600) * Math.PI * 2;
     const Y = (x: number): number => y0 - A * Math.sin((2 * Math.PI * (x - x0)) / lam - ph);
@@ -530,7 +531,7 @@ export const PHYSICS: Record<string, StampDef> = {
       k.text('A', 50, 80);
     }
   }, true),
-  waveL: fig('Διάμηκες κύμα', 'wave', 470, 180, (k, st) => {
+  waveL: fig(t('Διάμηκες κύμα', 'Longitudinal wave'), 'wave', 470, 180, (k, st) => {
     const lam = 150, D = 9;
     const ph = ((st?.t ?? 0) / 1600) * Math.PI * 2;
     for (let x0 = 20; x0 <= 450; x0 += 7) {
@@ -539,12 +540,12 @@ export const PHYSICS: Record<string, StampDef> = {
     }
     k.arrow(380, 18, 440, 18, 'υ', [410, 4]);
     if (st?.t === undefined) {
-      k.text('πύκνωμα', 75, 145, 15, false);
-      k.text('αραίωμα', 150, 165, 15, false);
-      k.text('πύκνωμα', 225, 145, 15, false);
+      k.text(t('πύκνωμα', 'compression'), 75, 145, 15, false);
+      k.text(t('αραίωμα', 'rarefaction'), 150, 165, 15, false);
+      k.text(t('πύκνωμα', 'compression'), 225, 145, 15, false);
     }
   }, true),
-  waveS: fig('Στάσιμο κύμα', 'wave', 470, 210, (k, st) => {
+  waveS: fig(t('Στάσιμο κύμα', 'Standing wave'), 'wave', 470, 210, (k, st) => {
     const y0 = 105, A = 50, L = 400, x0 = 35, n = 3;
     const env = (x: number): number => A * Math.sin((n * Math.PI * (x - x0)) / L);
     const cs = Math.cos(((st?.t ?? 0) / 1400) * Math.PI * 2);
@@ -556,7 +557,7 @@ export const PHYSICS: Record<string, StampDef> = {
     for (let i = 0; i <= n; i++) k.text('Δ', x0 + (L * i) / n, y0 + 75, 17, false);
     for (let i = 0; i < n; i++) k.text('Κ', x0 + (L * (i + 0.5)) / n, y0 - 75, 17, false);
   }, true),
-  interference: fig('Συμβολή από δύο πηγές', 'wave', 420, 300, (k, st) => {
+  interference: fig(t('Συμβολή από δύο πηγές', 'Interference from two sources'), 'wave', 420, 300, (k, st) => {
     const sp = 34, grow = (((st?.t ?? 0) / 1200) % 1) * sp;
     const [w, h] = k.P(420, 300);
     k.c.save();
@@ -575,7 +576,7 @@ export const PHYSICS: Record<string, StampDef> = {
   ...CIRCUITS,
 
   // Ηλεκτρικό και μαγνητικό πεδίο
-  capField: fig('Πυκνωτής: ομογενές πεδίο', 'em', 300, 260, (k) => {
+  capField: fig(t('Πυκνωτής: ομογενές πεδίο', 'Capacitor: uniform field'), 'em', 300, 260, (k) => {
     k.c.save();
     k.c.lineWidth *= 2;
     k.line([90, 30], [90, 230]);
@@ -591,9 +592,9 @@ export const PHYSICS: Record<string, StampDef> = {
     }
     k.text('E', 150, 18);
   }),
-  dipole: fig('Αντίθετα φορτία', 'em', 420, 280, (k) => fieldLines(k, 420, 280, [{ x: 140, y: 140, q: 1 }, { x: 280, y: 140, q: -1 }])),
-  likeCharges: fig('Ομώνυμα φορτία', 'em', 420, 280, (k) => fieldLines(k, 420, 280, [{ x: 140, y: 140, q: 1 }, { x: 280, y: 140, q: 1 }])),
-  wireField: fig('Ρευματοφόρος αγωγός', 'em', 260, 260, (k) => {
+  dipole: fig(t('Αντίθετα φορτία', 'Opposite charges'), 'em', 420, 280, (k) => fieldLines(k, 420, 280, [{ x: 140, y: 140, q: 1 }, { x: 280, y: 140, q: -1 }])),
+  likeCharges: fig(t('Ομώνυμα φορτία', 'Like charges'), 'em', 420, 280, (k) => fieldLines(k, 420, 280, [{ x: 140, y: 140, q: 1 }, { x: 280, y: 140, q: 1 }])),
+  wireField: fig(t('Ρευματοφόρος αγωγός', 'Current-carrying wire'), 'em', 260, 260, (k) => {
     intoPage(k, 130, 130, 12, false);
     k.text('I', 150, 112, 19);
     for (const r of [45, 75, 105]) {
@@ -604,7 +605,7 @@ export const PHYSICS: Record<string, StampDef> = {
     }
     k.text('B', 220, 40);
   }),
-  coilField: fig('Πηνίο (σωληνοειδές)', 'em', 440, 270, (k) => {
+  coilField: fig(t('Πηνίο (σωληνοειδές)', 'Coil (solenoid)'), 'em', 440, 270, (k) => {
     for (const ry of [118, 92]) {
       k.curve((u) => [220 + 205 * Math.cos(u), 135 - ry * Math.sin(u)], 0.32, Math.PI - 0.32, 50);
       k.curve((u) => [220 + 205 * Math.cos(u), 135 + ry * Math.sin(u)], 0.32, Math.PI - 0.32, 50);
@@ -622,7 +623,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.text('S', 100, 135, 22, false);
     k.text('N', 340, 135, 22, false);
   }),
-  rails: fig('Ράβδος σε ράγες', 'em', 440, 290, (k) => {
+  rails: fig(t('Ράβδος σε ράγες', 'Rod on rails'), 'em', 440, 290, (k) => {
     for (let x = 100; x <= 410; x += 56) for (const y of [100, 190]) if (Math.abs(x - 270) > 25) intoPage(k, x, y, 8, true);
     k.text('B', 410, 30);
     k.line([30, 60], [425, 60]);
