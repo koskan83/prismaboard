@@ -214,11 +214,11 @@ body.inking #toolbar { pointer-events: none; }
 #voice .vbody { padding: 12px; }
 #voice .vbig { display: flex; flex-direction: column; align-items: center; border-radius: 16px; padding: 10px 10px 14px; background: #f1f5f9; color: #0f172a; }
 #voice .vbig.l0 { background: #e0e7ff; } #voice .vbig.l1 { background: #fef3c7; } #voice .vbig.l2 { background: #dcfce7; }
-#voice .vbig svg { width: 190px; height: 190px; }
+#voice .vbig svg { width: 300px; height: 206px; }
 #voice .vbig b { font-size: 28px; }
 #voice .vrow { display: flex; gap: 10px; margin-top: 10px; }
 #voice .vsmall { flex: 1; min-height: 88px; border-radius: 12px; background: var(--bar-2); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 2px 4px 4px; }
-#voice .vsmall svg { width: 68px; height: 68px; }
+#voice .vsmall svg { width: 105px; height: 72px; }
 #voice .vsmall small { font-size: 12px; }
 #noise .nbody { display: flex; gap: 14px; padding: 14px 14px 0; }
 #noise .nbar { position: relative; width: 84px; height: 260px; border-radius: 14px; touch-action: none; cursor: ns-resize; overflow: visible;
