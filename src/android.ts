@@ -59,3 +59,29 @@ export async function androidShare(blob: Blob, name: string): Promise<void> {
   const { uri } = await androidWrite(blob, name, true);
   await androidShareUri(uri, name);
 }
+
+interface SpeechPlugin {
+  speak(o: { text: string; lang: string; rate: number }): Promise<{ spoken: boolean }>;
+  stop(): Promise<void>;
+}
+let speech: Promise<SpeechPlugin> | null = null;
+let talking = 0;
+
+/** Ανάγνωση φωναχτά με τη φωνή της συσκευής (SpeechPlugin.java): το WebView δεν έχει speechSynthesis. false αν δεν έχει φωνή για τη γλώσσα. */
+export async function androidSay(text: string, lang: string, rate: number): Promise<boolean> {
+  speech ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<SpeechPlugin>('Speech'));
+  talking++;
+  try {
+    return (await (await speech).speak({ text, lang, rate })).spoken;
+  } catch {
+    return false;
+  } finally {
+    talking--;
+  }
+}
+
+export const androidSpeaking = (): boolean => talking > 0;
+
+export async function androidStopSay(): Promise<void> {
+  if (speech) await (await speech).stop().catch(() => undefined);
+}

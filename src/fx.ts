@@ -3,6 +3,9 @@
  * δεν υπάρχουν αρχεία ήχου, άρα δουλεύουν και χωρίς ίντερνετ.
  */
 
+import { androidSay } from './android';
+import { isAndroidApp } from './platform';
+
 const KEY = 'grafida.fx';
 
 export interface FxPrefs {
@@ -170,6 +173,8 @@ let sayNo = 0;
  * false αν δεν ακούστηκε.
  */
 export async function say(text: string, lang: string): Promise<boolean> {
+  // εφαρμογή Android: το WebView δεν έχει φωνή, μιλά η συσκευή
+  if (isAndroidApp) return androidSay(text, lang, 0.8);
   const synth = typeof speechSynthesis === 'undefined' ? null : speechSynthesis, no = ++sayNo;
   const is = (v: SpeechSynthesisVoice, l: string): boolean => v.lang.replace('_', '-').toLowerCase().startsWith(l.toLowerCase());
   const voices = synth?.getVoices() ?? [], voice = voices.find((v) => is(v, lang)) ?? voices.find((v) => is(v, lang.slice(0, 2)));

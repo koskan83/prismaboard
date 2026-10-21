@@ -11,6 +11,8 @@ import { askSpellWords } from './spell-lists';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, refreshUi } from './main';
 import { isEn, t } from './i18n';
+import { androidSay, androidSpeaking, androidStopSay } from './android';
+import { isAndroidApp } from './platform';
 
 export const ai = loadAi();
 const aiMenu = $('aiMenu');
@@ -199,6 +201,7 @@ async function spellFromSelection(): Promise<void> {
 
 /** Διαβάζει φωναχτά το επιλεγμένο κείμενο με τη φωνή του browser· το χειρόγραφο το αναγνωρίζει πρώτα το AI. */
 async function speakSelection(): Promise<void> {
+  if (isAndroidApp) return speakAndroid();
   const synth = window.speechSynthesis;
   if (!synth) {
     toast(t('Αυτός ο browser δεν μπορεί να διαβάσει φωναχτά', 'This browser cannot read aloud'));
@@ -221,6 +224,20 @@ async function speakSelection(): Promise<void> {
   if (voice) u.voice = voice;
   else if (synth.getVoices().length) toast(t('Δεν βρέθηκε ελληνική φωνή σε αυτή τη συσκευή· η ανάγνωση μπορεί να μην ακούγεται σωστά.', 'No English voice was found on this device; reading may not sound right.'), 6000);
   synth.speak(u);
+}
+
+/** Στην εφαρμογή Android: με τη φωνή της συσκευής (βλ. androidSay). Δεύτερο πάτημα σταματά την ανάγνωση. */
+async function speakAndroid(): Promise<void> {
+  if (androidSpeaking()) return androidStopSay();
+  const words = await selectionText('. ');
+  if (words == null) return;
+  if (!words.trim()) {
+    toast(t('Δεν βρήκα κάτι να διαβάσω', 'Nothing found to read'));
+    return;
+  }
+  if (!(await androidSay(words, isEn ? 'en-US' : 'el-GR', 0.85))) {
+    toast(t('Η συσκευή δεν έχει ελληνική φωνή. Βάλε τη από τις Ρυθμίσεις → Σύστημα → Γλώσσες → Μετατροπή κειμένου σε ομιλία.', 'This device has no English voice. Add one in Settings → System → Languages → Text-to-speech.'), 8000);
+  }
 }
 
 async function runRecognition(ids: string[], kind: AiTask): Promise<void> {

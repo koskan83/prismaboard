@@ -2,3 +2,6 @@ node_modules
 dist
 PrismaBoard-odigies.pdf
 public/odigies.pdf
+
+# ο χάρτης του έργου (graphify), μόνο τοπικά
+graphify-out/

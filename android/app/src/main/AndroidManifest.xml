@@ -35,6 +35,13 @@
         </provider>
     </application>
 
+    <!-- η φωνή της συσκευής για την ανάγνωση φωναχτά (SpeechPlugin): από το Android 11 πρέπει να δηλωθεί -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

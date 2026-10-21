@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // τα δικά μας plugins πριν στηθεί η γέφυρα
         registerPlugin(DriveAuthPlugin.class);
+        registerPlugin(SpeechPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
