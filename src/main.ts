@@ -14,7 +14,7 @@ import { openGameView, playsFull } from './game-view';
 import { loadReady } from './ready-ui';
 import { confetti, loadFx, playFx, saveFx, say } from './fx';
 import { NEWS, VERSION, newsPending } from './news';
-import { $, HL_PALETTE, MORE_COLORS, PALETTE, colorName, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast } from './app';
+import { $, HL_PALETTE, MORE_COLORS, PALETTE, colorName, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast, voice, noise } from './app';
 import { fitY, renderFns, resetFnDraft, resetFnMoved, scaleText, toggleAnalysis } from './axes-ui';
 import { clearMeasShape } from './measure-ui';
 import { ai, autoKind, openAi } from './recognize-ui';
@@ -31,13 +31,14 @@ import { loadKids, onKidsLoaded } from './kids/lazy';
 import { canPickFolder, chooseFolder, classFileName, driveCopy, folderLabel, saveClassFile, setDriveCopy } from './class-files';
 import { driveClientId, drivePreload } from './drive';
 import { catchErrors, openReport } from './errors';
+import { BETA } from './beta';
 import { isMoveTarget, isOldSite, movedNotice, offerMove, receiveMove } from './move';
 
 // σφάλματα που δεν πιάστηκαν: μήνυμα με κουμπί «Αναφορά» αντί για σιωπή
 catchErrors(toast);
 
 // δοκιμαστική έκδοση (beta.prismaboard.klabs.gr, βλ. pages.yml): εμφανής ένδειξη, για να μη δουλεύει κανείς εκεί κατά λάθος
-if (import.meta.env.VITE_CHANNEL === 'beta') {
+if (BETA) {
   document.title = 'PrismaBoard BETA';
   const tag = document.createElement('button');
   tag.id = 'betaTag';
@@ -319,7 +320,7 @@ export function refreshUi(): void {
   $('pageLabel').textContent = `${board.cur + 1} / ${board.doc.pages.length}`;
   document.querySelectorAll<HTMLElement>('[data-gadget]').forEach((b) => {
     const g = b.dataset.gadget!;
-    b.classList.toggle('on', g === 'timer' ? timer.visible : board.gadgets.has(g as GadgetKind));
+    b.classList.toggle('on', g === 'timer' ? timer.visible : g === 'voice' ? voice.visible : g === 'noise' ? noise.visible : board.gadgets.has(g as GadgetKind));
   });
   const viewOn: Record<string, boolean> = { curtain: curtain.visible, curtainTop: curtainTop.visible, spot: spot.visible, replay: board.replaying };
   document.querySelectorAll<HTMLElement>('[data-view]').forEach((b) => b.classList.toggle('on', viewOn[b.dataset.view!]));
@@ -604,6 +605,8 @@ gadgetMenu.addEventListener('click', (e) => {
   if (!b) return;
   const g = b.dataset.gadget!;
   if (g === 'timer') timer.toggle();
+  else if (g === 'voice') voice.toggle();
+  else if (g === 'noise') noise.toggle();
   else board.toggleGadget(g as GadgetKind);
   refreshUi();
 });

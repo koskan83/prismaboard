@@ -1,5 +1,6 @@
 /** Έκδοση (ημερομηνία του build) και τα νέα της, για το «Τι νέο» μετά από ενημέρωση. */
 
+import { BETA } from './beta';
 import { t } from './i18n';
 
 declare const __BUILD__: string;
@@ -10,9 +11,11 @@ export const VERSION: string = typeof __BUILD__ === 'string'
   : t('δοκιμαστική', 'test build');
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
-export const NEWS_ID = '2026-10-21';
+export const NEWS_ID = BETA ? '2026-10-21a' : '2026-10-21';
 
 export const NEWS: string[] = [
+  // μόνο στο beta: η κανονική έκδοση δεν έχει ακόμη αυτά τα εργαλεία
+  ...(BETA ? [t('Στη δοκιμαστική έκδοση (beta): νέα εργαλεία τάξης στα Όργανα, «Επίπεδο φωνής» και «Μετρητής θορύβου» με το μικρόφωνο (ο ήχος δεν ηχογραφείται), και το χρονόμετρο με δίσκο-πίτα που αδειάζει (κουμπί δίσκου στην κεφαλίδα).', 'In the beta: new classroom tools under Tools, “Voice level” and a microphone “Noise meter” (sound is never recorded), plus a timer with a pie disk that empties (disk button in the header).')] : []),
   t('Το PrismaBoard μιλά πλέον και αγγλικά: ☰ → «English» (και πίσω με «Ελληνικά»). Σε συσκευή ρυθμισμένη σε άλλη γλώσσα ανοίγει μόνο του στα αγγλικά, μαζί με τις οδηγίες. Τα μαθήματα είναι ίδια και στις δύο γλώσσες.', 'PrismaBoard now speaks English too: ☰ → “Ελληνικά” switches to Greek and back with “English”. On a device set to another language it opens in English by itself, guide included. Lessons are the same in both languages.'),
   t('Κυβάκια και αριθμοί ως το 1000: πάνω από το 100 οι εκατοντάδες γίνονται τετράγωνα 10 × 10 και η σκηνή κάνει μόνη της zoom out για να χωρούν. Οι πράξεις [ ] + [ ] = [ ] είναι πλέον ψηλά στον ουρανό, για να μένει ελεύθερο το γρασίδι. Δύο χαρακτήρες ενώνονται μόνο όταν αφήσεις τον έναν αρκετά πάνω στον άλλον, και κάθε αριθμός ως το 10 μπαίνει όρθιος.', 'Number Cubes up to 1000: above 100 the hundreds become 10 × 10 squares and the scene zooms out by itself so they fit. The sums [ ] + [ ] = [ ] now sit high in the sky, leaving the grass free. Two characters join only when you drop one well on top of the other, and every number up to 10 stands upright.'),
   t('Κυβάκια και αριθμοί: πράξεις! Το +=, στη μπάρα, βάζει [ ] + [ ] = [ ] στο γρασίδι. Σέρνεις τους αριθμούς στις θέσεις, το + γίνεται − με ένα πάτημα, και το = βγάζει το αποτέλεσμα ή ελέγχει την απάντηση των παιδιών (✓ με κομφετί).', 'Number Cubes: sums! The += on the bar puts [ ] + [ ] = [ ] on the grass. Drag numbers into the slots, tap + to turn it into −, and = shows the result or checks the children\'s answer (✓ with confetti).'),

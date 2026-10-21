@@ -10,6 +10,8 @@ import '@fontsource/playpen-sans/latin-800.css';
 import './style.css';
 import { Board, SizedTool } from './board';
 import { Timer } from './timer';
+import { VoicePanel } from './voice';
+import { NoisePanel } from './noise';
 import { closeOverlay, isNative, isOverlay, nativeSave } from './native';
 import { isAndroidApp } from './platform';
 import { androidDownload } from './android';
@@ -58,6 +60,8 @@ export function setLayoutBar(f: () => void): void {
   layoutBar = f;
 }
 export const timer = new Timer(app);
+export const voice = new VoicePanel(app);
+export const noise = new NoisePanel(app);
 export const curtainTop = new Curtain(app, 'top');
 export const curtain = new Curtain(app, 'bottom');
 export const spot = new Spotlight(app);

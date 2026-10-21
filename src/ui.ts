@@ -2,6 +2,7 @@
 
 import { PICS } from './kids/stickers';
 import { isEn, t } from './i18n';
+import { BETA } from './beta';
 
 export type PenKind = 'pen' | 'laser';
 export const LASER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="#ef4444" stroke="none"/></svg>';
@@ -382,6 +383,11 @@ export function mountUi(app: HTMLElement): void {
       ${tile('data-kid="smile"', '<b class="em">🙂</b>', t('Φατσούλα', 'Smiley'))}
       ${tile('data-kid="bravo"', '<b class="em">👏</b>', t('Μπράβο!', 'Well done!'))}
     </div>
+    ${BETA ? `<div class="gHead" data-tab="play">${t('Τάξη', 'Classroom')}</div>
+    <div class="tiles" data-tab="play">
+      ${tile('data-gadget="voice"', '<b class="em">🤫</b>', t('Επίπεδο φωνής', 'Voice level'), t('Επίπεδο φωνής: ησυχία, ψίθυροι ή κανονική φωνή', 'Voice level: silence, whisper or normal voice'))}
+      ${tile('data-gadget="noise"', '<b class="em">🎤</b>', t('Μετρητής θορύβου', 'Noise meter'), t('Μετρητής θορύβου με το μικρόφωνο· ο ήχος δεν ηχογραφείται', 'Noise meter using the microphone; sound is not recorded'))}
+    </div>` : ''}
     <div class="gHead" data-tab="shape">${t('Παρουσίαση', 'Presentation')}</div>
     <div class="tiles" data-tab="shape">
       ${tile('data-gadget="timer" data-lv="sec"', I.timer, t('Χρονόμετρο', 'Timer'))}

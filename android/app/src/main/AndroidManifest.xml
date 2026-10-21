@@ -45,4 +45,7 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- μετρητής θορύβου (και υπαγόρευση 🎤): το Capacitor ζητά την άδεια όταν η σελίδα καλεί getUserMedia· ο ήχος μένει στη συσκευή -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 </manifest>

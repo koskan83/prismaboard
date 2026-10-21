@@ -1,4 +1,6 @@
 import { t } from './i18n';
+import { BETA } from './beta';
+import { loadView, pieColor, pieFraction, pieSector, pieTicks, saveView } from './classroom';
 
 /** Αιωρούμενο χρονόμετρο: αντίστροφη μέτρηση όταν έχει οριστεί χρόνος, αλλιώς μετράει προς τα πάνω. */
 export class Timer {
@@ -11,12 +13,15 @@ export class Timer {
   private running = false;
   private last = 0;
   private tick = 0;
+  private pie: SVGElement | null;
+  private view = BETA ? loadView() : 0;
 
   constructor(parent: HTMLElement) {
     parent.insertAdjacentHTML(
       'beforeend',
       `<div id="timer" class="hidden">
-        <div class="thead"><span>${t('⏱ Χρονόμετρο', '⏱ Timer')}</span><button data-t="close">✕</button></div>
+        <div class="thead"><span>${t('⏱ Χρονόμετρο', '⏱ Timer')}</span><span class="tbtns">${BETA ? `<button data-t="view" title="${t('Πίτα ή ψηφία', 'Pie or digits')}"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 12V4a8 8 0 1 1-8 8z" fill="#f97316"/></svg></button>` : ''}<button data-t="close">✕</button></span></div>
+        ${BETA ? '<svg class="tpie" viewBox="0 0 200 200" aria-hidden="true"></svg>' : ''}
         <div class="tdisplay">05:00</div>
         <div class="row">
           <button data-add="-60">−1′</button>
@@ -33,6 +38,7 @@ export class Timer {
     );
     this.el = parent.querySelector<HTMLElement>('#timer')!;
     this.display = this.el.querySelector<HTMLElement>('.tdisplay')!;
+    this.pie = this.el.querySelector<SVGElement>('.tpie');
     this.startBtn = this.el.querySelector<HTMLButtonElement>('[data-t="start"]')!;
 
     this.el.addEventListener('click', (e) => {
@@ -41,7 +47,11 @@ export class Timer {
       if (b.dataset.add) this.adjust(Number(b.dataset.add) * 1000);
       else if (b.dataset.t === 'start') this.toggleRun();
       else if (b.dataset.t === 'reset') this.reset();
-      else if (b.dataset.t === 'close') this.toggle();
+      else if (b.dataset.t === 'view') {
+        this.view = (this.view + 1) % 3;
+        saveView(this.view);
+        this.render();
+      } else if (b.dataset.t === 'close') this.toggle();
     });
     this.bindDrag(this.el.querySelector<HTMLElement>('.thead')!);
     this.render();
@@ -117,7 +127,26 @@ export class Timer {
     const m = Math.floor(total / 60);
     const s = total % 60;
     this.display.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    this.renderPie();
     this.startBtn.textContent = this.running ? t('⏸ Παύση', '⏸ Pause') : t('▶ Έναρξη', '▶ Start');
+  }
+
+  /** Η πίτα φαίνεται μόνο στην αντίστροφη μέτρηση· χωρίς χρόνο μένουν τα ψηφία. */
+  private renderPie(): void {
+    if (!this.pie) return;
+    const v = this.countdown ? this.view : 0;
+    this.el.dataset.view = String(v);
+    if (v === 0) return;
+    const f = pieFraction(this.ms, this.setMs);
+    const n = pieTicks(this.setMs);
+    let ticks = '';
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const [s, c] = [Math.sin(a), Math.cos(a)];
+      ticks += `<path d="M${(100 + 86 * s).toFixed(1)} ${(100 - 86 * c).toFixed(1)}L${(100 + 94 * s).toFixed(1)} ${(100 - 94 * c).toFixed(1)}"/>`;
+    }
+    this.pie.innerHTML = `<circle cx="100" cy="100" r="82" fill="#fff"/><path d="${pieSector(f, 100, 100, 80)}" fill="${pieColor(f)}"/>`
+      + `<circle cx="100" cy="100" r="82" fill="none" stroke="#475569" stroke-width="3"/><g stroke="#e2e8f0" stroke-width="3" stroke-linecap="round">${ticks}</g>`;
   }
 
   private beep(): void {

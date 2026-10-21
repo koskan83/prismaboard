@@ -193,6 +193,51 @@ body.inking #toolbar { pointer-events: none; }
 #timer.done .tdisplay { color: var(--danger); animation: blink .6s steps(2) infinite; }
 @keyframes blink { 50% { opacity: .25; } }
 
+/* χρονόμετρο: δίσκος-πίτα (beta) */
+#timer .tbtns { display: flex; gap: 6px; }
+#timer .tbtns svg { display: block; margin: auto; }
+#timer .tpie { display: none; width: 220px; height: 220px; margin: 10px auto 0; }
+#timer[data-view="1"] .tpie, #timer[data-view="2"] .tpie { display: block; }
+#timer[data-view="1"] .tdisplay { font-size: 40px; padding: 4px 0; }
+#timer[data-view="2"] .tdisplay { display: none; }
+#timer[data-view="2"] .tpie { margin-bottom: 10px; width: 260px; height: 260px; }
+#timer.done .tpie { animation: blink .6s steps(2) infinite; }
+
+/* πάνελ τάξης: επίπεδο φωνής και μετρητής θορύβου (beta) */
+.cpanel { position: fixed; right: 20px; top: 90px; z-index: 18; width: 340px; border-radius: 18px; overflow: hidden;
+  background: var(--bar); color: var(--fg); box-shadow: 0 8px 28px rgba(0,0,0,.4); }
+#voice { right: 380px; }
+#noise { right: 740px; }
+.cpanel .thead { display: flex; justify-content: space-between; align-items: center; padding: 8px 8px 8px 16px;
+  background: var(--bar-2); cursor: move; touch-action: none; font-weight: 600; }
+.cpanel .thead button { width: 44px; height: 44px; border-radius: 10px; font-size: 18px; }
+#voice .vbody { padding: 12px; }
+#voice .vbig { display: flex; flex-direction: column; align-items: center; border-radius: 16px; padding: 10px 10px 14px; background: #f1f5f9; color: #0f172a; }
+#voice .vbig.l0 { background: #e0e7ff; } #voice .vbig.l1 { background: #fef3c7; } #voice .vbig.l2 { background: #dcfce7; }
+#voice .vbig svg { width: 190px; height: 190px; }
+#voice .vbig b { font-size: 28px; }
+#voice .vrow { display: flex; gap: 10px; margin-top: 10px; }
+#voice .vsmall { flex: 1; min-height: 88px; border-radius: 12px; background: var(--bar-2); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 2px 4px 4px; }
+#voice .vsmall svg { width: 68px; height: 68px; }
+#voice .vsmall small { font-size: 12px; }
+#noise .nbody { display: flex; gap: 14px; padding: 14px 14px 0; }
+#noise .nbar { position: relative; width: 84px; height: 260px; border-radius: 14px; touch-action: none; cursor: ns-resize; overflow: visible;
+  background: linear-gradient(to top, #22c55e 0, #22c55e var(--amb), #f59e0b var(--amb), #f59e0b var(--lim), #ef4444 var(--lim), #ef4444 100%); }
+#noise .nbar::after { content: ''; position: absolute; inset: 0; border-radius: 14px; background: rgba(15,23,42,.35); pointer-events: none; z-index: 0; }
+#noise .nfill { position: absolute; left: 0; right: 0; bottom: 0; border-radius: 0 0 14px 14px; z-index: 1; pointer-events: none;
+  background: linear-gradient(to top, #22c55e 0, #22c55e var(--amb), #f59e0b var(--amb), #f59e0b var(--lim), #ef4444 var(--lim));
+  background-size: 100% 260px; background-position: bottom; transition: height .06s linear; }
+#noise .nlim { position: absolute; left: -8px; right: -8px; height: 6px; margin-bottom: -3px; background: #fff; border-radius: 3px; z-index: 2;
+  box-shadow: 0 0 0 2px rgba(15,23,42,.6); pointer-events: none; }
+#noise .nside { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#noise .nface svg { width: 130px; height: 130px; }
+#noise .nnum { font: 700 30px/1 ui-monospace, Menlo, Consolas, monospace; }
+#noise .nlimit { display: flex; align-items: center; gap: 8px; margin-top: auto; }
+#noise .nlimit button { width: 48px; height: 48px; border-radius: 10px; background: var(--bar-2); font-size: 24px; }
+#noise .nnote { margin: 10px 14px 12px; font-size: 12px; opacity: .75; }
+#noise.alarm { animation: nalarm .7s ease-in-out infinite; }
+@keyframes nalarm { 50% { background: #b91c1c; box-shadow: 0 0 0 6px #ef4444, 0 8px 28px rgba(0,0,0,.4); } }
+
 .bgRow { display: flex; align-items: center; gap: 8px; padding: 6px 12px; }
 .bgRow span { font-size: 17px; margin-right: auto; }
 .popup button.bgSw { width: 40px; height: 40px; padding: 0; border-radius: 9px; background: #fff; border: 2px solid var(--bar-2); }
