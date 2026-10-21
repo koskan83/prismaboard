@@ -598,6 +598,7 @@ describe('ορθογραφία με το τερατάκι', () => {
 });
 
 import { ncCell, ncDrop, ncPack, ncShapes, ncStartH, ncState, type NCube } from '../src/kids';
+import { ncExercise, ncRandom, type NCExercise } from '../src/kids/numcubes';
 
 describe('κυβάκια και αριθμοί', () => {
   const d = KIDS.numcubes, W = d.w, H = d.h;
@@ -647,17 +648,101 @@ describe('κυβάκια και αριθμοί', () => {
     expect(ncState(r.v).cubes.map((e) => [e.x, e.n, e.f])).toEqual([[150, 5, 0]]);
   });
 
-  it('ενώνονται μόνο όταν αφήνεις τον έναν αρκετά πάνω στον άλλον, όχι λίγο πάνω από το κεφάλι του ή δίπλα', () => {
+  it('ενώνονται όταν αφήνεις τον έναν πάνω στον άλλον, και με ανοχή· όχι όμως όταν είναι απλώς δίπλα', () => {
     const v = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(50, 1), cube(150, 4)] });
     const s = ncState(v);
-    // το 4 φτάνει ως το 9 από το 13: το 1 με τα πόδια του στο 9,6 (πάνω στο σώμα του) ενώνεται
-    const r = drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 9.1 * S])!;
-    expect(r.ev).toBe('num|pop|5');
-    // με τα πόδια λίγο πάνω από το κεφάλι του (στο 8,5) ή μισό έξω στο πλάι, όχι
-    expect(ncState(drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 8 * S])!.v).cubes.length).toBe(2);
-    expect(ncState(drag(v, mid(s.cubes[0]), [ox + 15.7 * S, oy + 11 * S])!.v).cubes.length).toBe(2);
+    const at = (x: number, feet: number): number => ncState(drag(v, mid(s.cubes[0]), [ox + x * S, oy + (feet - 0.5) * S])!.v).cubes.length;
+    // το 4 στέκεται στο x 15 (πλάτος 1) και φτάνει ως το 9 από το 13, το 1 έχει πόδια στο «feet»
+    expect(drag(v, mid(s.cubes[0]), [ox + 15 * S, oy + 9.1 * S])!.ev).toBe('num|pop|5');
+    expect(at(15, 12)).toBe(1); // ακριβώς πάνω στο σώμα
+    expect(at(15.5, 11)).toBe(1); // μισό κυβάκι έξω από το κέντρο
+    expect(at(14.6, 10)).toBe(1); // και από την άλλη μεριά
+    expect(at(15, 8)).toBe(1); // λίγο πάνω από το κεφάλι (πόδια ένα κυβάκι πάνω από την κορυφή)
+    expect(at(15, 7.2)).toBe(2); // πολύ ψηλά: όχι
+    // δίπλα στο γρασίδι: κολλητά ή με μικρό κενό, όχι
+    expect(at(16, 13)).toBe(2);
+    expect(at(16.3, 13)).toBe(2);
+    expect(at(16.5, 12)).toBe(2);
+    expect(at(13.7, 13)).toBe(2);
     const side = drag(v, mid(s.cubes[0]), [ox + 16.2 * S, oy + 12.5 * S])!;
     expect(ncState(side.v).cubes.map((e) => e.n)).toEqual([4, 1]);
+  });
+
+  it('🎲 η γεννήτρια ασκήσεων: αριθμοί 1–20, χωρίς αρνητικά αποτελέσματα, ποτέ η ίδια άσκηση δύο φορές στη σειρά', () => {
+    let seed = 7;
+    const rand = (): number => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+    let prev: NCExercise | null = null, plus = 0, minus = 0;
+    for (let i = 0; i < 3000; i++) {
+      const x = ncExercise(rand, prev);
+      const r = x.minus ? x.a - x.b : x.a + x.b;
+      expect(x.a).toBeGreaterThanOrEqual(1);
+      expect(x.b).toBeGreaterThanOrEqual(1);
+      expect(r).toBeGreaterThanOrEqual(1);
+      expect(r).toBeLessThanOrEqual(20);
+      expect(x.a).toBeLessThanOrEqual(20);
+      if (prev) expect(x).not.toEqual(prev);
+      if (x.minus) minus++; else plus++;
+      prev = x;
+    }
+    expect(plus).toBeGreaterThan(1000);
+    expect(minus).toBeGreaterThan(1000);
+    // ακόμη κι αν το random δίνει πάντα το ίδιο, η άσκηση αλλάζει
+    const once = ncExercise(() => 0);
+    expect(ncExercise(() => 0, once)).not.toEqual(once);
+    expect(ncExercise(() => 0.99, null, 5)).toEqual({ a: 4, b: 1, minus: false });
+  });
+
+  it('🎲 στην εξίσωση: γεμίζει τις θέσεις 1 και 2, αφήνει την 3 άδεια, και η σωστή απάντηση με το = δίνει ✓', () => {
+    const px = (cx: number, cy: number): [number, number] => [ox + cx * S, oy + cy * S];
+    const dice = px(9.5, 2), eq = px(18.5, 4.9);
+    const slotOf = (v: number[], k: number): NCube | undefined => ncState(v).cubes.find((e) => e.f & 16 && Math.abs(e.x - [50, 140, 230][k]) < 5);
+    let v = ncPack({ mode: 0, sel: 0, flags: 16, cubes: [cube(60, 3), { ...cube(50, 2), f: 16, y: 65 }] });
+    // με ασκήσεις 0.7 (+ ή −: το πρώτο random < 0.5 είναι −) και το 2ο
+    const seq = [0.7, 0, 0.3, 0.5];
+    let i = 0;
+    ncRandom.rand = () => seq[i++ % seq.length];
+    try {
+      const before = v;
+      v = d.paint!(v, ...dice, W, H, {}, true)!;
+      expect(d.fx!(before, v)).toBe('tok');
+      const s = ncState(v);
+      // ό,τι ήταν στην εξίσωση έφυγε· ο χαρακτήρας στο γρασίδι έμεινε
+      expect(s.cubes.filter((e) => !(e.f & 16)).map((e) => e.n)).toEqual([3]);
+      const a = slotOf(v, 0)!, b = slotOf(v, 1)!;
+      expect(slotOf(v, 2)).toBeUndefined();
+      expect(s.flags & 32).toBe(0); // rand() = 0.7 ≥ 0.5: πρόσθεση
+      expect(a.n + b.n).toBeLessThanOrEqual(20);
+      const sum = a.n + b.n;
+      // τα παιδιά φτιάχνουν την απάντηση και πατούν το =
+      s.cubes.push({ x: 230, y: 65, n: sum, h: ncStartH(sum), acc: 0, col: 0, f: 16 });
+      v = ncPack(s);
+      const ok = d.paint!(v, ...eq, W, H, {}, true)!;
+      expect(ncState(ok).flags & 64).toBe(64);
+      expect(d.fx!(v, ok)).toBe('cheer');
+      // νέα άσκηση: το ✓ σβήνει και η θέση 3 αδειάζει
+      const again = d.paint!(ok, ...dice, W, H, {}, true)!;
+      expect(ncState(again).flags & (64 | 128)).toBe(0);
+      expect(slotOf(again, 2)).toBeUndefined();
+      expect([slotOf(again, 0)!.n, slotOf(again, 1)!.n]).not.toEqual([a.n, b.n]);
+    } finally {
+      ncRandom.rand = Math.random;
+    }
+  });
+
+  it('🎲 αφαίρεση: το S_MINUS μπαίνει και το πρώτο είναι μεγαλύτερο από το δεύτερο· εκτός εξίσωσης το κουμπί δεν υπάρχει', () => {
+    const dice: [number, number] = [ox + 9.5 * S, oy + 2 * S];
+    ncRandom.rand = () => 0.2;
+    try {
+      const off = ncPack({ mode: 0, sel: 0, flags: 0, cubes: [cube(60, 3)] });
+      expect(d.paint!(off, ...dice, W, H, {}, true)).toBeNull();
+      const v = d.paint!(ncPack({ mode: 0, sel: 0, flags: 16, cubes: [] }), ...dice, W, H, {}, true)!;
+      const s = ncState(v);
+      expect(s.flags & 32).toBe(32);
+      const [a, b] = s.cubes;
+      expect(a.n).toBeGreaterThan(b.n);
+    } finally {
+      ncRandom.rand = Math.random;
+    }
   });
 
   it('ενώνονται ως το 1000· πάνω από 1000 όχι, και ο κάδος σβήνει', () => {

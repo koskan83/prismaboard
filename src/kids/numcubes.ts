@@ -377,6 +377,33 @@ function ncSolve(s: NCState): void {
   else if (n >= 1 && n <= NC_MAX && s.cubes.length < NC_ITEMS) s.cubes.push(ncFit(s, { x: NC_EQ[2] * 10, y: 0, n, h: ncStartH(n), acc: 0, col: 0, f: F_EQ }));
   else s.flags |= S_BAD;
 }
+/** Μία άσκηση: οι δύο αριθμοί και αν είναι αφαίρεση. */
+export interface NCExercise { a: number; b: number; minus: boolean }
+/**
+ * Νέα άσκηση για το 🎲, με το random() που δίνεται (στα τεστ ντετερμινιστικό): πρόσθεση με αποτέλεσμα 1..max, ή αφαίρεση με
+ * πρώτο αριθμό ως max και δεύτερο μικρότερο (αποτέλεσμα ≥ 1). Η ίδια άσκηση δεν ξαναβγαίνει δύο φορές στη σειρά (prev).
+ */
+export function ncExercise(rand: () => number, prev?: NCExercise | null, max = 20): NCExercise {
+  const minus = rand() < 0.5, all: NCExercise[] = [];
+  for (let a = minus ? 2 : 1; a <= max; a++) for (let b = 1; minus ? b < a : a + b <= max; b++) all.push({ a, b, minus });
+  const pool = all.filter((x) => !(prev && prev.a === x.a && prev.b === x.b && prev.minus === x.minus));
+  return pool[Math.min(pool.length - 1, Math.floor(rand() * pool.length))];
+}
+/** Η πηγή τυχαίων του 🎲 (αλλάζει στα τεστ). */
+export const ncRandom = { rand: Math.random };
+/** Το κέντρο και η ακτίνα του κουμπιού 🎲: πάνω από το σύμβολο + της εξίσωσης. */
+const ncDiceBtn = (): { x: number; y: number; r: number } => ({ x: ncSign(0)[0], y: NC_EQY - 2.9, r: NC_EQR * 0.85 });
+/** 🎲: οι θέσεις 1 και 2 γεμίζουν με νέους χαρακτήρες (ό,τι υπήρχε στην εξίσωση φεύγει) και η 3 μένει άδεια για την απάντηση. false αν δεν χωρούν. */
+function ncNewExercise(s: NCState, rand: () => number): boolean {
+  const a = ncInSlot(s, 0), b = ncInSlot(s, 1);
+  const ex = ncExercise(rand, a && b ? { a: a.n, b: b.n, minus: !!(s.flags & S_MINUS) } : null);
+  const rest = s.cubes.filter((e) => !(e.f & F_EQ));
+  if (rest.length + 2 > NC_ITEMS) return false;
+  s.cubes = rest;
+  s.flags = (ex.minus ? s.flags | S_MINUS : s.flags & ~S_MINUS) & ~(S_OK | S_BAD);
+  for (const [k, n] of [[0, ex.a], [1, ex.b]]) s.cubes.push(ncFit(s, { x: NC_EQ[k] * 10, y: 0, n, h: ncStartH(n), acc: 0, col: 0, f: F_EQ }));
+  return true;
+}
 /** ⚖️: η ζυγαριά μπαίνει (όσοι στέκονται πάνω από μια πιατέλα ανεβαίνουν πάνω της) ή φεύγει (κατεβαίνουν στο γρασίδι). */
 function ncScaleToggle(s: NCState): void {
   if (!(s.flags & S_SCALE) && s.flags & S_EQ) ncEqToggle(s);
@@ -1078,6 +1105,16 @@ function ncEquation(c: C, g: { S: number; ox: number; oy: number }, s: NCState):
     c.stroke();
     text(c, k === 1 ? '=' : s.flags & S_MINUS ? '−' : '+', X, Y + rr * 0.06, rr * 1.7, k === 1 ? '#ffffff' : '#1e293b', 800);
   }
+  // 🎲 νέα άσκηση: στρογγυλό κουμπί πάνω από το +
+  const db = ncDiceBtn(), DX = g.ox + db.x * S, DY = g.oy + db.y * S, dr = db.r * S;
+  c.beginPath();
+  c.arc(DX, DY, dr, 0, Math.PI * 2);
+  c.fillStyle = '#fef08a';
+  c.fill();
+  c.lineWidth = Math.max(2, S * 0.09);
+  c.strokeStyle = '#a16207';
+  c.stroke();
+  text(c, '🎲', DX, DY + dr * 0.06, dr * 1.3);
   // ✓ ή ✗ πάνω από την απάντηση
   if (s.flags & (S_OK | S_BAD)) {
     const r = ncInSlot(s, 2), X = g.ox + NC_EQ[2] * S, Y = g.oy + (ncEqBase(r) - (r ? ncRows(r) : 2) - 2) * S, ok = !!(s.flags & S_OK);
@@ -1090,6 +1127,8 @@ function ncEquation(c: C, g: { S: number; ox: number; oy: number }, s: NCState):
   c.restore();
 }
 
+/** Η ανοχή της ένωσης (σε κυβάκια): ελάχιστο οριζόντιο κάλυμμα (ανά στήλη του στενότερου), ελάχιστο κάθετο, και πόσο πάνω από το κεφάλι. */
+const NC_JOIN_X = 0.35, NC_JOIN_Y = 0.25, NC_JOIN_UP = 1.5;
 /** Ο χαρακτήρας που μόλις αφέθηκε: στον κάδο σβήνεται, πάνω σε άλλον ενώνονται (ως το 1000), αλλιώς μένει εκεί. */
 export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
   const s = ncState(v), j = s.cubes.findIndex((e) => e.f & F_HELD);
@@ -1105,12 +1144,13 @@ export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
   let best = -1, area = 0;
   s.cubes.forEach((o, i) => {
     if (i === j) return;
-    // ενώνονται μόνο όταν αφήνεις τον έναν αρκετά πάνω στον άλλον: να καλύπτει το μεγαλύτερο μέρος του πλάτους του
-    // στενότερου και να ακουμπά το σώμα του (ή το πολύ λίγο πάνω από το κεφάλι του)· όχι απλώς δίπλα.
+    // ενώνονται όταν αφήνεις τον έναν πάνω στον άλλον, και με ανοχή (ο πίνακας αφής δεν είναι ακριβής): να καλύπτει
+    // τουλάχιστον το 35% του πλάτους του στενότερου (όχι λιγότερο από 0,35 κυβάκι) και να ακουμπά το σώμα του, ή να
+    // μένει ως NC_JOIN_UP κυβάκια πάνω από το κεφάλι του (πέφτει από πάνω). Δίπλα στο γρασίδι, ακόμη και κολλητά, όχι.
     // Ένα κομμάτι που μόλις κόπηκε ακουμπά τη βάση του από πάνω: μετράει κι αυτό, για να πάει δίπλα της
-    const q = ncBox(o, th), ix = Math.min(b.x1, q.x1) - Math.max(b.x0, q.x0), iy = Math.min(b.y1, q.y1) - Math.max(b.y0, q.y0 - (fresh ? 0 : 0.6));
-    const needX = fresh ? 0.5 : Math.max(0.6, 0.6 * Math.min(ncCols(e), ncCols(o)));
-    if (ix >= needX && iy >= (fresh ? -0.1 : 0.5) && ix * Math.max(iy, 0.01) > area) { area = ix * Math.max(iy, 0.01); best = i; }
+    const q = ncBox(o, th), ix = Math.min(b.x1, q.x1) - Math.max(b.x0, q.x0), iy = Math.min(b.y1, q.y1) - Math.max(b.y0, q.y0 - (fresh ? 0 : NC_JOIN_UP));
+    const needX = fresh ? 0.5 : Math.max(NC_JOIN_X, NC_JOIN_X * Math.min(ncCols(e), ncCols(o)));
+    if (ix >= needX && iy >= (fresh ? -0.1 : NC_JOIN_Y) && ix * Math.max(iy, 0.01) > area) { area = ix * Math.max(iy, 0.01); best = i; }
   });
   if (best >= 0 && fresh) {
     // κόπηκε με απλό πάτημα (χωρίς σύρσιμο): το κομμάτι πάει δίπλα, για να μην ξανακολλήσει αμέσως
@@ -1257,6 +1297,8 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
       }
       // τα σύμβολα της εξίσωσης: το + γίνεται − (και ξανά +), το = λύνει ή ελέγχει
       if (s.flags & S_EQ && y < g.sh) {
+        const dice = ncDiceBtn();
+        if (Math.hypot(cx - dice.x, cy - dice.y) <= dice.r * 1.25) return ncNewExercise(s, ncRandom.rand) ? ncPack(s) : v;
         for (const k of [0, 1]) {
           const [sx, sy] = ncSign(k);
           if (Math.hypot(cx - sx, cy - sy) > NC_EQR * 1.15) continue;
@@ -1349,6 +1391,11 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
       // ο έλεγχος της εξίσωσης: σωστό με κομφετί, λάθος με το «όχι»
       if (b.flags & S_OK && !(a.flags & S_OK)) return 'cheer';
       if (b.flags & S_BAD && !(a.flags & S_BAD)) return 'bad';
+      // νέα άσκηση (🎲): και οι δύο πρώτες θέσεις άλλαξαν μαζί (όταν σέρνεις αλλάζει το πολύ μία)
+      if (b.flags & S_EQ && !a.cubes.some((e) => e.f & F_HELD) && !b.cubes.some((e) => e.f & F_HELD)) {
+        const sig = (q: NCState): string => [0, 1].map((k) => ncInSlot(q, k)?.n ?? 0).join() + (q.flags & S_MINUS);
+        if (sig(a) !== sig(b) && ncInSlot(b, 0) && ncInSlot(b, 1)) return 'tok';
+      }
       if (a.mode !== b.mode || a.sel !== b.sel || a.flags !== b.flags) return 'click';
       const last = b.cubes[b.cubes.length - 1];
       if (b.cubes.length > a.cubes.length) return `num|${last.f & F_FRESH ? 'split' : 'pop'}|${last.n}`;
