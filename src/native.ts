@@ -4,7 +4,8 @@ interface TauriCore {
   invoke<T>(cmd: string, args?: unknown, options?: { headers: Record<string, string> }): Promise<T>;
 }
 
-const core = (window as unknown as { __TAURI__?: { core: TauriCore } }).__TAURI__?.core;
+// (στα tests του Node δεν υπάρχει window)
+const core = typeof window === 'undefined' ? undefined : (window as unknown as { __TAURI__?: { core: TauriCore } }).__TAURI__?.core;
 
 export const isNative = !!core;
 
@@ -22,7 +23,7 @@ export async function nativeSave(blob: Blob, name: string): Promise<boolean> {
 }
 
 /** true όταν τρέχουμε στο διαφανές παράθυρο «γράψιμο πάνω από άλλα προγράμματα». */
-export const isOverlay = !!(window as unknown as { __GRAFIDA_OVERLAY__?: boolean }).__GRAFIDA_OVERLAY__;
+export const isOverlay = typeof window !== 'undefined' && !!(window as unknown as { __GRAFIDA_OVERLAY__?: boolean }).__GRAFIDA_OVERLAY__;
 
 /** Ανοίγει διαφανές παράθυρο πάνω από όλα και ελαχιστοποιεί τον πίνακα. */
 export function openOverlay(): Promise<void> {
