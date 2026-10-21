@@ -46,8 +46,12 @@ if (BETA) {
   tag.title = t('Δοκιμαστική έκδοση', 'Beta version');
   tag.onclick = () => void notice(t('Δοκιμαστική έκδοση', 'Beta version'), [
     t('Εδώ δοκιμάζονται οι αλλαγές πριν φτάσουν σε όλους.', 'Changes are tested here before they reach everyone.'),
-    t('Τα μαθήματα εδώ είναι χωριστά από την κανονική διεύθυνση prismaboard.klabs.gr. Για κανονική δουλειά στην τάξη χρησιμοποίησε εκείνη.',
-      'Lessons here are separate from the regular address prismaboard.klabs.gr. For real classroom work, use that one.'),
+    // στο Android (κανάλι «Εσωτερική δοκιμή» του Play) τα μαθήματα είναι της συσκευής, ίδια με της κανονικής εφαρμογής
+    isAndroidApp
+      ? t('Είναι η δοκιμαστική έκδοση του Play (Εσωτερική δοκιμή). Τα μαθήματα της συσκευής μένουν ίδια· για να γυρίσεις στην κανονική, βγες από τους δοκιμαστές από τη σελίδα της εφαρμογής στο Play.',
+        'This is the Play test version (internal testing). The lessons on this device stay the same; to go back to the regular app, leave the testers from the app page on Play.')
+      : t('Τα μαθήματα εδώ είναι χωριστά από την κανονική διεύθυνση prismaboard.klabs.gr. Για κανονική δουλειά στην τάξη χρησιμοποίησε εκείνη.',
+        'Lessons here are separate from the regular address prismaboard.klabs.gr. For real classroom work, use that one.'),
   ]);
   document.body.append(tag);
 }

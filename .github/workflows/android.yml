@@ -1,31 +1,52 @@
 name: Android (Google Play)
 
 # Η εφαρμογή Android του Google Play (Capacitor, φάκελος android/): όλα τα αρχεία της μέσα στο πακέτο.
-#  - tag v* (μαζί με το site και τα Windows): το .aab για το Play Console και ένα .apk για δοκιμή σε tablet ή πίνακα.
-#  - push στο main που αλλάζει το android/: μόνο έλεγχος ότι χτίζεται.
-# Η έκδοση βγαίνει από το package.json: versionName 0.2.3, versionCode 203 (major·10000 + minor·100 + patch).
+#  - tag v* (μαζί με το site και τα Windows): κυκλοφορία, το .aab για το Play Console και ένα .apk για δοκιμή σε tablet ή πίνακα.
+#    Δεν ανεβαίνει μόνο του στο Play: η κυκλοφορία στην παραγωγή γίνεται με το χέρι στο Play Console.
+#  - push στο main (εκτός αν αλλάζουν μόνο docs/, examples/ ή .md): beta (VITE_CHANNEL=beta, όπως το beta.prismaboard.klabs.gr)
+#    και, αν υπάρχει το secret PLAY_SERVICE_ACCOUNT_JSON, ανέβασμα στο κανάλι «Εσωτερική δοκιμή» (internal) του Play.
+#    Βλ. docs/play-store.md, «Κανάλι δοκιμών (Εσωτερική δοκιμή)».
+#
+# Έκδοση (versionCode = ο αριθμός που κοιτάζει το Play· πρέπει να ανεβαίνει πάντα και να μην ξαναχρησιμοποιείται):
+#  - κυκλοφορία: versionName από το package.json, versionCode = (major·10000 + minor·100 + patch)·100, π.χ. 0.2.5 → 20500.
+#    (Παλιό σχήμα χωρίς το ·100: 0.2.4 → 204. Το νέο είναι πάντα μεγαλύτερο, άρα το Play το δέχεται.)
+#  - beta: versionCode = κωδικός κυκλοφορίας του τελευταίου tag v* + N, όπου N = commits μετά από αυτό το tag (έως 99),
+#    π.χ. 11 commits μετά το v0.2.4 → 20411, versionName 0.2.4-beta.11.
+#    Βάση είναι το tag και όχι το package.json: το commit «Έκδοση 0.2.5» έχει ήδη 0.2.5 στο package.json πριν μπει το tag·
+#    αν μετρούσαμε από εκεί, η beta του θα έπαιρνε 20501 και η κυκλοφορία 0.2.5 (20500) θα έμενε πιο κάτω από τη beta.
 #
 # Υπογραφή με το «κλειδί ανεβάσματος» του Play (όχι το κλειδί του ψαλιδιού), από τα secrets:
 #   ANDROID_KEYSTORE_B64 (το .jks/.p12 σε base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD (αν διαφέρει).
 # Χωρίς αυτά βγαίνει ανυπόγραφο πακέτο, που δεν ανεβαίνει στο Play.
+# Ανέβασμα στην Εσωτερική δοκιμή: PLAY_SERVICE_ACCOUNT_JSON (το κλειδί JSON του service account του Google Cloud).
 
 on:
   workflow_dispatch:
   push:
     tags: ['v*']
     branches: [main]
-    paths: ['android/**', 'capacitor.config.ts', '.github/workflows/android.yml']
+    # τα φίλτρα διαδρομών δεν ισχύουν για τα tags: η κυκλοφορία χτίζεται πάντα
+    paths-ignore: ['docs/**', 'examples/**', '**.md']
 
 permissions:
   contents: read
+
+# μία beta τη φορά, με τη σειρά των push (η πιο καινούργια ακυρώνει την παλιότερη που περιμένει ή τρέχει)
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref == 'refs/heads/main' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_B64 != '' }}
+      HAS_PLAY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+      IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0 # όλο το ιστορικό και τα tags, για το N της beta
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: 22
@@ -41,13 +62,42 @@ jobs:
       - name: Έκδοση
         run: |
           ver=$(node -p "require('./package.json').version")
-          code=$(node -p "const [a,b,c]=require('./package.json').version.split('.').map(Number); a*10000+b*100+c")
-          if [[ "$GITHUB_REF" == refs/tags/v* && "v$ver" != "$GITHUB_REF_NAME" ]]; then
-            echo "::error::Το tag $GITHUB_REF_NAME δεν ταιριάζει με την έκδοση $ver του package.json"; exit 1
+          # κωδικός κυκλοφορίας: (major·10000 + minor·100 + patch)·100
+          relcode() { node -p "const [a,b,c]='$1'.split('.').map(Number); (a*10000+b*100+c)*100"; }
+          if [[ "$IS_RELEASE" == true ]]; then
+            if [[ "v$ver" != "$GITHUB_REF_NAME" ]]; then
+              echo "::error::Το tag $GITHUB_REF_NAME δεν ταιριάζει με την έκδοση $ver του package.json"; exit 1
+            fi
+            name="$ver"; code=$(relcode "$ver"); upload=false
+          else
+            # beta: κωδικός του τελευταίου tag v* + N commits μετά από αυτό
+            if tag=$(git describe --tags --abbrev=0 --match 'v[0-9]*' HEAD 2>/dev/null); then
+              base="${tag#v}"; n=$(git rev-list --count "$tag..HEAD")
+            else
+              base="$ver"; n=$(git rev-list --count HEAD)
+            fi
+            upload=true
+            # Όριο 99: πάνω από αυτό το N θα «έτρωγε» τον κωδικό της επόμενης κυκλοφορίας (20499 + 1 = 20500 = 0.2.5).
+            # Το τίμημα: μετά από 99 commits χωρίς κυκλοφορία όλες οι beta παίρνουν τον ίδιο κωδικό, που το Play δεν
+            # δέχεται δεύτερη φορά· τότε χτίζουμε χωρίς ανέβασμα μέχρι να βγει νέο tag v*.
+            if (( n > 99 )); then
+              echo "::warning::$n commits μετά το ${tag:-αρχή}: ο κωδικός μένει στο +99 και η beta δεν ανεβαίνει στο Play. Βγάλτε νέα κυκλοφορία (tag v*)."
+              n=99; upload=false
+            fi
+            # N = 0: το commit είναι το ίδιο το tag, που έχει ήδη τον κωδικό της κυκλοφορίας
+            if (( n == 0 )); then
+              echo "::notice::Το commit είναι η κυκλοφορία $tag· η beta δεν ανεβαίνει (ίδιος versionCode με την κυκλοφορία)."
+              upload=false
+            fi
+            name="$ver-beta.$n"; code=$(( $(relcode "$base") + n ))
+            echo "VITE_CHANNEL=beta" >> "$GITHUB_ENV"
+            echo "RELEASE_NAME=$ver beta (${GITHUB_SHA::7})" >> "$GITHUB_ENV"
           fi
-          echo "VERSION_NAME=$ver" >> "$GITHUB_ENV"
+          echo "versionName $name, versionCode $code"
+          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"
           echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
-      # χτίσιμο της εφαρμογής και αντιγραφή του dist/ μέσα στο android/
+          echo "UPLOAD=$upload" >> "$GITHUB_ENV"
+      # χτίσιμο της εφαρμογής (beta: με VITE_CHANNEL=beta από το προηγούμενο βήμα) και αντιγραφή του dist/ μέσα στο android/
       - run: npx vite build && npx cap sync android
       - name: Κλειδί υπογραφής
         if: env.HAS_KEY == 'true'
@@ -77,3 +127,24 @@ jobs:
         with:
           name: prismaboard-android-${{ env.VERSION_NAME }}
           path: out/*
+      # ---------- beta → Play, κανάλι «Εσωτερική δοκιμή» ----------
+      - name: Χωρίς ανέβασμα στο Play
+        if: env.IS_RELEASE != 'true' && env.UPLOAD == 'true' && (env.HAS_PLAY != 'true' || env.HAS_KEY != 'true' || github.ref != 'refs/heads/main')
+        run: |
+          if [[ "$GITHUB_REF" != refs/heads/main ]]; then
+            echo "::notice::Η beta ανεβαίνει στο Play μόνο από το main (τώρα: $GITHUB_REF_NAME). Το .aab είναι στα artifacts."
+          elif [[ "$HAS_KEY" != true ]]; then
+            echo "::notice::Λείπει το κλειδί υπογραφής (ANDROID_KEYSTORE_B64 κ.λπ.): ανυπόγραφο .aab, δεν ανεβαίνει στο Play."
+          else
+            echo "::notice::Η beta χτίστηκε αλλά δεν ανέβηκε στο Play: προσθέστε το secret PLAY_SERVICE_ACCOUNT_JSON (Settings → Secrets and variables → Actions), το κλειδί JSON του service account με άδεια κυκλοφορίας στο Play Console. Βλ. docs/play-store.md, «Κανάλι δοκιμών (Εσωτερική δοκιμή)»."
+          fi
+      - name: Ανέβασμα στην Εσωτερική δοκιμή του Play
+        if: env.IS_RELEASE != 'true' && env.UPLOAD == 'true' && env.HAS_PLAY == 'true' && env.HAS_KEY == 'true' && github.ref == 'refs/heads/main'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: gr.klabs.prismaboard
+          releaseFiles: out/PrismaBoard-${{ env.VERSION_NAME }}.aab
+          releaseName: ${{ env.RELEASE_NAME }}
+          track: internal
+          status: completed
