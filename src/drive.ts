@@ -5,6 +5,7 @@
  */
 
 import { isAndroidApp } from './platform';
+import { isNative, nativeGoogleToken } from './native';
 import { t } from './i18n';
 
 const KEY = 'grafida.drive';
@@ -69,6 +70,7 @@ export async function driveConnect(): Promise<void> {
 async function getToken(): Promise<string> {
   if (token && Date.now() < token.until) return token.value;
   if (isAndroidApp) return androidToken();
+  if (isNative) return windowsToken();
   const clientId = driveClientId();
   if (!clientId) throw new Error(t('Δεν έχει οριστεί Client ID', 'No Client ID has been set'));
   const g = await loadGis();
@@ -97,6 +99,33 @@ async function androidToken(): Promise<string> {
   const { accessToken } = await auth.authorize({ interactive: true });
   token = { value: accessToken, until: Date.now() + 50 * 60000 };
   return accessToken;
+}
+
+/**
+ * Στο πρόγραμμα των Windows η Google δεν δέχεται τη σύνδεση μέσα στη σελίδα (η προέλευση http://tauri.localhost δεν
+ * επιτρέπεται): συνδέεται ο browser του συστήματος και το token το δίνει το google.rs, με ανανέωση χωρίς παράθυρο
+ * τις επόμενες φορές. Δύο αιτήματα μαζί περιμένουν την ίδια σύνδεση, αντί να ανοίξουν δύο καρτέλες.
+ */
+let windowsPending: Promise<string> | null = null;
+function windowsToken(): Promise<string> {
+  windowsPending ??= nativeGoogleToken()
+    .then((r) => {
+      token = { value: r.access_token, until: Date.now() + ((r.expires_in ?? 3600) - 60) * 1000 };
+      return r.access_token;
+    })
+    .catch((e: unknown) => {
+      console.error('Google', e);
+      throw new Error(
+        e === 'network' ? t('Χωρίς σύνδεση στο ίντερνετ', 'No internet connection')
+          : e === 'timeout' ? t('Η σύνδεση με τη Google δεν ολοκληρώθηκε εγκαίρως· πάτα ξανά', "Google sign-in didn't finish in time. Tap again")
+          : e === 'cancelled' ? t('Η σύνδεση με το Google Drive ακυρώθηκε', 'Google Drive sign-in was cancelled')
+          : e === 'no_browser' ? t('Δεν άνοιξε ο browser για τη σύνδεση με τη Google', "Couldn't open the browser for Google sign-in")
+          : e === 'no_client' ? t('Η σύνδεση με το Google Drive δεν είναι διαθέσιμη σε αυτή την έκδοση', "Google Drive sign-in isn't available in this version")
+          : t('Η Google δεν έδωσε πρόσβαση', "Google didn't grant access")
+      );
+    })
+    .finally(() => (windowsPending = null));
+  return windowsPending;
 }
 
 /**
@@ -243,7 +272,7 @@ export function driveReady(): boolean {
 
 /** Φορτώνει από πριν τη σύνδεση της Google, ώστε το παράθυρό της να ανοίξει αμέσως με το πάτημα (αλλιώς ο browser το μπλοκάρει). */
 export function drivePreload(): void {
-  if (driveClientId() && !isAndroidApp) loadGis().catch(() => {});
+  if (driveClientId() && !isAndroidApp && !isNative) loadGis().catch(() => {});
 }
 
 export interface RemoteLesson {

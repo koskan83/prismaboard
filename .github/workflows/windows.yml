@@ -42,9 +42,9 @@ jobs:
     runs-on: windows-latest
     env:
       # Partner Center → PrismaBoard → Product identity: Package/Identity/Name, Package/Identity/Publisher, Package/Properties/PublisherDisplayName
-      MSSTORE_NAME: ''
-      MSSTORE_PUBLISHER: ''
-      MSSTORE_PUBLISHER_NAME: ''
+      MSSTORE_NAME: 'koskank-labs.PrismaBoard'
+      MSSTORE_PUBLISHER: 'CN=FBEDBDDA-BF35-4EA0-917B-E01542ACEB75'
+      MSSTORE_PUBLISHER_NAME: 'koskan k-labs'
     # για το GitHub Release
     permissions:
       contents: write
@@ -84,7 +84,10 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # το client secret του OAuth client «Desktop app» για τη σύνδεση με το Google Drive (βλ. src-tauri/src/google.rs)
+          GOOGLE_DESKTOP_CLIENT_SECRET: ${{ secrets.GOOGLE_DESKTOP_CLIENT_SECRET }}
         run: |
+          [ -n "$GOOGLE_DESKTOP_CLIENT_SECRET" ] || echo "::warning::Λείπει το secret GOOGLE_DESKTOP_CLIENT_SECRET: η σύνδεση με το Google Drive δεν θα δουλεύει"
           set -o pipefail
           npx tauri build --ci 2>&1 | tee build.log || {
             # μία annotation με όλες τις γραμμές (το GitHub κρατά το πολύ 10 ανά βήμα)

@@ -69,3 +69,11 @@ export async function nativeCheckUpdate(): Promise<NativeUpdate | null> {
 export function nativeRelaunch(): Promise<void> {
   return plugins().process?.relaunch() ?? Promise.resolve();
 }
+
+/**
+ * Διακριτικό πρόσβασης για το Google Drive (βλ. google.rs): με αποθηκευμένη σύνδεση χωρίς παράθυρο, αλλιώς ανοίγει
+ * ο browser του συστήματος. Τα σφάλματα είναι κωδικοί: no_client, network, timeout, cancelled, denied, no_browser.
+ */
+export function nativeGoogleToken(): Promise<{ access_token: string; expires_in?: number }> {
+  return core!.invoke('google_token');
+}

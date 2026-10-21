@@ -20,6 +20,13 @@ tauri-plugin-process = "2"
 serde_json = "1"
 xcap = "0.6"
 image = { version = "0.25", default-features = false, features = ["png"] }
+# σύνδεση με το Google Drive (google.rs): τα reqwest, rustls και tokio υπάρχουν ήδη μέσω του updater
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+tokio = { version = "1", features = ["net", "time", "io-util"] }
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
 
 [profile.release]
 opt-level = "s"

@@ -1,3 +1,5 @@
+mod google;
+
 use std::io::Cursor;
 use std::time::Duration;
 
@@ -210,7 +212,7 @@ pub fn run() {
     }
     builder
         .plugin(tauri_plugin_process::init())
-        .invoke_handler(tauri::generate_handler![capture_screen, save_file, open_overlay, close_overlay, exit_app, save_in_folder, show_file])
+        .invoke_handler(tauri::generate_handler![capture_screen, save_file, open_overlay, close_overlay, exit_app, save_in_folder, show_file, google::google_token])
         .run(tauri::generate_context!())
         .expect("σφάλμα κατά την εκκίνηση της εφαρμογής");
 }
