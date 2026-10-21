@@ -681,9 +681,11 @@ test('Λάσο σε εκφώνηση → «Σχήμα»: το σχήμα μπα�
 test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεία που αλλάζουν με πάτημα, και επιστροφή σε Γυμνάσιο – Λύκειο', async () => {
   const pi = Number((await page.textContent('#pageLabel')).split('/')[0]) - 1;
   const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
-  assert(await visible('#tools [data-tool="measure"]'), 'στο Γυμνάσιο – Λύκειο λείπει η Μέτρηση');
+  assert(!(await page.evaluate(() => document.body.classList.contains('primary'))) && await visible('#tools [data-tool="measure"]'), 'στο Γυμνάσιο – Λύκειο λείπει η Μέτρηση');
   await level();
-  assert(!(await visible('#tools [data-tool="measure"]')), 'στο Δημοτικό η Μέτρηση έπρεπε να κρυφτεί');
+  assert(await page.evaluate(() => document.body.classList.contains('primary')), 'δεν πέρασε στο Δημοτικό');
+  // η Μέτρηση (μήκη, γωνίες, εμβαδόν) υπάρχει και στο Δημοτικό
+  assert(await visible('#tools [data-tool="measure"]'), 'στο Δημοτικό λείπει η Μέτρηση');
   await page.click('#gadgetBtn');
   assert(await visible('#gadgetMenu [data-kid="balance"]'), 'δεν φαίνονται τα εργαλεία του Δημοτικού');
   assert(!(await visible('#gadgetMenu .tiles:not(#recentTiles) [data-axes="full"]')), 'οι άξονες έπρεπε να κρυφτούν στο Δημοτικό');
@@ -772,9 +774,9 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   assert(skyBefore === '224,242,254', `τα τουβλάκια δεν ζωγραφίστηκαν εκεί που περίμενα (χρώμα ${skyBefore})`);
   assert(skyDuring === skyBefore, `όσο χτίζεις, το εργαλείο εξαφανίζεται από την οθόνη (χρώμα ${skyDuring})`);
   assert(blocks >= 2, `το σύρσιμο έχτισε ${blocks} τουβλάκια αντί για τουλάχιστον 2`);
-  assert(!(await visible('#tools [data-tool="measure"]')), 'η επιλογή «Δημοτικό» δεν έμεινε μετά το ξανάνοιγμα');
+  assert(await page.evaluate(() => document.body.classList.contains('primary')), 'η επιλογή «Δημοτικό» δεν έμεινε μετά το ξανάνοιγμα');
   await level();
-  assert(await visible('#tools [data-tool="measure"]'), 'η Μέτρηση δεν επέστρεψε στο Γυμνάσιο – Λύκειο');
+  assert(!(await page.evaluate(() => document.body.classList.contains('primary'))), 'δεν επέστρεψε στο Γυμνάσιο – Λύκειο');
   assert(changed, 'το πάτημα πάνω στο εργαλείο δεν άλλαξε την κατάστασή του');
   // έτοιμη σελίδα του Γυμνασίου – Λυκείου από τα πρότυπα
   await page.click('#importBtn');
