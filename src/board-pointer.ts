@@ -386,7 +386,7 @@ export function armSnap(bd: Board, ps: PState): void {
         color: s.color, width: s.width, hl: s.hl,
       };
     bd.renderLive();
-  }, 600);
+  }, 400);
 }
 
 /** Ποντίκι ή γραφίδα που αιωρείται πάνω από εργαλείο του Δημοτικού: ο κέρσορας που ζητά (π.χ. ψαλίδι). */
@@ -505,7 +505,8 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
       const last = pts[pts.length - 1];
       const minD = 1.2 / bd.page.view.k;
       if (Math.hypot(wx - last[0], wy - last[1]) >= minD) pts.push([wx, wy]);
-      if (Math.hypot(e.clientX - ps.start![0], e.clientY - ps.start![1]) > 4) {
+      // λίγο τρέμουλο του χεριού δεν ξαναρχίζει το μέτρημα
+      if (Math.hypot(e.clientX - ps.start![0], e.clientY - ps.start![1]) > 6) {
         ps.start = [e.clientX, e.clientY];
         bd.armSnap(ps);
       }
