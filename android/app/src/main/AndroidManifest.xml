@@ -48,4 +48,7 @@
     <!-- μετρητής θορύβου (και υπαγόρευση 🎤): το Capacitor ζητά την άδεια όταν η σελίδα καλεί getUserMedia· ο ήχος μένει στη συσκευή -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- το RECORD_AUDIO κάνει το Play να θεωρεί το μικρόφωνο υποχρεωτικό και να κόβει συσκευές χωρίς μικρόφωνο
+         (συχνά διαδραστικοί πίνακες και Android box τάξης)· χωρίς μικρόφωνο ο μετρητής θορύβου απλώς λέει ότι δεν βρέθηκε -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 </manifest>
