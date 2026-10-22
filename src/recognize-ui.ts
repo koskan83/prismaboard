@@ -13,6 +13,7 @@ import { closePopups, inkPalette, refreshUi } from './main';
 import { isEn, t } from './i18n';
 import { androidSay, androidSpeaking, androidStopSay } from './android';
 import { isAndroidApp } from './platform';
+import { dataLine, parseSim } from './osc-sim';
 
 export const ai = loadAi();
 const aiMenu = $('aiMenu');
@@ -337,6 +338,49 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
     aiBusy--;
   }
 }
+/**
+ * Λάσο γύρω από ελατήριο και δεδομένα: το κείμενο διαβάζεται κατευθείαν, τα χειρόγραφα με αναγνώριση (AI)·
+ * οι τιμές (m, k ή D, A, L, g) πάνε στο ελατήριο και τα χειρόγραφα μένουν όπως είναι.
+ */
+async function simFromSelection(): Promise<void> {
+  const r = board.springAndText;
+  if (!r) return;
+  let text = r.text;
+  if (r.ink.length) {
+    if (!ai.keys[ai.provider]) {
+      openAi();
+      toast(t('Για να διαβαστούν τα χειρόγραφα βάλε πρώτα το κλειδί της υπηρεσίας', 'To read the handwriting, add the service key first'));
+      return;
+    }
+    const page = board.cur, doc = board.doc;
+    const img = await board.inkImage(r.ink);
+    if (!img) return;
+    aiBusy++;
+    toast(t('✨ Διαβάζω τα δεδομένα…', '✨ Reading the data…'), 0);
+    try {
+      text += '\n' + ((await recognize(img.blob, 'text', ai)) ?? '');
+    } catch (err) {
+      toast(t(`Η αναγνώριση απέτυχε: ${(err as Error).message}`, `Recognition failed: ${(err as Error).message}`), 6000);
+      return;
+    } finally {
+      aiBusy--;
+    }
+    if (board.cur !== page || board.doc !== doc) {
+      toast(t('Άλλαξες σελίδα ή μάθημα· οι τιμές δεν μπήκαν', 'You changed page or lesson; the values were not applied'));
+      return;
+    }
+  }
+  const sim = parseSim(text);
+  const read = text.replace(/\s+/g, ' ').trim();
+  if (!Object.keys(sim).length) {
+    toast(t(`Δεν βρήκα τιμές${read ? ` στο «${read.slice(0, 60)}»` : ''}. Γράψε τες π.χ. m = 2 kg, k = 100 N/m, A = 10 cm`, `No values found${read ? ` in “${read.slice(0, 60)}”` : ''}. Write them e.g. m = 2 kg, k = 100 N/m, A = 10 cm`), 7000);
+    return;
+  }
+  const s = board.applySim(r.s.id, sim);
+  if (s) toast(t(`Τιμές στο σχήμα: ${dataLine(s.sim)}. Πάτα πάνω τους για να τις αλλάξεις.`, `Values on the drawing: ${dataLine(s.sim)}. Tap them to change them.`), 6000);
+}
+document.getElementById('simTxt')?.addEventListener('click', () => void simFromSelection());
+
 $('selOpts').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-rec]');
   if (b) void runRecognition(board.selectionIds, b.dataset.rec as AiTask);

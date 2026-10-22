@@ -938,10 +938,15 @@ export class Board {
 
   setSim(text: string): void { O.setSim(this, text); }
 
-  /** Λάσο γύρω από ελατήριο και κείμενα (π.χ. την εκφώνηση): οι τιμές m, k, A… πάνε στο ελατήριο. */
-  get springAndText(): { s: StampItem; text: string } | null { return O.springAndText(this); }
+  /** Λάσο γύρω από ελατήριο και τα δεδομένα του (κείμενο ή χειρόγραφα): οι τιμές m, k, A… πάνε στο ελατήριο. */
+  get springAndText(): { s: StampItem; text: string; ink: string[] } | null { return O.springAndText(this); }
 
-  simFromText(): StampItem['sim'] | null { return O.simFromText(this); }
+  applySim(id: string, sim: NonNullable<StampItem['sim']>): StampItem | null { return O.applySim(this, id, sim); }
+
+  /** Το ελατήριο του οποίου οι τιμές είναι κάτω από το σημείο (πάτημα πάνω τους = αλλαγή). */
+  simAt(wx: number, wy: number): StampItem | null { return O.simAt(this, wx, wy); }
+
+  onSimRequest: (s: StampItem) => void = () => {};
 
   /** Το ίδιο ελατήριο (ίδια άσκηση) στοιχισμένο κάτω ή δίπλα, στην επόμενη θέση: Θ.Ι. → +A → −A. */
   alignedCopy(): void {

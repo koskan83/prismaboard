@@ -1,43 +1,140 @@
-/** Προσομοίωση απλής αρμονικής ταλάντωσης για τα ελατήρια και το εκκρεμές: από m, k (ή L, g) και A, οι T, f, ω, υmax, amax, E. */
+/**
+ * Προσομοίωση απλής αρμονικής ταλάντωσης για τα ελατήρια και το εκκρεμές. Τα δεδομένα μπορεί να είναι όποια δίνει η άσκηση
+ * (m, k, A, L, g, T, f, ω, E, υmax, amax, Fmax, Fελ, Δl)· από αυτά βγαίνουν τα m, k (ή L), A και ω, και από εκεί όλα τα υπόλοιπα.
+ */
 
 import { locale, t } from './i18n';
 
-export interface OscSim { m?: number; k?: number; A?: number; L?: number; g?: number }
+/** Τα δεδομένα όπως τα έδωσε ο χρήστης (SI). w = ω, E = ολική ενέργεια, v = υmax, a = amax, F = μέγιστη δύναμη επαναφοράς, Fel = μέγιστη δύναμη ελατηρίου, dl = Δl στη θέση ισορροπίας. */
+export interface OscSim {
+  m?: number; k?: number; A?: number; L?: number; g?: number;
+  T?: number; f?: number; w?: number; E?: number; v?: number; a?: number; F?: number; Fel?: number; dl?: number;
+}
+type Key = keyof OscSim;
 
 /** Το g όταν δεν δίνεται: όπως στα σχολικά βιβλία. */
 export const G_DEFAULT = 10;
 
+/** Πώς γράφεται κάθε μέγεθος (και ξαναδιαβάζεται) και η μονάδα του. */
+const NAME: Record<Key, [string, string]> = {
+  m: ['m', 'kg'], k: ['k', 'N/m'], A: ['A', 'm'], L: ['L', 'm'], g: ['g', 'm/s²'],
+  T: ['T', 's'], f: ['f', 'Hz'], w: ['ω', 'rad/s'], E: ['E', 'J'], v: ['υmax', 'm/s'], a: ['amax', 'm/s²'],
+  F: ['Fmax', 'N'], Fel: ['Fελ,max', 'N'], dl: ['Δl', 'm'],
+};
+const ORDER: Key[] = ['m', 'k', 'L', 'g', 'A', 'T', 'f', 'w', 'E', 'v', 'a', 'F', 'Fel', 'dl'];
+
+/** Το όνομα ενός μεγέθους, όπως γράφεται σε εκφώνηση ή βγαίνει από την αναγνώριση χειρογράφου, σε κλειδί. */
+function keyOf(raw: string): Key | null {
+  // δείκτες και κόμματα δεν μετρούν: «E_{ολ}», «Fελ,max», «υ max»
+  const n = raw.replace(/[_{}\s,]/g, '');
+  if (/^[mMΜ]$/.test(n)) return 'm';
+  if (/^[kKΚD]$/.test(n)) return 'k';
+  if (/^[AΑ]$/.test(n)) return 'A';
+  if (/^[Llℓ]$/.test(n)) return 'L';
+  if (n === 'g') return 'g';
+  if (/^[TΤ]$/.test(n)) return 'T';
+  if (n === 'f') return 'f';
+  if (n === 'ω') return 'w';
+  if (/^[EΕ](τ|T|ολ|ταλ|μηχ|tot)?$/.test(n)) return 'E';
+  if (/^[υuv](max|μεγ|0|ο)$/.test(n)) return 'v';
+  if (/^[aα](max|μεγ)$/.test(n)) return 'a';
+  if (/^Fελ(max|μεγ)?$/.test(n)) return 'Fel';
+  if (/^Σ?F(επ\p{L}*)?(max|μεγ)?$/u.test(n)) return 'F';
+  if (/^Δ[lℓLx]$/.test(n)) return 'dl';
+  return null;
+}
+
 /**
- * Διαβάζει «m = 2, k = 200 N/m, A = 0,1» (δεκαδικά με κόμμα ή τελεία), και από κείμενο άσκησης:
- * D αντί για k, ℓ ή l αντί για L, μάζα σε g, μήκη σε cm ή mm (γίνονται kg και m). Ό,τι λείπει μένει κενό.
+ * Διαβάζει τα δεδομένα από κείμενο εκφώνησης ή από το πλαίσιο: «m = 200 g, D = 80 N/m, Eτ = 20 J, f = 2 Hz…»
+ * (δεκαδικά με κόμμα ή τελεία· γραμμάρια, εκατοστά, χιλιοστά και ms γίνονται SI). Ό,τι λείπει μένει κενό.
  */
 export function parseSim(s: string): OscSim {
   const out: OscSim = {};
-  const key: Record<string, keyof OscSim> = { m: 'm', k: 'k', D: 'k', A: 'A', L: 'L', l: 'L', ℓ: 'L', g: 'g' };
-  for (const m of s.matchAll(/(?:^|[^\p{L}_])(m|k|D|A|L|l|ℓ|g)\s*=\s*(\d+(?:[.,]\d+)?)\s*(\p{L}[\p{L}/²]*)?/gu)) {
-    const k = key[m[1]];
+  const re = /(?:^|[^\p{L}\d_])([ΣΔ]?\p{L}[\p{L}_{}]*(?:\s*,\s*(?:max|μεγ))?)\s*=\s*(\d+(?:[.,]\d+)?)\s*(\p{L}[\p{L}/²]*)?/gu;
+  for (const m of s.matchAll(re)) {
+    const k = keyOf(m[1]);
+    if (!k) continue;
     let v = parseFloat(m[2].replace(',', '.'));
     const unit = m[3];
     if (unit === 'g' && k === 'm') v /= 1000;
-    else if (unit === 'cm' && (k === 'A' || k === 'L')) v /= 100;
-    else if (unit === 'mm' && (k === 'A' || k === 'L')) v /= 1000;
+    else if (unit === 'cm' && (k === 'A' || k === 'L' || k === 'dl')) v /= 100;
+    else if (unit === 'mm' && (k === 'A' || k === 'L' || k === 'dl')) v /= 1000;
+    else if (unit === 'ms' && k === 'T') v /= 1000;
     if (v > 0 && out[k] === undefined) out[k] = v;
   }
   return out;
 }
 
 /** Η αντίστροφη του parseSim, για να ξαναγράφεται στο πλαίσιο. */
-export function simText(s: OscSim | undefined, pendulum: boolean): string {
+export function simText(s: OscSim | undefined): string {
   if (!s) return '';
-  const keys: (keyof OscSim)[] = pendulum ? ['L', 'g', 'm', 'A'] : ['m', 'k', 'A', 'g'];
-  return keys.filter((k) => s[k] !== undefined).map((k) => `${k} = ${num(s[k]!)}`).join(', ');
+  return ORDER.filter((k) => s[k] !== undefined).map((k) => `${NAME[k][0]} = ${num(s[k]!)}`).join(', ');
+}
+
+/** Τα δεδομένα με τις μονάδες τους, σε μία γραμμή («m = 2 kg · k = 100 N/m · E = 20 J»)· κενό αν δεν υπάρχουν. */
+export function dataLine(s: OscSim | undefined): string {
+  if (!s) return '';
+  return ORDER.filter((k) => s[k] !== undefined).map((k) => `${NAME[k][0]} = ${num(s[k]!)} ${NAME[k][1]}`).join(' · ');
+}
+
+/** Τα βασικά μεγέθη που βγαίνουν από τα δεδομένα: m, k (ελατήριο) ή L (εκκρεμές), A, ω και g. */
+export interface Solved { m?: number; k?: number; L?: number; A?: number; w?: number; g: number }
+
+/**
+ * Από όποιο συνδυασμό δεδομένων: ω από T, f, k/m ή g/L (ή g/Δl)· k ή m από τα άλλα δύο· A από E, υmax, amax, Fmax ή Fελ.
+ * Οι σχέσεις εφαρμόζονται ξανά και ξανά, ώστε ό,τι βρεθεί να βοηθά να βρεθούν τα επόμενα.
+ */
+export function solve(s: OscSim | undefined, pendulum: boolean, vertical = false): Solved {
+  const g = s?.g ?? G_DEFAULT;
+  const r: Solved = { g, m: s?.m, k: s?.k, L: s?.L, A: s?.A, w: s?.w };
+  if (!s) return r;
+  if (!r.w && s.T) r.w = (2 * Math.PI) / s.T;
+  if (!r.w && s.f) r.w = 2 * Math.PI * s.f;
+  // amax = ω·υmax
+  if (!r.w && s.v && s.a) r.w = s.a / s.v;
+  for (let i = 0; i < 4; i++) {
+    if (pendulum) {
+      if (!r.w && r.L) r.w = Math.sqrt(g / r.L);
+      if (!r.L && r.w) r.L = g / (r.w * r.w);
+    } else {
+      if (!r.w && r.k && r.m) r.w = Math.sqrt(r.k / r.m);
+      if (!r.w && s.dl && vertical) r.w = Math.sqrt(g / s.dl);
+      if (!r.k && r.m && r.w) r.k = r.m * r.w * r.w;
+      if (!r.m && r.k && r.w) r.m = r.k / (r.w * r.w);
+      // κατακόρυφο: στη θέση ισορροπίας kΔl = mg
+      if (s.dl && vertical) {
+        if (!r.k && r.m) r.k = (r.m * g) / s.dl;
+        if (!r.m && r.k) r.m = (r.k * s.dl) / g;
+      }
+    }
+    // σταθερά επαναφοράς: k στο ελατήριο, mω² στο εκκρεμές
+    const D = pendulum ? (r.m && r.w ? r.m * r.w * r.w : undefined) : r.k;
+    if (!r.A) {
+      if (s.E && D) r.A = Math.sqrt((2 * s.E) / D);
+      else if (s.v && r.w) r.A = s.v / r.w;
+      else if (s.a && r.w) r.A = s.a / (r.w * r.w);
+      else if (s.F && D) r.A = s.F / D;
+      // η μέγιστη δύναμη του ελατηρίου: kA οριζόντια, k(Δl + A) = mg + kA κατακόρυφα
+      else if (s.Fel && r.k && !pendulum) r.A = vertical ? (r.m ? (s.Fel - r.m * g) / r.k : undefined) : s.Fel / r.k;
+      if (r.A !== undefined && !(r.A > 0)) r.A = undefined;
+    }
+    if (r.A && !pendulum) {
+      if (!r.k && s.E) r.k = (2 * s.E) / (r.A * r.A);
+      if (!r.k && s.F) r.k = s.F / r.A;
+      if (!r.k && s.Fel && !vertical) r.k = s.Fel / r.A;
+    }
+    if (r.A && !r.w) {
+      if (s.v) r.w = s.v / r.A;
+      else if (s.a) r.w = Math.sqrt(s.a / r.A);
+    }
+    if (pendulum && !r.m && s.E && r.A && r.w) r.m = (2 * s.E) / (r.w * r.w * r.A * r.A);
+  }
+  return r;
 }
 
 /** Κυκλική συχνότητα (rad/s), ή null αν λείπουν δεδομένα. */
-export function omega(s: OscSim | undefined, pendulum: boolean): number | null {
-  if (!s) return null;
-  if (pendulum) return s.L ? Math.sqrt((s.g ?? G_DEFAULT) / s.L) : null;
-  return s.k && s.m ? Math.sqrt(s.k / s.m) : null;
+export function omega(s: OscSim | undefined, pendulum: boolean, vertical = false): number | null {
+  return solve(s, pendulum, vertical).w ?? null;
 }
 
 /** Αριθμός με τρία σημαντικά ψηφία, με το κόμμα της γλώσσας. */
@@ -47,39 +144,54 @@ export function num(v: number): string {
   return (Object.is(r, -0) ? 0 : r).toLocaleString(locale, { maximumFractionDigits: 6 });
 }
 
-/** Οι σταθερές τιμές της ταλάντωσης, μία ανά γραμμή. `vertical`: κατακόρυφο ελατήριο (και η παραμόρφωση Δl στη θέση ισορροπίας). */
+/**
+ * Ό,τι βγαίνει από τα δεδομένα, μία τιμή ανά στοιχείο: πρώτα τα βασικά που δεν δόθηκαν (k, m, L, A), μετά T, f, ω, υmax, amax, E
+ * (και Δl στο κατακόρυφο). Ό,τι δόθηκε ήδη δεν ξαναγράφεται.
+ */
 export function simLines(s: OscSim | undefined, pendulum: boolean, vertical = false): string[] {
-  const w = omega(s, pendulum);
-  if (!s || !w) return [];
-  const T = (2 * Math.PI) / w;
-  const out = [`T = ${num(T)} s`, `f = ${num(1 / T)} Hz`, `ω = ${num(w)} rad/s`];
-  if (s.A) {
-    out.push(`υmax = ${num(w * s.A)} m/s`, `amax = ${num(w * w * s.A)} m/s²`);
-    // ενέργεια: ½DA², με D = k (ελατήριο) ή mω² (εκκρεμές, που θέλει και τη μάζα)
-    const D = pendulum ? (s.m ? s.m * w * w : null) : s.k!;
-    if (D) out.push(`E = ${num(0.5 * D * s.A * s.A)} J`);
+  if (!s) return [];
+  const r = solve(s, pendulum, vertical);
+  const out: string[] = [];
+  const add = (k: Key, v: number | undefined): void => {
+    if (v !== undefined && s[k] === undefined) out.push(`${NAME[k][0]} = ${num(v)} ${NAME[k][1]}`);
+  };
+  if (pendulum) add('L', r.L);
+  else add('k', r.k);
+  add('m', r.m);
+  add('A', r.A);
+  const w = r.w;
+  if (!w) return out;
+  add('T', (2 * Math.PI) / w);
+  add('f', w / (2 * Math.PI));
+  add('w', w);
+  if (r.A) {
+    add('v', w * r.A);
+    add('a', w * w * r.A);
+    const D = pendulum ? (r.m ? r.m * w * w : undefined) : r.k;
+    if (D) add('E', 0.5 * D * r.A * r.A);
+    if (D) add('F', D * r.A);
   }
-  if (vertical && s.k && s.m) out.push(`Δl = ${num((s.m * (s.g ?? G_DEFAULT)) / s.k)} m`);
+  if (vertical && r.k && r.m) add('dl', (r.m * r.g) / r.k);
   return out;
 }
 
 /** Οι τιμές της στιγμής: σε θέση x = A·r (r από −1 έως 1), με φάση ph όσο ταλαντώνεται, αλλιώς ακίνητο σε εκείνη τη θέση. */
-export function liveLine(s: OscSim | undefined, pendulum: boolean, r: number, ph?: number, fade = 1): string | null {
-  const w = omega(s, pendulum);
-  if (!s || !w || !s.A) return null;
-  const x = s.A * r;
+export function liveLine(s: OscSim | undefined, pendulum: boolean, r: number, ph?: number, fade = 1, vertical = false): string | null {
+  const { w, A } = solve(s, pendulum, vertical);
+  if (!w || !A) return null;
+  const x = A * r;
   // όσο κινείται: υ = −ωA·sin(ωt)· ακίνητο σε θέση: το μέτρο της ταχύτητας που θα είχε εκεί, |υ| = ω√(A² − x²)
-  const v = ph === undefined ? null : -w * s.A * fade * Math.sin(ph);
-  const speed = v === null ? `|υ| = ${num(w * Math.sqrt(Math.max(0, s.A * s.A - x * x)))} m/s` : `υ = ${num(v)} m/s`;
+  const v = ph === undefined ? null : -w * A * fade * Math.sin(ph);
+  const speed = v === null ? `|υ| = ${num(w * Math.sqrt(Math.max(0, A * A - x * x)))} m/s` : `υ = ${num(v)} m/s`;
   return `x = ${num(x)} m · ${speed} · a = ${num(-w * w * x)} m/s²`;
 }
 
 /** Περίοδος της κίνησης στον πίνακα (ms): η πραγματική, μέσα σε λογικά όρια ώστε να φαίνεται. */
-export function periodMs(s: OscSim | undefined, pendulum: boolean): number | null {
-  const w = omega(s, pendulum);
+export function periodMs(s: OscSim | undefined, pendulum: boolean, vertical = false): number | null {
+  const w = omega(s, pendulum, vertical);
   return w ? Math.min(12000, Math.max(250, (2000 * Math.PI) / w)) : null;
 }
 
 export const SIM_HINT = (pendulum: boolean): string => pendulum
-  ? t('Π.χ. L = 1, g = 10, A = 0,05 (μέτρα· η μάζα m για την ενέργεια). Κενό: χωρίς τιμές.', 'E.g. L = 1, g = 10, A = 0.05 (metres; mass m for the energy). Empty: no values.')
-  : t('Π.χ. m = 2, k = 200, A = 0,1 (kg, N/m, m· g = 10 αν δεν δοθεί). Κενό: χωρίς τιμές.', 'E.g. m = 2, k = 200, A = 0.1 (kg, N/m, m; g = 10 if not given). Empty: no values.');
+  ? t('Π.χ. L = 1, A = 0,05 ή T = 2, Eτ = 0,1, m = 0,5 (SI· g = 10 αν δεν δοθεί). Κενό: χωρίς τιμές.', 'E.g. L = 1, A = 0.05 or T = 2, E = 0.1, m = 0.5 (SI; g = 10 if not given). Empty: no values.')
+  : t('Π.χ. m = 2, k = 100, Eτ = 20 ή f = 2, υmax = 1, Fελ = 30, Δl = 10 cm (SI· g = 10 αν δεν δοθεί). Κενό: χωρίς τιμές.', 'E.g. m = 2, k = 100, E = 20 or f = 2, vmax = 1, Fel = 30, Δl = 10 cm (SI; g = 10 if not given). Empty: no values.');

@@ -1,6 +1,6 @@
 /** Άξονες: ονόματα, κλίμακα, συναρτήσεις και εργαλεία ανάλυσης. */
 
-import { AxesAn, AxesItem, FnDef } from './model';
+import { AxesAn, AxesItem, FnDef, StampItem } from './model';
 import { Params, compile, fnOf, paramsOf } from './expr';
 import { crossings, enclosing, fitScaleY } from './analysis';
 import { axesRange, itemBounds } from './model';
@@ -274,16 +274,16 @@ $('spStop').onclick = () => board.stopSpring();
 document.getElementById('spPos')?.addEventListener('click', () => board.cyclePos());
 document.getElementById('spPin')?.addEventListener('click', () => board.updateSpring({ pin: !board.selectedSpring?.pin || undefined }));
 document.getElementById('spCopy')?.addEventListener('click', () => board.alignedCopy());
-document.getElementById('simTxt')?.addEventListener('click', () => {
-  const sim = board.simFromText();
-  toast(sim ? t(`Τιμές στο ελατήριο: ${simText(sim, !!sim.L)}`, `Values on the spring: ${simText(sim, !!sim.L)}`) : t('Δεν βρέθηκαν τιμές στο κείμενο. Γράψε τες π.χ. m = 2 kg, k = 200 N/m, A = 10 cm', 'No values found in the text. Write them e.g. m = 2 kg, k = 200 N/m, A = 10 cm'), 5000);
-});
-document.getElementById('spSim')?.addEventListener('click', async () => {
-  const sp = board.selectedSpring;
-  if (!sp) return;
+/** Τα δεδομένα της ταλάντωσης σε πλαίσιο: από το κουμπί «Τιμές» ή πατώντας πάνω στις τιμές κάτω από το σχήμα. */
+async function editSim(sp: StampItem): Promise<void> {
   const pend = sp.name === 'pendulum';
-  const v = await ask(t('Δεδομένα της ταλάντωσης', 'Oscillation data'), { value: simText(sp.sim, pend), hint: SIM_HINT(pend), max: 80 });
+  const v = await ask(t('Δεδομένα της ταλάντωσης', 'Oscillation data'), { value: simText(sp.sim), hint: SIM_HINT(pend), max: 80 });
   if (v !== null && board.selectedSpring?.id === sp.id) board.setSim(v);
+}
+board.onSimRequest = (sp) => void editSim(sp);
+document.getElementById('spSim')?.addEventListener('click', () => {
+  const sp = board.selectedSpring;
+  if (sp) void editSim(sp);
 });
 $('spPlay').onclick = () => board.togglePlay();
 fnInput.addEventListener('keydown', (e) => {

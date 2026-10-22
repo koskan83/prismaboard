@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { liveLine, omega, parseSim, periodMs, simLines, simText } from '../src/osc-sim';
+import { dataLine, liveLine, omega, parseSim, periodMs, simLines, simText, solve } from '../src/osc-sim';
 
 describe('προσομοίωση ταλάντωσης', () => {
   it('διαβάζει τιμές με κόμμα ή τελεία και αγνοεί μονάδες', () => {
@@ -11,12 +11,21 @@ describe('προσομοίωση ταλάντωσης', () => {
     expect(parseSim('Σώμα μάζας m = 200 g δένεται σε ελατήριο σταθεράς D = 80 N/m με πλάτος A = 5 cm.')).toEqual({ m: 0.2, k: 80, A: 0.05 });
     expect(parseSim('ℓ = 40 cm, g = 10 m/s²')).toEqual({ L: 0.4, g: 10 });
     expect(parseSim('k=200N/m, A=0,1m, m=2kg')).toEqual({ k: 200, A: 0.1, m: 2 });
-    // το Δl δεν είναι μήκος νήματος, ούτε το m_A μάζα
-    expect(parseSim('Δl = 0,1 m, m_A = 3')).toEqual({});
+    // το m_A δεν είναι η μάζα της ταλάντωσης, ούτε το x ή το υ μιας στιγμής κάποιο από τα δεδομένα
+    expect(parseSim('m_A = 3, x = 0,1, υ = 2')).toEqual({});
+  });
+  it('διαβάζει και T, f, ω, ενέργεια, υmax, amax, δυνάμεις και Δl, όπως γράφονται', () => {
+    expect(parseSim('M = 2 Kg\nK = 100 N/m\nEτ = 20 J')).toEqual({ m: 2, k: 100, E: 20 });
+    expect(parseSim('T = 500 ms, f = 2 Hz, ω = 4 rad/s')).toEqual({ T: 0.5, f: 2, w: 4 });
+    expect(parseSim('E_{ολ} = 1, Εολ = 9, υmax = 2, α_max = 8, ΣFmax = 6, Fελ,max = 30, Δl = 10 cm')).toEqual({ E: 1, v: 2, a: 8, F: 6, Fel: 30, dl: 0.1 });
   });
   it('ξαναγράφει τις τιμές στη μορφή που διαβάζει', () => {
-    const s = { m: 2, k: 200, A: 0.1 };
-    expect(parseSim(simText(s, false))).toEqual(s);
+    const s = { m: 2, k: 200, A: 0.1, w: 3, E: 1, v: 2, a: 8, F: 6, Fel: 30, dl: 0.1, T: 1, f: 2 };
+    expect(parseSim(simText(s))).toEqual(s);
+  });
+  it('γράφει τα δεδομένα με τις μονάδες τους', () => {
+    expect(dataLine({ m: 2, k: 100, E: 20 })).toBe('m = 2 kg · k = 100 N/m · E = 20 J');
+    expect(dataLine(undefined)).toBe('');
   });
   it('ελατήριο: ω = √(k/m), T = 2π/ω, υmax = ωA, E = ½kA²', () => {
     expect(omega({ m: 2, k: 200 }, false)).toBeCloseTo(10);
@@ -27,10 +36,34 @@ describe('προσομοίωση ταλάντωσης', () => {
     expect(lines).toContain('amax = 10 m/s²');
     expect(lines).toContain('E = 1 J');
     expect(lines).toMatch(/Δl = 0[.,]1 m/);
+    // ό,τι δόθηκε δεν ξαναγράφεται
+    expect(lines).not.toContain('k =');
   });
-  it('εκκρεμές: ω = √(g/L), με g = 10 αν λείπει', () => {
+  it('το A βγαίνει από την ενέργεια: m = 2, k = 100, Eτ = 20 → A = √(2E/k)', () => {
+    const r = solve({ m: 2, k: 100, E: 20 }, false);
+    expect(r.A).toBeCloseTo(Math.sqrt(0.4));
+    expect(simLines({ m: 2, k: 100, E: 20 }, false).join(' | ')).toMatch(/A = 0[.,]632 m/);
+  });
+  it('k και m από f, υmax, amax ή Fmax', () => {
+    // f = 1/π Hz → ω = 2· με m = 0,5: k = mω² = 2
+    expect(solve({ m: 0.5, f: 1 / Math.PI }, false).k).toBeCloseTo(2);
+    // υmax και amax: ω = amax/υmax = 4, A = υmax/ω = 0,5
+    const r = solve({ v: 2, a: 8 }, false);
+    expect(r.w).toBeCloseTo(4);
+    expect(r.A).toBeCloseTo(0.5);
+    // Fmax = kA και A δίνουν k
+    expect(solve({ F: 20, A: 0.1, m: 2 }, false).k).toBeCloseTo(200);
+  });
+  it('κατακόρυφο: Δl δίνει ω = √(g/Δl), και Fελ,max = mg + kA δίνει A', () => {
+    expect(solve({ dl: 0.1 }, false, true).w).toBeCloseTo(10);
+    expect(solve({ m: 2, k: 200, Fel: 40 }, false, true).A).toBeCloseTo(0.1);
+    // οριζόντια το ίδιο Fελ,max είναι όλο kA
+    expect(solve({ m: 2, k: 200, Fel: 40 }, false, false).A).toBeCloseTo(0.2);
+  });
+  it('εκκρεμές: ω = √(g/L), με g = 10 αν λείπει· και L από την περίοδο', () => {
     expect(omega({ L: 2.5 }, true)).toBeCloseTo(2);
     expect(omega({ L: 2.5, g: 10 }, false)).toBeNull();
+    expect(solve({ T: Math.PI }, true).L).toBeCloseTo(2.5);
   });
   it('χωρίς αρκετά δεδομένα δεν βγαίνουν τιμές', () => {
     expect(simLines({ m: 2 }, false)).toEqual([]);

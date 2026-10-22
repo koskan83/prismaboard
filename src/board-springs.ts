@@ -3,7 +3,7 @@
 import { StampItem, uid, unrot } from './model';
 import { STAMPS, SpringState } from './stamps';
 import type { Board } from './board';
-import { parseSim, periodMs } from './osc-sim';
+import { dataLine, liveLine, parseSim, periodMs, simLines } from './osc-sim';
 import { t } from './i18n';
 
 /** Περίοδος της ταλάντωσης των ελατηρίων και χρόνος απόσβεσης. */
@@ -22,7 +22,7 @@ export function springState(bd: Board, s: StampItem): SpringState {
   if (STAMPS[s.name]?.play) return { d: 0, amp: 0, marks, t };
   const fade = s.damp ? Math.exp(-t / OSC_FADE_MS) : 1;
   // με δεδομένα (m, k ή L): η πραγματική περίοδος
-  const ph = (2 * Math.PI * t) / (periodMs(s.sim, s.name === 'pendulum') ?? OSC_PERIOD_MS);
+  const ph = (2 * Math.PI * t) / (periodMs(s.sim, s.name === 'pendulum', s.name === 'springV') ?? OSC_PERIOD_MS);
   return { d: o.amp * fade * Math.cos(ph), amp: Math.abs(o.amp), marks, ph, fade };
 }
 
@@ -148,24 +148,26 @@ export function setPinnedAt(bd: Board, id: string, d: number): void {
   updateSpring(bd, { pos: pinSnap(s, d), A: pinA(s) });
 }
 
-/** Λάσο γύρω από ένα ελατήριο (ή εκκρεμές) και κείμενα: το ελατήριο και όλο το κείμενο της επιλογής. */
-export function springAndText(bd: Board): { s: StampItem; text: string } | null {
+/**
+ * Λάσο γύρω από ένα ελατήριο (ή εκκρεμές) και τα δεδομένα του: το ελατήριο, το κείμενο της επιλογής
+ * και τα χειρόγραφα (ink), που θέλουν πρώτα αναγνώριση.
+ */
+export function springAndText(bd: Board): { s: StampItem; text: string; ink: string[] } | null {
   if (bd.multi.length < 2) return null;
   const ids = new Set(bd.multi);
   const its = bd.page.items.filter((x) => ids.has(x.id));
   const springs = its.filter((x): x is StampItem => x.kind === 'stamp' && !!STAMPS[x.name]?.spring);
-  const texts = its.filter((x) => x.kind === 'text');
-  if (springs.length !== 1 || !texts.length) return null;
-  return { s: springs[0], text: texts.map((x) => (x.kind === 'text' ? x.text : '')).join('\n') };
+  const text = its.map((x) => (x.kind === 'text' ? x.text : '')).filter(Boolean).join('\n');
+  const ink = its.filter((x) => x.kind === 'stroke' && !x.hl).map((x) => x.id);
+  if (springs.length !== 1 || (!text && !ink.length)) return null;
+  return { s: springs[0], text, ink };
 }
 
-/** Οι τιμές (m, k, A…) από τα κείμενα της επιλογής πάνε στο ελατήριό της, που μένει επιλεγμένο. null αν δεν βρέθηκε καμία. */
-export function simFromText(bd: Board): StampItem['sim'] | null {
-  const r = springAndText(bd);
-  const sim = r ? parseSim(r.text) : {};
-  if (!r || !Object.keys(sim).length) return null;
+/** Οι τιμές πάνε στο ελατήριο (προστίθενται σε όσες είχε), που μένει επιλεγμένο. */
+export function applySim(bd: Board, id: string, sim: NonNullable<StampItem['sim']>): StampItem | null {
   const items = bd.page.items;
-  const before = r.s;
+  const before = items.find((x): x is StampItem => x.id === id && x.kind === 'stamp');
+  if (!before) return null;
   const after: StampItem = { ...before, sim: { ...before.sim, ...sim } };
   items[items.indexOf(before)] = after;
   bd.push({ t: 'mod', p: bd.cur, before, after });
@@ -173,7 +175,56 @@ export function simFromText(bd: Board): StampItem['sim'] | null {
   bd.selected = after.id;
   bd.redraw();
   bd.onUi();
-  return after.sim;
+  return after;
+}
+
+/** Ό,τι χρειάζονται οι τιμές από τον πίνακα (και η σχεδίαση το έχει). */
+export interface SimHost { springState(s: StampItem): SpringState }
+
+/** Οι γραμμές κάτω από ελατήριο με δεδομένα: τα δεδομένα, οι τιμές της ταλάντωσης και (όσο κινείται ή κρατιέται) οι τιμές της στιγμής. */
+export function simRows(host: SimHost, s: StampItem): { rows: string[]; fs: number; y0: number } | null {
+  const pend = s.name === 'pendulum';
+  const lines = simLines(s.sim, pend, s.name === 'springV');
+  const data = dataLine(s.sim);
+  if (!data) return null;
+  const st = host.springState(s);
+  const r = st.ph !== undefined ? Math.cos(st.ph) * (st.fade ?? 1) : st.pinned && st.amp ? st.d / st.amp : 0;
+  const live = st.ph !== undefined || st.pinned ? liveLine(s.sim, pend, r, st.ph, st.fade, s.name === 'springV') : null;
+  const fs = Math.max(12, Math.min(22, Math.sqrt(s.w * s.h) * 0.07));
+  // οι σταθερές τιμές σε δύο-τρεις σειρές, και από κάτω οι τιμές της στιγμής
+  const rows = [data];
+  for (let i = 0; i < lines.length; i += 3) rows.push(lines.slice(i, i + 3).join('   '));
+  if (live) rows.push(live);
+  return { rows, fs, y0: s.h + fs * (s.name === 'spring' ? 0.8 : 1.4) };
+}
+
+let measure: CanvasRenderingContext2D | null = null;
+/** Το πλαίσιο των τιμών (στις μονάδες του σχήματος), για να πατιέται και να αλλάζουν. */
+export function simBox(host: SimHost, s: StampItem): { x0: number; y0: number; x1: number; y1: number } | null {
+  const r = simRows(host, s);
+  if (!r) return null;
+  measure ??= document.createElement('canvas').getContext('2d')!;
+  measure.font = simFont(r.fs);
+  const w = Math.max(...r.rows.map((x) => measure!.measureText(x).width));
+  const pad = r.fs * 0.4;
+  return { x0: -pad, y0: r.y0 - pad, x1: w + pad, y1: r.y0 + r.rows.length * r.fs * 1.35 + pad * 0.5 };
+}
+
+export const simFont = (fs: number): string => `600 ${fs}px system-ui, "Segoe UI", Roboto, sans-serif`;
+
+/** Το ελατήριο του οποίου το πλαίσιο τιμών βρίσκεται κάτω από το σημείο. */
+export function simAt(bd: Board, wx: number, wy: number): StampItem | null {
+  const items = bd.page.items;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i];
+    if (it.kind !== 'stamp' || !it.sim) continue;
+    const b = simBox(bd, it);
+    if (!b) continue;
+    const [ux, uy] = unrot(it, wx, wy);
+    const x = ux - it.x, y = uy - it.y;
+    if (x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1) return it;
+  }
+  return null;
 }
 
 /** Αντίγραφο του ελατηρίου με την ίδια άσκηση, στοιχισμένο κάτω (οριζόντιο, κεκλιμένο) ή δεξιά (κατακόρυφο, εκκρεμές), στην επόμενη θέση. */

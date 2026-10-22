@@ -1,4 +1,5 @@
 import { t } from './i18n';
+import type { OscSim } from './osc-sim';
 
 export type Pt = [number, number];
 
@@ -202,7 +203,7 @@ export interface StampItem {
   /** Ελατήρια: όταν αφήνεις το σώμα μένει εκεί, αντί να ταλαντωθεί. */
   pin?: boolean;
   /** Ελατήρια: δεδομένα για την προσομοίωση (SI): μάζα, σταθερά, πλάτος, μήκος νήματος, g. */
-  sim?: { m?: number; k?: number; A?: number; L?: number; g?: number };
+  sim?: OscSim;
   rot?: number;
   fx?: boolean;
   /** Γράμματα του σχήματος που άλλαξε ο χρήστης (π.χ. «φ» → «30°»· κενό = σβησμένο). */

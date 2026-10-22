@@ -149,6 +149,16 @@ export function down(bd: Board, e: PointerEvent): void {
       break;
     case 'select': {
       const items = bd.page.items;
+      // πάτημα στις τιμές κάτω από ένα ελατήριο: ανοίγουν για να αλλάξουν
+      const simIt = bd.simAt(wx, wy);
+      if (simIt) {
+        bd.selected = simIt.id;
+        bd.multi = [];
+        bd.redraw();
+        bd.onUi();
+        bd.onSimRequest(simIt);
+        return;
+      }
       // πιάνοντας το σώμα ενός ελατηρίου το τραβάς· όταν το αφήσεις ταλαντώνεται
       const spring = bd.springAt(wx, wy);
       if (spring) {

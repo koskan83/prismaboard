@@ -9,7 +9,7 @@ import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
 import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, lineAngleMark, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
 import { locale, t as tr } from './i18n';
-import { liveLine, simLines } from './osc-sim';
+import { simBox, simFont, simRows } from './board-springs';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -789,23 +789,28 @@ export class Renderer {
 
   /** Κάτω από ελατήριο ή εκκρεμές με δεδομένα: T, f, ω, υmax… και οι τιμές της στιγμής (x, υ, a). */
   private drawSimValues(c: CanvasRenderingContext2D, s: StampItem): void {
-    const pend = s.name === 'pendulum';
-    const lines = simLines(s.sim, pend, s.name === 'springV');
-    if (!lines.length) return;
-    const st = this.b.springState(s);
-    const r = st.ph !== undefined ? Math.cos(st.ph) * (st.fade ?? 1) : st.pinned && st.amp ? st.d / st.amp : 0;
-    const live = st.ph !== undefined || st.pinned ? liveLine(s.sim, pend, r, st.ph, st.fade) : null;
-    const fs = Math.max(12, Math.min(22, Math.sqrt(s.w * s.h) * 0.07));
-    c.font = `600 ${fs}px system-ui, "Segoe UI", Roboto, sans-serif`;
+    const r = simRows(this.b, s);
+    const b = r && simBox(this.b, s);
+    if (!r || !b) return;
+    const { rows, fs, y0 } = r;
+    // αχνό πλαίσιο: δείχνει ότι οι τιμές πατιούνται για να αλλάξουν
+    c.save();
+    c.globalAlpha = 0.3;
+    c.lineWidth = Math.max(1, fs * 0.08);
+    c.setLineDash([]);
+    c.beginPath();
+    c.roundRect(b.x0, b.y0, b.x1 - b.x0, b.y1 - b.y0, fs * 0.4);
+    c.stroke();
+    c.restore();
+    c.font = simFont(fs);
     c.textAlign = 'left';
     c.textBaseline = 'top';
-    c.globalAlpha = 0.9;
-    const y0 = s.h + fs * (s.name === 'spring' ? 0.8 : 1.4);
-    // οι σταθερές τιμές σε δύο-τρεις σειρές, και από κάτω οι τιμές της στιγμής
-    const rows: string[] = [];
-    for (let i = 0; i < lines.length; i += 3) rows.push(lines.slice(i, i + 3).join('   '));
-    if (live) rows.push(live);
-    rows.forEach((row, i) => c.fillText(row, 0, y0 + i * fs * 1.35));
+    rows.forEach((row, i) => {
+      // πρώτη γραμμή τα δεδομένα, πιο έντονα· από κάτω ό,τι υπολογίζεται από αυτά
+      c.globalAlpha = i === 0 ? 1 : 0.85;
+      c.fillText(row, 0, y0 + i * fs * 1.35);
+    });
+    c.globalAlpha = 1;
   }
 
   private drawTrig(c: CanvasRenderingContext2D, t: TrigItem): void {
