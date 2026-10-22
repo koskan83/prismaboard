@@ -1,6 +1,7 @@
 /** Θέση, μέγεθος και σύμπτυξη της γραμμής εργαλείων. */
 
 import { $, board, setLayoutBar } from './app';
+import { BETA } from './beta';
 
 interface BarState {
   scale: number;
@@ -60,12 +61,17 @@ export function initToolbar(): void {
     const r = bar.getBoundingClientRect();
     bar.classList.toggle('sub-below', r.top < 70 * st.scale + 30);
     bar.classList.toggle('sub-right', r.left + r.width / 2 < window.innerWidth / 2);
-    // ...και στέκεται πάνω από (ή δίπλα σε) το εργαλείο που αφορά
     const sub = $('subbar');
-    const anchor = bar.querySelector<HTMLElement>('#tools button.on, #gadgetBtn.on');
     sub.style.left = sub.style.right = sub.style.top = '';
     bar.classList.remove('sub-lift');
-    if (anchor && !sub.classList.contains('hidden') && !st.folded) {
+    // beta: η δεύτερη σειρά κολλά στη γραμμή, στοιχισμένη στην άκρη της (τα κουμπιά δεν μετακινούνται όταν αλλάζει)·
+    // οι γωνίες που ακουμπούν γίνονται ίσιες (βλ. style.css, body.beta)
+    const open = !sub.classList.contains('hidden') && !st.folded;
+    bar.classList.toggle('has-sub', BETA && open);
+    bar.classList.toggle('sub-wide', BETA && open && (bar.classList.contains('vertical') ? sub.offsetHeight > bar.offsetHeight : sub.offsetWidth > bar.offsetWidth));
+    // ...αλλιώς στέκεται πάνω από (ή δίπλα σε) το εργαλείο που αφορά
+    const anchor = BETA ? null : bar.querySelector<HTMLElement>('#tools button.on, #gadgetBtn.on');
+    if (anchor && open) {
       const k = r.width / bar.offsetWidth || 1;
       const a = anchor.getBoundingClientRect();
       const s = sub.getBoundingClientRect();
@@ -149,7 +155,8 @@ export function initToolbar(): void {
   grip.addEventListener('lostpointercapture', end);
   grip.addEventListener('dblclick', () => { st.pos = null; st.vertical = false; apply(); save(); });
   window.addEventListener('resize', apply);
-  new MutationObserver(apply).observe($('subbar'), { attributes: true, attributeFilter: ['class'] });
+  // στη beta και όταν αλλάζουν οι ομάδες μέσα της: το πλάτος της κρίνει ποιες γωνίες είναι ίσιες
+  new MutationObserver(apply).observe($('subbar'), { attributes: true, attributeFilter: ['class'], subtree: BETA });
 
   // όσο γράφεις, οι μπάρες δεν πιάνουν αγγίγματα (μια γραμμή που περνά από πάνω τους δεν πατά κουμπί),
   // αλλά μένουν όπως είναι: δεν ξεθωριάζουν ούτε όταν γράφεις δίπλα τους, για να μην αναβοσβήνουν

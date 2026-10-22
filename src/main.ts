@@ -41,6 +41,8 @@ catchErrors(toast);
 // δοκιμαστική έκδοση (beta.prismaboard.klabs.gr, βλ. pages.yml): εμφανής ένδειξη, για να μη δουλεύει κανείς εκεί κατά λάθος
 if (BETA) {
   document.title = 'PrismaBoard BETA';
+  // τα στυλ που δοκιμάζονται μόνο εδώ (ενωμένες μπάρες, πάνω μπάρες που μαζεύονται) κρέμονται από αυτή την κλάση
+  document.body.classList.add('beta');
   const tag = document.createElement('button');
   tag.id = 'betaTag';
   tag.textContent = 'BETA';
@@ -549,13 +551,55 @@ $('importBtn').onclick = () => togglePopup(impMenu, $('importBtn'));
 $('menuBtn').onclick = () => {
   const open = menu.classList.contains('hidden');
   closePopups();
+  // στη θέση του, πάνω αριστερά (μπορεί να είχε ανοίξει πριν από την κάτω μπάρα)
+  menu.style.left = menu.style.top = '';
   menu.classList.toggle('hidden', !open);
   // το παράθυρο της Google να είναι έτοιμο πριν πατηθεί το «☁ …» (αλλιώς ο browser το μπλοκάρει)
   if (open) drivePreload();
 };
+// beta: το μενού και από την κάτω μπάρα, για ψηλούς πίνακες όπου το πάνω κουμπί δεν φτάνεται
+const barMenu = document.getElementById('barMenu');
+if (barMenu) {
+  barMenu.onclick = () => {
+    const open = menu.classList.contains('hidden');
+    togglePopup(menu, barMenu);
+    if (open) drivePreload();
+  };
+}
 document.addEventListener('pointerdown', (e) => {
-  if (!(e.target as HTMLElement).closest('.popup, #menuBtn, #importBtn, #gadgetBtn, #colorBtn, #axesOpts')) closePopups();
+  if (!(e.target as HTMLElement).closest('.popup, #menuBtn, #barMenu, #importBtn, #gadgetBtn, #colorBtn, #axesOpts')) closePopups();
 });
+
+// beta: οι πάνω μπάρες μαζεύονται (μικρό ☰ και μόνο το ποσοστό του zoom) μόλις αρχίσεις να γράφεις· όχι με χρονόμετρο,
+// για να μη «πηδούν» μπροστά στην τάξη. Ένα πάτημα πάνω τους (ή το ποντίκι από πάνω τους) τις ανοίγει ξανά· το 📌 τις κρατά ανοιχτές.
+if (BETA) {
+  const PIN = 'grafida.topPin';
+  let pinned = false;
+  try { pinned = localStorage.getItem(PIN) === '1'; } catch { /* χωρίς αποθήκευση */ }
+  const pinBtn = $('topPin');
+  const setPinned = (on: boolean): void => {
+    pinned = on;
+    pinBtn.classList.toggle('on', on);
+    if (on) document.body.classList.remove('quiet');
+    try { localStorage.setItem(PIN, on ? '1' : '0'); } catch { /* δεν πειράζει */ }
+  };
+  setPinned(pinned);
+  pinBtn.onclick = () => setPinned(!pinned);
+  $('live').addEventListener('pointerdown', () => {
+    if (!pinned) document.body.classList.add('quiet');
+  });
+  const TOPS = '#menuBtn, #zoomCtl, #lessonName';
+  // μαζεμένες: το πρώτο πάτημα μόνο τις ανοίγει, δεν πατά το κουμπί από κάτω (το όνομα του μαθήματος φτιάχνεται αργότερα: πιάνεται από το document)
+  document.addEventListener('click', (e) => {
+    if (!document.body.classList.contains('quiet') || !(e.target as HTMLElement).closest?.(TOPS)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    document.body.classList.remove('quiet');
+  }, true);
+  document.addEventListener('pointerover', (e) => {
+    if (e.pointerType === 'mouse' && (e.target as HTMLElement).closest?.(TOPS)) document.body.classList.remove('quiet');
+  });
+}
 
 gadgetMenu.addEventListener('click', (e) => {
   const tg = e.target as HTMLElement;
