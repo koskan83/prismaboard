@@ -610,6 +610,10 @@ body.primary #gadgetMenu .tiles[data-tab] { animation: tabIn .14s ease-out; }
 @keyframes micOn { to { box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.25); } }
 .askPicks { display: flex; flex-wrap: wrap; gap: 8px; }
 .askPicks button { padding: 10px 16px; border-radius: 999px; background: var(--bar-2); color: var(--fg); font-size: 18px; }
+/* μία επιλογή από λίστα (π.χ. τμήμα νέου μαθήματος): η επιλεγμένη ανάβει */
+.askChoice { align-items: center; }
+.askChoice span { font-size: 16px; opacity: .75; margin-right: 2px; }
+.askChoice button.on { background: var(--accent); color: #fff; font-weight: 600; }
 .askActs { display: flex; gap: 10px; }
 .askActs button { flex: 1; height: 58px; border-radius: 14px; background: var(--bar-2); color: var(--fg); font-size: 20px; }
 .askActs button.go { background: #2563eb; color: #fff; font-weight: 600; }

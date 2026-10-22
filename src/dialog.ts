@@ -17,6 +17,11 @@ export interface AskOptions {
   voice?: string;
   /** Έτοιμες τιμές που μπαίνουν με ένα πάτημα. */
   picks?: string[];
+  /**
+   * Μία επιλογή από λίστα δίπλα στο πεδίο (π.χ. το τμήμα ενός νέου μαθήματος): κουμπιά που ανάβουν, με δεύτερο πάτημα σβήνουν.
+   * Η επιλογή γράφεται στο `value`· το `onChange` μπορεί να αλλάξει και το κείμενο του πεδίου.
+   */
+  choice?: { label: string; items: string[]; value: string; onChange?(v: string, input: HTMLInputElement): void };
   ok?: string;
 }
 
@@ -159,6 +164,26 @@ export function ask(title: string, o: AskOptions = {}): Promise<string | null> {
         picks.append(b);
       }
       box.append(picks);
+    }
+    const ch = o.choice;
+    if (ch?.items.length) {
+      const row = document.createElement('div');
+      row.className = 'askPicks askChoice';
+      const lab = document.createElement('span');
+      lab.textContent = ch.label;
+      row.append(lab);
+      const btns = ch.items.map((v) => {
+        const b = button(v, v === ch.value ? 'on' : '');
+        b.onclick = () => {
+          ch.value = ch.value === v ? '' : v;
+          btns.forEach((x, i) => x.classList.toggle('on', ch.items[i] === ch.value));
+          ch.onChange?.(ch.value, inp);
+          inp.focus();
+        };
+        return b;
+      });
+      row.append(...btns);
+      box.append(row);
     }
     const acts = document.createElement('div');
     acts.className = 'askActs';

@@ -800,12 +800,21 @@ export class Lessons {
     const top = tg.closest<HTMLElement>('[data-lib]')?.dataset.lib;
     if (top === 'close') return this.close();
     if (top === 'new') {
-      const name = (await ask(t('Όνομα νέου μαθήματος', 'New lesson name'), { value: this.defaultName(), hint: t('π.χ. Β2 Τριγωνομετρία', 'e.g. 5B Fractions') }))?.trim();
+      // το τμήμα διαλέγεται αμέσως από τα υπάρχοντα (μέσα σε τμήμα, ξεκινά από αυτό)· όσο το όνομα είναι το αυτόματο, ακολουθεί το τμήμα
+      let auto = this.defaultName(this.filter);
+      const choice = {
+        label: t('Τμήμα:', 'Class:'), items: this.groups, value: this.filter,
+        onChange: (g: string, inp: HTMLInputElement): void => {
+          if (inp.value.trim() !== auto) return;
+          auto = this.defaultName(g);
+          inp.value = auto;
+        },
+      };
+      const name = (await ask(t('Όνομα νέου μαθήματος', 'New lesson name'), { value: auto, hint: t('π.χ. Β2 Τριγωνομετρία', 'e.g. 5B Fractions'), choice }))?.trim();
       if (!name) return;
       const meta = await this.add(newDoc(), name.slice(0, 60));
-      // μέσα σε τμήμα, το νέο μάθημα ανήκει σε αυτό
-      if (this.filter) {
-        meta.group = this.filter;
+      if (choice.value) {
+        meta.group = choice.value;
         await kvSet(INDEX, this.index);
       }
       await this.show(meta.id);
