@@ -210,6 +210,8 @@ $('bigger').onclick = () => board.scaleSelected(1.25);
 $('smaller').onclick = () => board.scaleSelected(0.8);
 $('flipH').onclick = () => board.flipSelected(false);
 $('flipV').onclick = () => board.flipSelected(true);
+// μόνο στη beta
+document.getElementById('paperBtn')?.addEventListener('click', () => board.togglePaper());
 $('sumBtn').onclick = () => board.addResultant();
 $('angBtn').onclick = () => board.toggleLineAngles();
 $('tidyBtn').onclick = () => board.tidySelection();
@@ -276,6 +278,9 @@ export function refreshUi(): void {
   for (const id of ['bigger', 'smaller']) show(id, board.hasSelection);
   // σκέτο κείμενο, άξονες ή τριγωνομετρικός κύκλος δεν καθρεφτίζονται (μένουν αναγνώσιμα)
   for (const id of ['flipH', 'flipV']) show(id, board.selectionFlippable);
+  const pic = tool === 'select' ? board.selectedPic : null;
+  document.getElementById('paperBtn')?.classList.toggle('hidden', !pic);
+  document.getElementById('paperBtn')?.classList.toggle('on', !!pic?.paper);
   // η αναγνώριση έχει νόημα μόνο όταν στην επιλογή υπάρχει χειρόγραφο
   const ink = board.selectionHasInk;
   const writing = board.selectionHasWriting;

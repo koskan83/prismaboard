@@ -1,5 +1,9 @@
 import { Page, uid } from './model';
 import { t } from './i18n';
+import { BETA } from './beta';
+
+/** Οι σελίδες PDF/Word μπαίνουν ως «χαρτί» (βλ. Pic.paper)· προς το παρόν μόνο στη beta. */
+const PAPER = BETA || undefined;
 
 export interface PicData {
   src: string;
@@ -67,7 +71,7 @@ export async function openPdf(file: File): Promise<OpenPdf> {
         const h = (1000 * cv.height) / cv.width;
         pages.push({
           view: { x: 0, y: 0, k: 1 },
-          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w, h, src: cv.toDataURL('image/jpeg', 0.88) }],
+          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w, h, src: cv.toDataURL('image/jpeg', 0.88), paper: PAPER }],
         });
       }
       onProgress(list.length, list.length);
@@ -138,7 +142,7 @@ export async function openDocx(file: File): Promise<OpenPdf> {
         const cv = await render(list[k], (pw, ph) => Math.min(1800 / pw, 2600 / ph, 3));
         pages.push({
           view: { x: 0, y: 0, k: 1 },
-          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', 0.9) }],
+          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', 0.9), paper: PAPER }],
         });
       }
       onProgress(list.length, list.length);

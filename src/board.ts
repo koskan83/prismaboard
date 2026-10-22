@@ -566,6 +566,23 @@ export class Board {
     return true;
   }
 
+  /** Η επιλεγμένη εικόνα, αν η επιλογή είναι μία εικόνα. */
+  get selectedPic(): Pic | null {
+    const it = this.selected && !this.multi.length ? this.page.items.find((x) => x.id === this.selected) : undefined;
+    return it && it.kind === 'image' ? it : null;
+  }
+
+  /** Η επιλεγμένη εικόνα ως «χαρτί» (βλ. Pic.paper) ή ως φωτογραφία (αναιρείται με ένα ↶). */
+  togglePaper(): void {
+    const before = this.selectedPic;
+    if (!before) return;
+    const after: Pic = { ...before, paper: !before.paper || undefined };
+    this.page.items[this.page.items.indexOf(before)] = after;
+    this.push({ t: 'mod', p: this.cur, before, after });
+    this.redraw();
+    this.onUi();
+  }
+
   get selectedAxes(): AxesItem | null {
     const it = this.selected ? this.page.items.find((x) => x.id === this.selected) : undefined;
     return it && it.kind === 'axes' ? it : null;

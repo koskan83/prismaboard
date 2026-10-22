@@ -23,6 +23,8 @@ export interface Pic {
   rot?: number;
   /** Κατοπτρική (καθρέφτης αριστερά–δεξιά, πριν από την περιστροφή). */
   fx?: boolean;
+  /** «Χαρτί» (σελίδα PDF/Word): το λευκό της δεν σκεπάζει τον πίνακα και σε σκούρο φόντο τα μαύρα γράμματα γίνονται λευκά. */
+  paper?: boolean;
 }
 
 export type ShapeKind = 'line' | 'arrow' | 'rect' | 'ellipse' | 'triangle' | 'rhombus' | 'para' | 'table';

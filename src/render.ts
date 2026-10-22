@@ -28,6 +28,34 @@ export interface RenderHost {
   springState(s: StampItem): SpringState;
 }
 
+const inverted = new WeakMap<HTMLImageElement, HTMLCanvasElement>();
+/**
+ * Η εικόνα με αντεστραμμένη φωτεινότητα και την ίδια απόχρωση: λευκό → μαύρο, μαύρο → λευκό, το κόκκινο μένει κόκκινο.
+ * Φτιάχνεται μία φορά για κάθε εικόνα.
+ */
+export function invertLight(img: HTMLImageElement): HTMLCanvasElement {
+  let cv = inverted.get(img);
+  if (cv) return cv;
+  cv = document.createElement('canvas');
+  cv.width = img.naturalWidth;
+  cv.height = img.naturalHeight;
+  const c = cv.getContext('2d')!;
+  c.drawImage(img, 0, 0);
+  const d = c.getImageData(0, 0, cv.width, cv.height);
+  const p = d.data;
+  for (let i = 0; i < p.length; i += 4) {
+    // L' = 1 − L στο HSL: σε κάθε κανάλι προστίθεται 255 − (max + min)
+    const r = p[i], g = p[i + 1], b = p[i + 2];
+    const k = 255 - Math.max(r, g, b) - Math.min(r, g, b);
+    p[i] = r + k;
+    p[i + 1] = g + k;
+    p[i + 2] = b + k;
+  }
+  c.putImageData(d, 0, 0);
+  inverted.set(img, cv);
+  return cv;
+}
+
 export class Renderer {
   constructor(private b: RenderHost) {}
 
@@ -148,8 +176,9 @@ export class Renderer {
     for (const [x, y] of s.pts) {
       x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
     }
+    // οι εικόνες-«χαρτί» σε σκούρο φόντο είναι κι αυτές σκούρες: εκεί το υπογραμμιστικό βάφει όπως παντού
     return page.items.filter((it): it is Pic => {
-      if (it.kind !== 'image') return false;
+      if (it.kind !== 'image' || it.paper) return false;
       const b = itemBounds(it);
       return b.x0 < x1 + w && b.x1 > x0 - w && b.y0 < y1 + w && b.y1 > y0 - w;
     });
@@ -948,7 +977,16 @@ export class Renderer {
         break;
       case 'image': {
         const img = this.b.getImg(it);
-        if (img) c.drawImage(img, it.x, it.y, it.w, it.h);
+        if (!img) break;
+        if (it.paper && !this.b.transparent) {
+          // «χαρτί»: σε ανοιχτό φόντο φαίνεται μόνο ό,τι είναι πιο σκούρο από τον πίνακα (το λευκό χάνεται)·
+          // σε σκούρο, με αντεστραμμένη φωτεινότητα, μόνο ό,τι είναι πιο ανοιχτό (τα μαύρα γράμματα γίνονται λευκά)
+          const dark = isDark(this.b.doc.bg);
+          c.save();
+          c.globalCompositeOperation = dark ? 'lighten' : 'darken';
+          c.drawImage(dark ? invertLight(img) : img, it.x, it.y, it.w, it.h);
+          c.restore();
+        } else c.drawImage(img, it.x, it.y, it.w, it.h);
       }
     }
   }}
