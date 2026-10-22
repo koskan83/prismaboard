@@ -12,6 +12,7 @@ const PAPER = BETA || undefined;
  */
 function toPage(cv: HTMLCanvasElement, quality: number, runs?: Run[]): Page {
   const k = 1000 / cv.width;
+  const pic = uid();
   const texts: TextItem[] = [];
   if (runs) {
     const c = cv.getContext('2d')!;
@@ -24,12 +25,12 @@ function toPage(cv: HTMLCanvasElement, quality: number, runs?: Run[]): Page {
       // η γραμματοσειρά του πίνακα είναι συνήθως φαρδύτερη: μικραίνει λίγο, ώστε η γραμμή να χωρά εκεί που ήταν
       const w = m.measureText(l.text).width;
       if (w > l.w * k) size *= Math.max(0.7, (l.w * k) / w);
-      texts.push({ kind: 'text', id: uid(), x: l.x * k, y: l.top * k, text: l.text, size: Math.round(size * 10) / 10, color: '#111111' });
+      texts.push({ kind: 'text', id: uid(), x: l.x * k, y: l.top * k, text: l.text, size: Math.round(size * 10) / 10, color: '#111111', on: pic });
     }
   }
   return {
     view: { x: 0, y: 0, k: 1 },
-    items: [{ kind: 'image', id: uid(), x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', quality), paper: runs ? true : PAPER }, ...texts],
+    items: [{ kind: 'image', id: pic, x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', quality), paper: runs ? true : PAPER }, ...texts],
   };
 }
 

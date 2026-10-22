@@ -1,6 +1,6 @@
 /** Ταλάντωση ελατηρίων (μέθοδοι της Board, σε δικό τους αρχείο). */
 
-import { StampItem, unrot } from './model';
+import { StampItem, uid, unrot } from './model';
 import { STAMPS, SpringState } from './stamps';
 import type { Board } from './board';
 import { parseSim, periodMs } from './osc-sim';
@@ -12,7 +12,8 @@ const OSC_FADE_MS = 5000;
 
 export function springState(bd: Board, s: StampItem): SpringState {
   const marks = !!s.marks;
-  if (bd.oscDrag?.id === s.id) return { d: bd.oscDrag.d, amp: Math.abs(bd.oscDrag.d), marks, pinned: !!s.pin };
+  // με το 📌 το πλάτος μένει αυτό της άσκησης, όσο κι αν σέρνεις
+  if (bd.oscDrag?.id === s.id) return { d: bd.oscDrag.d, amp: s.pin ? pinA(s) : Math.abs(bd.oscDrag.d), marks, pinned: !!s.pin };
   const o = bd.osc.get(s.id);
   // ακίνητο: στη θέση που διάλεξε ο χρήστης (οι γραμμές ±A στο πλάτος που ορίστηκε), αλλιώς στην ισορροπία
   if (!o) return s.pos !== undefined ? { d: s.pos, amp: s.A ?? Math.abs(s.pos), marks, pinned: true } : { d: 0, amp: 0, marks };
@@ -105,12 +106,26 @@ function defaultA(s: StampItem): number {
   return g ? Math.round(g.max * 0.7) : 0;
 }
 
+/** Το πλάτος της άσκησης στο σχήμα: όπως ορίστηκε, αλλιώς το προεπιλεγμένο. Δεν αλλάζει όταν σέρνεις με το 📌. */
+export function pinA(s: StampItem): number {
+  return s.A ?? defaultA(s);
+}
+
+/** 📌: η θέση όπου σύρθηκε το σώμα, μέσα στο ±A, «κουμπωμένη» στις Θ.Ι., ±A/2 και ±A όταν είναι κοντά. */
+export function pinSnap(s: StampItem, d: number): number {
+  const A = pinA(s);
+  if (!A) return d;
+  const c = Math.max(-A, Math.min(A, d));
+  for (const q of [-A, -A / 2, 0, A / 2, A]) if (Math.abs(c - q) < A * 0.08) return q;
+  return c;
+}
+
 /** Η θέση του σώματος που κρατιέται: Θ.Ι. → +A → −A → Θ.Ι. (σταματά όποια ταλάντωση). */
 export function cyclePos(bd: Board): void {
   const s = bd.selectedSpring;
   if (!s || STAMPS[s.name]?.play) return;
   bd.osc.delete(s.id);
-  const A = s.A ?? (s.pos ? Math.abs(s.pos) : defaultA(s));
+  const A = pinA(s);
   const p = s.pos ?? 0;
   updateSpring(bd, { pos: Math.abs(p) < 1e-6 ? A : p > 0 ? -Math.abs(p) : 0, A });
   bd.onUi();
@@ -125,13 +140,51 @@ export function posName(s: StampItem): string {
   return 'x';
 }
 
-/** 📌: όταν αφήνεις το σώμα μένει εκεί· αν βγει πέρα από το ±A που ορίστηκε, εκείνη η θέση γίνεται η ακραία. */
+/** 📌: όταν αφήνεις το σώμα μένει εκεί, πάντα μέσα στο ίδιο ±A (η άσκηση δεν αλλάζει). */
 export function setPinnedAt(bd: Board, id: string, d: number): void {
   const s = bd.page.items.find((x) => x.id === id);
   if (!s || s.kind !== 'stamp') return;
   bd.selected = id;
-  const A = s.A && Math.abs(d) <= s.A + 0.5 ? s.A : Math.abs(d) || s.A;
-  updateSpring(bd, { pos: d, A });
+  updateSpring(bd, { pos: pinSnap(s, d), A: pinA(s) });
+}
+
+/** Λάσο γύρω από ένα ελατήριο (ή εκκρεμές) και κείμενα: το ελατήριο και όλο το κείμενο της επιλογής. */
+export function springAndText(bd: Board): { s: StampItem; text: string } | null {
+  if (bd.multi.length < 2) return null;
+  const ids = new Set(bd.multi);
+  const its = bd.page.items.filter((x) => ids.has(x.id));
+  const springs = its.filter((x): x is StampItem => x.kind === 'stamp' && !!STAMPS[x.name]?.spring);
+  const texts = its.filter((x) => x.kind === 'text');
+  if (springs.length !== 1 || !texts.length) return null;
+  return { s: springs[0], text: texts.map((x) => (x.kind === 'text' ? x.text : '')).join('\n') };
+}
+
+/** Οι τιμές (m, k, A…) από τα κείμενα της επιλογής πάνε στο ελατήριό της, που μένει επιλεγμένο. null αν δεν βρέθηκε καμία. */
+export function simFromText(bd: Board): StampItem['sim'] | null {
+  const r = springAndText(bd);
+  const sim = r ? parseSim(r.text) : {};
+  if (!r || !Object.keys(sim).length) return null;
+  const items = bd.page.items;
+  const before = r.s;
+  const after: StampItem = { ...before, sim: { ...before.sim, ...sim } };
+  items[items.indexOf(before)] = after;
+  bd.push({ t: 'mod', p: bd.cur, before, after });
+  bd.multi = [];
+  bd.selected = after.id;
+  bd.redraw();
+  bd.onUi();
+  return after.sim;
+}
+
+/** Αντίγραφο του ελατηρίου με την ίδια άσκηση, στοιχισμένο κάτω (οριζόντιο, κεκλιμένο) ή δεξιά (κατακόρυφο, εκκρεμές), στην επόμενη θέση. */
+export function alignedCopy(s: StampItem): StampItem {
+  const below = s.name === 'spring' || s.name === 'springIncline';
+  // χώρος και για τις τιμές που γράφονται κάτω από το σχήμα
+  const rows = s.sim ? 4 : 0, fs = Math.max(12, Math.min(22, Math.sqrt(s.w * s.h) * 0.07));
+  const step = below ? s.h * 1.45 + rows * fs * 1.35 : Math.max(s.w * 1.5, s.sim ? s.w + fs * 17 : 0);
+  const A = pinA(s), p = s.pos ?? 0;
+  const pos = Math.abs(p) < 1e-6 ? A : p > 0 ? -A : 0;
+  return { ...s, id: uid(), x: s.x + (below ? 0 : step), y: s.y + (below ? step : 0), pos, A };
 }
 
 /** Τα δεδομένα της προσομοίωσης από κείμενο («m = 2, k = 200, A = 0,1»)· κενό τα σβήνει. */

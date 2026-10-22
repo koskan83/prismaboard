@@ -7,6 +7,13 @@ describe('προσομοίωση ταλάντωσης', () => {
     expect(parseSim('L=1.5,g=9.8')).toEqual({ L: 1.5, g: 9.8 });
     expect(parseSim('')).toEqual({});
   });
+  it('διαβάζει κείμενο άσκησης: D, ℓ, γραμμάρια και εκατοστά', () => {
+    expect(parseSim('Σώμα μάζας m = 200 g δένεται σε ελατήριο σταθεράς D = 80 N/m με πλάτος A = 5 cm.')).toEqual({ m: 0.2, k: 80, A: 0.05 });
+    expect(parseSim('ℓ = 40 cm, g = 10 m/s²')).toEqual({ L: 0.4, g: 10 });
+    expect(parseSim('k=200N/m, A=0,1m, m=2kg')).toEqual({ k: 200, A: 0.1, m: 2 });
+    // το Δl δεν είναι μήκος νήματος, ούτε το m_A μάζα
+    expect(parseSim('Δl = 0,1 m, m_A = 3')).toEqual({});
+  });
   it('ξαναγράφει τις τιμές στη μορφή που διαβάζει', () => {
     const s = { m: 2, k: 200, A: 0.1 };
     expect(parseSim(simText(s, false))).toEqual(s);

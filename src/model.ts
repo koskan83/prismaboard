@@ -106,6 +106,8 @@ export interface TextItem {
   size: number;
   color: string;
   rot?: number;
+  /** Κείμενο από σελίδα PDF/Word: το id της εικόνας της σελίδας, ώστε να μετακινείται και να μεγαλώνει μαζί της. */
+  on?: string;
 }
 
 /** Γωνία: κορυφή (x, y) και δύο πλευρές με γωνίες a1, a2 (rad, άξονας y προς τα κάτω). */

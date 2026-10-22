@@ -273,6 +273,11 @@ $('spStop').onclick = () => board.stopSpring();
 // μόνο στη beta
 document.getElementById('spPos')?.addEventListener('click', () => board.cyclePos());
 document.getElementById('spPin')?.addEventListener('click', () => board.updateSpring({ pin: !board.selectedSpring?.pin || undefined }));
+document.getElementById('spCopy')?.addEventListener('click', () => board.alignedCopy());
+document.getElementById('simTxt')?.addEventListener('click', () => {
+  const sim = board.simFromText();
+  toast(sim ? t(`Τιμές στο ελατήριο: ${simText(sim, !!sim.L)}`, `Values on the spring: ${simText(sim, !!sim.L)}`) : t('Δεν βρέθηκαν τιμές στο κείμενο. Γράψε τες π.χ. m = 2 kg, k = 200 N/m, A = 10 cm', 'No values found in the text. Write them e.g. m = 2 kg, k = 200 N/m, A = 10 cm'), 5000);
+});
 document.getElementById('spSim')?.addEventListener('click', async () => {
   const sp = board.selectedSpring;
   if (!sp) return;

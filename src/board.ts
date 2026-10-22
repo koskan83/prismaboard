@@ -938,6 +938,17 @@ export class Board {
 
   setSim(text: string): void { O.setSim(this, text); }
 
+  /** Λάσο γύρω από ελατήριο και κείμενα (π.χ. την εκφώνηση): οι τιμές m, k, A… πάνε στο ελατήριο. */
+  get springAndText(): { s: StampItem; text: string } | null { return O.springAndText(this); }
+
+  simFromText(): StampItem['sim'] | null { return O.simFromText(this); }
+
+  /** Το ίδιο ελατήριο (ίδια άσκηση) στοιχισμένο κάτω ή δίπλα, στην επόμενη θέση: Θ.Ι. → +A → −A. */
+  alignedCopy(): void {
+    const s = this.selectedSpring;
+    if (s && !STAMPS[s.name]?.play) this.addAndSelect(O.alignedCopy(s));
+  }
+
   /** Αλλάζει ιδιότητα του επιλεγμένου ελατηρίου (σημάνσεις, απόσβεση). */
   updateSpring(patch: Partial<StampItem>): void { O.updateSpring(this, patch); }
 

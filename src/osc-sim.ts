@@ -7,12 +7,21 @@ export interface OscSim { m?: number; k?: number; A?: number; L?: number; g?: nu
 /** Το g όταν δεν δίνεται: όπως στα σχολικά βιβλία. */
 export const G_DEFAULT = 10;
 
-/** Διαβάζει «m = 2, k = 200 N/m, A = 0,1» (δεκαδικά με κόμμα ή τελεία). Ό,τι λείπει μένει κενό. */
+/**
+ * Διαβάζει «m = 2, k = 200 N/m, A = 0,1» (δεκαδικά με κόμμα ή τελεία), και από κείμενο άσκησης:
+ * D αντί για k, ℓ ή l αντί για L, μάζα σε g, μήκη σε cm ή mm (γίνονται kg και m). Ό,τι λείπει μένει κενό.
+ */
 export function parseSim(s: string): OscSim {
   const out: OscSim = {};
-  for (const m of s.matchAll(/(?:^|[^\p{L}])(m|k|A|L|g)\s*=\s*(\d+(?:[.,]\d+)?)/gu)) {
-    const v = parseFloat(m[2].replace(',', '.'));
-    if (v > 0) out[m[1] as keyof OscSim] = v;
+  const key: Record<string, keyof OscSim> = { m: 'm', k: 'k', D: 'k', A: 'A', L: 'L', l: 'L', ℓ: 'L', g: 'g' };
+  for (const m of s.matchAll(/(?:^|[^\p{L}_])(m|k|D|A|L|l|ℓ|g)\s*=\s*(\d+(?:[.,]\d+)?)\s*(\p{L}[\p{L}/²]*)?/gu)) {
+    const k = key[m[1]];
+    let v = parseFloat(m[2].replace(',', '.'));
+    const unit = m[3];
+    if (unit === 'g' && k === 'm') v /= 1000;
+    else if (unit === 'cm' && (k === 'A' || k === 'L')) v /= 100;
+    else if (unit === 'mm' && (k === 'A' || k === 'L')) v /= 1000;
+    if (v > 0 && out[k] === undefined) out[k] = v;
   }
   return out;
 }

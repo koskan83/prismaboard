@@ -1,7 +1,45 @@
 /** Πράξεις πάνω στην επιλογή: εικόνα περιοχής, μέγεθος, καθρέφτης, συνισταμένη, διαγραφή (μέθοδοι της Board, σε δικό τους αρχείο). */
 
-import { Item, Pt, Shape, angleEnds, cloneItem, flipItem, isDark, itemBounds, scaleItem, translateItem, uid } from './model';
+import { Item, Pic, Pt, Shape, angleEnds, cloneItem, flipItem, isDark, itemBounds, itemCenter, scaleItem, textSize, translateItem, uid, unrot } from './model';
 import type { Board, Box } from './board';
+
+/** Σημείο από το όρθιο σύστημα μιας εικόνας στον πίνακα (το αντίστροφο του unrot: πρώτα καθρέφτης, μετά στροφή). */
+function rerot(p: Pic, x: number, y: number): Pt {
+  const [cx, cy] = itemCenter(p);
+  if (p.fx) x = 2 * cx - x;
+  const r = p.rot ?? 0;
+  if (!r) return [x, y];
+  const c = Math.cos(r), s = Math.sin(r);
+  return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+}
+
+/**
+ * Τα κείμενα που βγήκαν από μια σελίδα PDF/Word (TextItem.on) ακολουθούν την εικόνα της: όπου η εικόνα μετακινήθηκε,
+ * μεγάλωσε, στράφηκε ή καθρεφτίστηκε από `before` σε `after`, τα κείμενά της (όσα δεν άλλαξαν και τα ίδια) πάνε μαζί της.
+ */
+export function carryTexts(before: Item[], after: Item[]): Item[] {
+  const was = new Map(before.filter((it): it is Pic => it.kind === 'image').map((p) => [p.id, p]));
+  const moved = new Map<string, [Pic, Pic]>();
+  for (const it of after) {
+    if (it.kind !== 'image') continue;
+    const p = was.get(it.id);
+    if (p && p !== it && (p.x !== it.x || p.y !== it.y || p.w !== it.w || p.h !== it.h || p.rot !== it.rot || p.fx !== it.fx)) moved.set(it.id, [p, it]);
+  }
+  if (!moved.size) return after;
+  const old = new Set(before);
+  return after.map((it) => {
+    const m = it.kind === 'text' && it.on && old.has(it) ? moved.get(it.on) : undefined;
+    if (!m || it.kind !== 'text') return it;
+    const [p0, p1] = m;
+    const k = p1.w / p0.w;
+    const { w, h } = textSize(it);
+    // το κέντρο του κειμένου, στο όρθιο σύστημα της παλιάς εικόνας, πάει στο ίδιο σημείο της νέας
+    const [ux, uy] = unrot(p0, it.x + w / 2, it.y + h / 2);
+    const [cx, cy] = rerot(p1, p1.x + (ux - p0.x) * k, p1.y + (uy - p0.y) * k);
+    const rot = (it.rot ?? 0) + (p1.rot ?? 0) - (p0.rot ?? 0);
+    return { ...it, x: cx - (w * k) / 2, y: cy - (h * k) / 2, size: it.size * k, rot: rot || undefined };
+  });
+}
 
 /** Εικόνα PNG όλων όσων φαίνονται μέσα στην κυκλωμένη περιοχή, για αποστολή στο AI. */
 export async function regionImage(bd: Board): Promise<{ blob: Blob; box: Box; color: string } | null> {
@@ -107,7 +145,7 @@ function mapSelected(bd: Board, f: (it: Item, b: Box) => Item): void {
   const b = selBounds(bd, ids);
   if (!b) return;
   const before = bd.page.items.slice();
-  bd.page.items = before.map((it) => (ids.has(it.id) ? f(it, b) : it));
+  bd.page.items = carryTexts(before, before.map((it) => (ids.has(it.id) ? f(it, b) : it)));
   bd.pivot = null;
   bd.push({ t: 'set', p: bd.cur, before, after: bd.page.items.slice() });
   bd.redraw();

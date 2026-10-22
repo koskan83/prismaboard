@@ -308,7 +308,8 @@ export function refreshUi(): void {
   for (const id of ['spMarks', 'spDamp', 'spStop']) show(id, !!sp && !playable);
   // μόνο στη beta: θέση του σώματος, 📌 και τιμές της προσομοίωσης
   if (BETA) {
-    for (const id of ['spPos', 'spPin', 'spSim']) show(id, !!sp && !playable);
+    for (const id of ['spPos', 'spPin', 'spSim', 'spCopy']) show(id, !!sp && !playable);
+    show('simTxt', tool === 'select' && !!board.springAndText);
     $('spPos').querySelector('span')!.textContent = sp ? posName(sp) : t('Θ.Ι.', 'Eq.');
     $('spPos').classList.toggle('on', sp?.pos !== undefined && Math.abs(sp.pos) > 1e-6);
     $('spPin').classList.toggle('on', !!sp?.pin);

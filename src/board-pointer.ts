@@ -1,5 +1,7 @@
 /** Γραφίδα, δάχτυλα και ποντίκι: τι κάνει κάθε άγγιγμα ανάλογα με το εργαλείο (μέθοδοι της Board, σε δικό τους αρχείο). */
 
+import { carryTexts } from './board-select';
+import { pinSnap } from './board-springs';
 import { AxesItem, Item, Pt, inLasso, itemBounds, reboxShape, recognizeShape, rotateItem, roundAngle, smoothStroke, snapLine, scaleItem, translateItem, uid, unrot } from './model';
 import { STAMPS } from './stamps';
 import type { Board, PState, Twist } from './board';
@@ -588,6 +590,8 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
         // σε στραμμένο ελατήριο η μετατόπιση μετριέται πάνω στον δικό του άξονα
         const [ax, ay] = unrot(it, ps.start![0], ps.start![1]), [bx, by] = unrot(it, wx, wy);
         o.d = Math.max(-g.max, Math.min(g.max, (o.d0 ?? 0) + (bx - ax) * g.ux + (by - ay) * g.uy));
+        // με το 📌: μέσα στο ±A της άσκησης, και κουμπώνει στις Θ.Ι., ±A/2, ±A
+        if (it.kind === 'stamp' && it.pin) o.d = pinSnap(it, o.d);
       }
       break;
     }
@@ -669,7 +673,10 @@ export function up(bd: Board, e: PointerEvent): void {
       t.p0 = touchPts(bd);
       return;
     }
-    if (t.changed) bd.push({ t: 'set', p: bd.cur, before: t.before, after: bd.page.items.slice() });
+    if (t.changed) {
+      bd.page.items = carryTexts(t.before, bd.page.items);
+      bd.push({ t: 'set', p: bd.cur, before: t.before, after: bd.page.items.slice() });
+    }
     bd.gesture = null;
     bd.redraw();
     bd.onUi();
@@ -761,6 +768,7 @@ export function up(bd: Board, e: PointerEvent): void {
         else bd.pivot = null;
       }
       if (ps.changed && ps.before) {
+        bd.page.items = carryTexts(ps.before, bd.page.items);
         bd.push({ t: 'set', p: bd.cur, before: ps.before, after: bd.page.items.slice() });
       }
       bd.redraw();
@@ -792,7 +800,7 @@ export function up(bd: Board, e: PointerEvent): void {
       const it = o && bd.page.items.find((x) => x.id === o.id);
       // με το 📌 το σώμα μένει εκεί που το άφησες· ένα απλό άγγιγμα (χωρίς τράβηγμα) απλώς σταματά το σώμα
       if (o && it?.kind === 'stamp' && it.pin) {
-        if (Math.abs(o.d - (o.d0 ?? 0)) > 3) bd.setPinnedAt(o.id, Math.round(o.d));
+        if (Math.abs(o.d - (o.d0 ?? 0)) > 0.5) bd.setPinnedAt(o.id, o.d);
       } else if (o && Math.abs(o.d) > 3 && Math.abs(o.d - (o.d0 ?? 0)) > 3) {
         bd.osc.set(o.id, { amp: o.d, t0: performance.now() });
         bd.runOsc();
@@ -823,8 +831,14 @@ export function up(bd: Board, e: PointerEvent): void {
         return;
       }
       if (i >= 0 && after !== before) {
+        const was = bd.page.items.slice();
         bd.page.items[i] = after;
-        bd.push({ t: 'mod', p: bd.cur, before, after });
+        // σελίδα PDF/Word: τα κείμενά της πάνε μαζί της (ένα ↶ τα γυρίζει όλα)
+        const carried = after.kind === 'image' ? carryTexts(was, bd.page.items) : bd.page.items;
+        if (carried !== bd.page.items) {
+          bd.page.items = carried;
+          bd.push({ t: 'set', p: bd.cur, before: was, after: carried.slice() });
+        } else bd.push({ t: 'mod', p: bd.cur, before, after });
       }
       ps.orig = undefined;
       ps.preview = undefined;
