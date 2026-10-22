@@ -355,7 +355,7 @@ export const PHYSICS: Record<string, StampDef> = {
     k.arrow(190, 135, 190, 225, 'B', [208, 215]);
     k.arrow(190, 135, 190, 40, 'N', [172, 52]);
   }),
-  projectile: fig(t('Οριζόντια βολή', 'Horizontal projectile'), 'mech', 420, 350, (k, st) => {
+  projectile: { ...fig(t('Οριζόντια βολή', 'Horizontal projectile'), 'mech', 420, 350, (k, st) => {
     const G = 250;
     k.ground(10, 410, G);
     k.line([10, 60], [70, 60], [70, G]);
@@ -374,8 +374,8 @@ export const PHYSICS: Record<string, StampDef> = {
       k.arrow(x, y, x + vx, y + vy, 'υ', [x + vx + 2, y + vy + 18]);
     };
     if (st?.t !== undefined) {
-      // με το ▶: η πτήση κρατά 1,8 s και μετά ξαναρχίζει· η τροχιά γράφεται όσο προχωρά
-      const u = Math.min(1, (st.t % 2800) / 1800);
+      // με το ▶: η πτήση κρατά 1,8 s, το σώμα μένει λίγο στο έδαφος και η κίνηση σταματά (playMs)· η τροχιά γράφεται όσο προχωρά
+      const u = Math.min(1, st.t / 1800);
       if (u > 0) k.curve(at, 0, u, 60, true);
       if (u < 0.02) k.arrow(79, 60, 140, 60, 'υ₀');
       vel(u);
@@ -387,7 +387,7 @@ export const PHYSICS: Record<string, StampDef> = {
     // σε ένα σημείο της τροχιάς και λίγο πριν φτάσει στο έδαφος: συνιστώσες και ταχύτητα
     vel(0.5);
     vel(1);
-  }, true),
+  }, true), playMs: 2800 },
   circular: fig(t('Ομαλή κυκλική κίνηση', 'Uniform circular motion'), 'mech', 300, 300, (k, st) => {
     const cx = 150, cy = 150, R = 100;
     k.circle(cx, cy, R);

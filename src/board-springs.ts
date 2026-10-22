@@ -40,10 +40,13 @@ export function runOsc(bd: Board): void {
   if (bd.oscRaf) return;
   const loop = (): void => {
     const now = performance.now();
+    let ended = false;
     for (const [id, o] of bd.osc) {
       const it = bd.page.items.find((x) => x.id === id);
-      // σβήνει όταν το πλάτος γίνει αμελητέο ή το ελατήριο διαγραφεί
+      const ms = it?.kind === 'stamp' ? STAMPS[it.name]?.playMs : undefined;
+      // σβήνει όταν το πλάτος γίνει αμελητέο, τελειώσει η κίνηση μίας φοράς ή το ελατήριο διαγραφεί
       if (!it || it.kind !== 'stamp' || (it.damp && Math.abs(o.amp) * Math.exp(-(now - o.t0) / OSC_FADE_MS) < 0.7)) bd.osc.delete(id);
+      else if (ms && now - o.t0 > ms) { bd.osc.delete(id); ended = true; }
     }
     if (bd.osc.size) {
       bd.renderLive();
@@ -52,6 +55,8 @@ export function runOsc(bd: Board): void {
       bd.oscRaf = 0;
       bd.redraw();
     }
+    // το κουμπί γυρίζει σε ▶
+    if (ended) bd.onUi();
   };
   bd.oscRaf = requestAnimationFrame(loop);
 }
