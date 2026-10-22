@@ -3,6 +3,8 @@
 import { StampItem, unrot } from './model';
 import { STAMPS, SpringState } from './stamps';
 import type { Board } from './board';
+import { parseSim, periodMs } from './osc-sim';
+import { t } from './i18n';
 
 /** Περίοδος της ταλάντωσης των ελατηρίων και χρόνος απόσβεσης. */
 const OSC_PERIOD_MS = 1600;
@@ -10,14 +12,17 @@ const OSC_FADE_MS = 5000;
 
 export function springState(bd: Board, s: StampItem): SpringState {
   const marks = !!s.marks;
-  if (bd.oscDrag?.id === s.id) return { d: bd.oscDrag.d, amp: Math.abs(bd.oscDrag.d), marks };
+  if (bd.oscDrag?.id === s.id) return { d: bd.oscDrag.d, amp: Math.abs(bd.oscDrag.d), marks, pinned: !!s.pin };
   const o = bd.osc.get(s.id);
-  if (!o) return { d: 0, amp: 0, marks };
+  // ακίνητο: στη θέση που διάλεξε ο χρήστης (οι γραμμές ±A στο πλάτος που ορίστηκε), αλλιώς στην ισορροπία
+  if (!o) return s.pos !== undefined ? { d: s.pos, amp: s.A ?? Math.abs(s.pos), marks, pinned: true } : { d: 0, amp: 0, marks };
   const t = performance.now() - o.t0;
   // σχήματα με κίνηση (κύματα, κρούση): μόνο ο χρόνος
   if (STAMPS[s.name]?.play) return { d: 0, amp: 0, marks, t };
   const fade = s.damp ? Math.exp(-t / OSC_FADE_MS) : 1;
-  return { d: o.amp * fade * Math.cos((2 * Math.PI * t) / OSC_PERIOD_MS), amp: Math.abs(o.amp), marks };
+  // με δεδομένα (m, k ή L): η πραγματική περίοδος
+  const ph = (2 * Math.PI * t) / (periodMs(s.sim, s.name === 'pendulum') ?? OSC_PERIOD_MS);
+  return { d: o.amp * fade * Math.cos(ph), amp: Math.abs(o.amp), marks, ph, fade };
 }
 
 /** Το ελατήριο του οποίου το σώμα βρίσκεται κάτω από το σημείο. */
@@ -92,6 +97,48 @@ export function updateSpring(bd: Board, patch: Partial<StampItem>): void {
   bd.page.items[bd.page.items.indexOf(before)] = after;
   bd.push({ t: 'mod', p: bd.cur, before, after });
   bd.redraw();
+}
+
+/** Το πλάτος που ζωγραφίζεται στις θέσεις ±A, όταν δεν έχει οριστεί από τον χρήστη. */
+function defaultA(s: StampItem): number {
+  const g = STAMPS[s.name]?.spring?.(s.w, s.h);
+  return g ? Math.round(g.max * 0.7) : 0;
+}
+
+/** Η θέση του σώματος που κρατιέται: Θ.Ι. → +A → −A → Θ.Ι. (σταματά όποια ταλάντωση). */
+export function cyclePos(bd: Board): void {
+  const s = bd.selectedSpring;
+  if (!s || STAMPS[s.name]?.play) return;
+  bd.osc.delete(s.id);
+  const A = s.A ?? (s.pos ? Math.abs(s.pos) : defaultA(s));
+  const p = s.pos ?? 0;
+  updateSpring(bd, { pos: Math.abs(p) < 1e-6 ? A : p > 0 ? -Math.abs(p) : 0, A });
+  bd.onUi();
+}
+
+/** Το όνομα της θέσης όπου κρατιέται το σώμα, για το κουμπί. */
+export function posName(s: StampItem): string {
+  const p = s.pos ?? 0;
+  if (Math.abs(p) < 1e-6) return t('Θ.Ι.', 'Eq.');
+  const A = s.A ?? Math.abs(p);
+  if (Math.abs(Math.abs(p) - A) < 0.5) return p > 0 ? '+A' : '−A';
+  return 'x';
+}
+
+/** 📌: όταν αφήνεις το σώμα μένει εκεί· αν βγει πέρα από το ±A που ορίστηκε, εκείνη η θέση γίνεται η ακραία. */
+export function setPinnedAt(bd: Board, id: string, d: number): void {
+  const s = bd.page.items.find((x) => x.id === id);
+  if (!s || s.kind !== 'stamp') return;
+  bd.selected = id;
+  const A = s.A && Math.abs(d) <= s.A + 0.5 ? s.A : Math.abs(d) || s.A;
+  updateSpring(bd, { pos: d, A });
+}
+
+/** Τα δεδομένα της προσομοίωσης από κείμενο («m = 2, k = 200, A = 0,1»)· κενό τα σβήνει. */
+export function setSim(bd: Board, text: string): void {
+  const sim = parseSim(text);
+  updateSpring(bd, { sim: Object.keys(sim).length ? sim : undefined });
+  bd.onUi();
 }
 
 /** Σταματά την ταλάντωση του επιλεγμένου ελατηρίου· το σώμα γυρίζει στη θέση ισορροπίας. */

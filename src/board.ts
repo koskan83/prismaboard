@@ -931,6 +931,13 @@ export class Board {
 
   get springMoving(): boolean { return O.springMoving(this); }
 
+  /** Θέση του σώματος που κρατιέται: Θ.Ι. → +A → −A. */
+  cyclePos(): void { O.cyclePos(this); }
+
+  setPinnedAt(id: string, d: number): void { O.setPinnedAt(this, id, d); }
+
+  setSim(text: string): void { O.setSim(this, text); }
+
   /** Αλλάζει ιδιότητα του επιλεγμένου ελατηρίου (σημάνσεις, απόσβεση). */
   updateSpring(patch: Partial<StampItem>): void { O.updateSpring(this, patch); }
 

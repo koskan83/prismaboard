@@ -236,6 +236,9 @@ export function mountUi(app: HTMLElement): void {
         <button id="spMarks" data-l="${t('Θέσεις', 'Positions')}"><span class="txt">${t('ΘΦΜ', 'L₀')}</span>${t('Εμφάνιση θέσης φυσικού μήκους, θέσης ισορροπίας και ±A (στο εκκρεμές: ισορροπία και ακραίες θέσεις)', 'Show natural length position, equilibrium position and ±A (for the pendulum: equilibrium and extreme positions)')}</button>
         <button id="spDamp" data-l="${t('Απόσβ.', 'Damping')}"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12c1.500-9 3.500-9 5 0s3 6 4.500 0 2.500-4 3.500 0 2 2.500 3 0 1.500-1 2 0h1.500"/></svg></span>${t('Απόσβεση: η ταλάντωση σβήνει σιγά σιγά', 'Damping: the oscillation slowly dies out')}</button>
         <button id="spStop" data-l="${t('Στοπ', 'Stop')}"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg></span>${t('Σταμάτημα ταλάντωσης', 'Stop oscillation')}</button>
+        ${BETA ? `<button id="spPos" data-l="${t('Θέση', 'Position')}"><span class="txt">${t('Θ.Ι.', 'Eq.')}</span>${t('Θέση του σώματος: ισορροπία → +A → −A (μένει εκεί)', 'Body position: equilibrium → +A → −A (stays there)')}</button>
+        <button id="spPin" data-l="${t('Κράτα', 'Hold')}"><span class="txt">📌</span>${t('Κράτα εδώ: όταν αφήνεις το σώμα μένει εκεί αντί να ταλαντωθεί', 'Hold here: when you let go, the body stays there instead of oscillating')}</button>
+        <button id="spSim" data-l="${t('Τιμές', 'Values')}"><span class="txt">T=?</span>${t('Δεδομένα (m, k, A ή L, g) και τιμές T, f, ω, υmax, amax, E', 'Data (m, k, A or L, g) and values T, f, ω, vmax, amax, E')}</button>` : ''}
       </div>
       <div class="group" id="widths"></div>
     </div>

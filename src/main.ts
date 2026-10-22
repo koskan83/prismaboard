@@ -9,6 +9,7 @@ import { isEn, setLang, t } from './i18n';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
 import { ask, notice } from './dialog';
+import { posName } from './board-springs';
 import { openBuildView } from './build-view';
 import { openGameView, playsFull } from './game-view';
 import { loadReady } from './ready-ui';
@@ -305,6 +306,14 @@ export function refreshUi(): void {
   const playable = !!sp && !!STAMPS[sp.name]?.play;
   show('spPlay', playable);
   for (const id of ['spMarks', 'spDamp', 'spStop']) show(id, !!sp && !playable);
+  // μόνο στη beta: θέση του σώματος, 📌 και τιμές της προσομοίωσης
+  if (BETA) {
+    for (const id of ['spPos', 'spPin', 'spSim']) show(id, !!sp && !playable);
+    $('spPos').querySelector('span')!.textContent = sp ? posName(sp) : t('Θ.Ι.', 'Eq.');
+    $('spPos').classList.toggle('on', sp?.pos !== undefined && Math.abs(sp.pos) > 1e-6);
+    $('spPin').classList.toggle('on', !!sp?.pin);
+    $('spSim').classList.toggle('on', !!sp?.sim);
+  }
   $('spPlay').querySelector('span')!.textContent = board.springMoving ? '⏸' : '▶';
   show('widths', tool === 'pen' || tool === 'highlighter' || tool === 'shape' || tool === 'text' || tool === 'eraser');
   show('subbar', [...$('subbar').children].some((g) => !g.classList.contains('hidden')));

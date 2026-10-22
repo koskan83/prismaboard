@@ -9,6 +9,7 @@ import { $, board, esc, toast } from './app';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, placeNear, savePrefs, togglePopup } from './main';
 import { t } from './i18n';
+import { SIM_HINT, simText } from './osc-sim';
 
 const labelMenu = $('labelMenu');
 const fnMenu = $('fnMenu');
@@ -269,6 +270,16 @@ $('fnAdd').onclick = addFn;
 $('spMarks').onclick = () => board.updateSpring({ marks: !board.selectedSpring?.marks });
 $('spDamp').onclick = () => board.updateSpring({ damp: !board.selectedSpring?.damp });
 $('spStop').onclick = () => board.stopSpring();
+// μόνο στη beta
+document.getElementById('spPos')?.addEventListener('click', () => board.cyclePos());
+document.getElementById('spPin')?.addEventListener('click', () => board.updateSpring({ pin: !board.selectedSpring?.pin || undefined }));
+document.getElementById('spSim')?.addEventListener('click', async () => {
+  const sp = board.selectedSpring;
+  if (!sp) return;
+  const pend = sp.name === 'pendulum';
+  const v = await ask(t('Δεδομένα της ταλάντωσης', 'Oscillation data'), { value: simText(sp.sim, pend), hint: SIM_HINT(pend), max: 80 });
+  if (v !== null && board.selectedSpring?.id === sp.id) board.setSim(v);
+});
 $('spPlay').onclick = () => board.togglePlay();
 fnInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addFn();

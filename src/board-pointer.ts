@@ -153,7 +153,8 @@ export function down(bd: Board, e: PointerEvent): void {
         // το εκκρεμές πιάνεται από εκεί που βρίσκεται (ακίνητο είναι γερμένο), το ελατήριο από τη θέση ισορροπίας
         const g = STAMPS[spring.name]?.spring?.(spring.w, spring.h);
         const st = bd.springState(spring);
-        const d0 = g?.bob ? (!st.amp && !st.d ? g.rest ?? 0 : st.d) : 0;
+        // σώμα που κρατιέται σε θέση (StampItem.pos) πιάνεται από εκεί
+        const d0 = st.pinned ? st.d : g?.bob ? (!st.amp && !st.d ? g.rest ?? 0 : st.d) : 0;
         bd.osc.delete(spring.id);
         bd.selected = spring.id;
         bd.multi = [];
@@ -788,8 +789,11 @@ export function up(bd: Board, e: PointerEvent): void {
     case 'osc': {
       const o = bd.oscDrag;
       bd.oscDrag = null;
-      // ένα απλό άγγιγμα (χωρίς τράβηγμα) απλώς σταματά το σώμα
-      if (o && Math.abs(o.d) > 3 && Math.abs(o.d - (o.d0 ?? 0)) > 3) {
+      const it = o && bd.page.items.find((x) => x.id === o.id);
+      // με το 📌 το σώμα μένει εκεί που το άφησες· ένα απλό άγγιγμα (χωρίς τράβηγμα) απλώς σταματά το σώμα
+      if (o && it?.kind === 'stamp' && it.pin) {
+        if (Math.abs(o.d - (o.d0 ?? 0)) > 3) bd.setPinnedAt(o.id, Math.round(o.d));
+      } else if (o && Math.abs(o.d) > 3 && Math.abs(o.d - (o.d0 ?? 0)) > 3) {
         bd.osc.set(o.id, { amp: o.d, t0: performance.now() });
         bd.runOsc();
       }

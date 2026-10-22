@@ -18,6 +18,11 @@ export interface SpringState {
   marks: boolean;
   /** Σχήματα με κίνηση (play): ms από τότε που πατήθηκε το ▶· undefined όταν είναι ακίνητο. */
   t?: number;
+  /** Το σώμα κρατιέται σε θέση που διάλεξε ο χρήστης (βλ. StampItem.pos)· d είναι αυτή η θέση. */
+  pinned?: boolean;
+  /** Όσο ταλαντώνεται: η φάση ωt (rad) και ο συντελεστής απόσβεσης, για τις τιμές x, υ, a. */
+  ph?: number;
+  fade?: number;
 }
 
 /** Πού βρίσκεται το σώμα ενός ελατηρίου και προς τα πού κινείται. */
@@ -211,30 +216,34 @@ export const STAMPS: Record<string, StampDef> = {
     label: t('Οριζόντιο ελατήριο', 'Horizontal spring'), cat: 'osc', w: 380, h: 100,
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
-      const x = w * 0.5 + d;
+      const x = w * 0.45 + d;
       path(c, [[10, 0], [10, h]]);
       hatch(c, 10, 6, 10, h - 6, 6, -10, 10);
       path(c, [[0, h], [w, h]]);
-      path(c, [[10, h * 0.55], [30, h * 0.55], ...zigzag(30, x - w * 0.05, h * 0.55, h * 0.2, 14).slice(1), [x, h * 0.55]]);
+      // σε μικρό σχήμα και μεγάλη συσπείρωση το ίσιο κομμάτι στον τοίχο κονταίνει, ώστε το ζιγκ-ζαγκ να μη γυρίσει ανάποδα
+      const z0 = Math.max(12, Math.min(30, x - w * 0.08));
+      path(c, [[10, h * 0.55], [z0, h * 0.55], ...zigzag(z0, x - w * 0.05, h * 0.55, h * 0.2, 14).slice(1), [x, h * 0.55]]);
       c.strokeRect(x, h * 0.2, w * 0.22, h * 0.8 - 1);
       label(c, 'm', x + w * 0.11, h * 0.6, h * 0.3);
       if (st?.marks) {
         const fs = Math.max(11, h * 0.15);
         // οριζόντια, η θέση ισορροπίας συμπίπτει με τη θέση φυσικού μήκους
-        mark(c, w * 0.5, -h * 0.15, w * 0.5, h, t('Θ.Φ.Μ. ≡ Θ.Ι.', 'L₀ ≡ Eq.'), w * 0.5, -h * 0.3, fs);
+        const xi = w * 0.45;
+        mark(c, xi, -h * 0.15, xi, h, t('Θ.Φ.Μ. ≡ Θ.Ι.', 'L₀ ≡ Eq.'), xi, -h * 0.3, fs);
         if (st.amp) {
-          mark(c, w * 0.5 - st.amp, h * 0.05, w * 0.5 - st.amp, h, '−A', w * 0.5 - st.amp, -h * 0.08, fs);
-          mark(c, w * 0.5 + st.amp, h * 0.05, w * 0.5 + st.amp, h, '+A', w * 0.5 + st.amp, -h * 0.08, fs);
+          mark(c, xi - st.amp, h * 0.05, xi - st.amp, h, '−A', xi - st.amp, -h * 0.08, fs);
+          mark(c, xi + st.amp, h * 0.05, xi + st.amp, h, '+A', xi + st.amp, -h * 0.08, fs);
         }
       }
     },
-    spring: (w, h) => ({ cx: w * 0.61, cy: h * 0.6, ux: 1, uy: 0, max: w * 0.24, r: Math.max(w * 0.13, h * 0.45) }),
+    // η θέση ισορροπίας λίγο αριστερά από τη μέση: περισσότερος χώρος για επιμήκυνση (ως 0,3 του πλάτους)
+    spring: (w, h) => ({ cx: w * 0.56, cy: h * 0.6, ux: 1, uy: 0, max: w * 0.3, r: Math.max(w * 0.13, h * 0.45) }),
   },
   springV: {
     label: t('Κατακόρυφο ελατήριο', 'Vertical spring'), cat: 'osc', w: 150, h: 360,
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
-      const cx = w / 2, top = 2, y0 = h * 0.06, yi = h * 0.56, y = yi + d, amp = w * 0.16, n = 14;
+      const cx = w / 2, top = 2, y0 = h * 0.06, yi = h * 0.5, y = yi + d, amp = w * 0.16, n = 14;
       path(c, [[w * 0.1, top], [w * 0.9, top]]);
       hatch(c, w * 0.15, top, w * 0.85, top, 6, 8, -8);
       const y1 = y - h * 0.04;
@@ -255,7 +264,7 @@ export const STAMPS: Record<string, StampDef> = {
         }
       }
     },
-    spring: (w, h) => ({ cx: w / 2, cy: h * 0.66, ux: 0, uy: 1, max: h * 0.2, r: Math.max(w * 0.34, h * 0.12) }),
+    spring: (w, h) => ({ cx: w / 2, cy: h * 0.6, ux: 0, uy: 1, max: h * 0.26, r: Math.max(w * 0.34, h * 0.12) }),
   },
   springIncline: {
     label: t('Ελατήριο σε κεκλιμένο', 'Spring on incline'), cat: 'osc', w: 400, h: 250,
@@ -301,7 +310,7 @@ export const STAMPS: Record<string, StampDef> = {
       const px = L * 0.42 + (L * 0.17) / 2, py = h * 0.1;
       return {
         cx: w + px * Math.cos(ang) - py * Math.sin(ang), cy: h - rise + px * Math.sin(ang) + py * Math.cos(ang),
-        ux: Math.cos(ang), uy: Math.sin(ang), max: L * 0.2, r: L * 0.12,
+        ux: Math.cos(ang), uy: Math.sin(ang), max: L * 0.3, r: L * 0.12,
       };
     },
   },
@@ -332,7 +341,7 @@ export const STAMPS: Record<string, StampDef> = {
       path(c, [[w * 0.2, 0], [w * 0.8, 0]]);
       hatch(c, w * 0.25, 0, w * 0.75, 0, 5, 8, -8);
       const g = pendulum(w, h);
-      const idle = !st || (!st.amp && !st.d);
+      const idle = !st || (!st.amp && !st.d && !st.pinned);
       const r = w * 0.09;
       const [bx, by] = g.bob!(st?.d ?? 0, idle);
       const [ix, iy] = g.bob!(0, false);

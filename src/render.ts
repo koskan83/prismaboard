@@ -9,6 +9,7 @@ import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
 import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, lineAngleMark, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
 import { locale, t as tr } from './i18n';
+import { liveLine, simLines } from './osc-sim';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -782,7 +783,29 @@ export class Renderer {
         delete (c as Partial<CanvasRenderingContext2D>).fillText;
       }
     } else d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined);
+    if (d.spring && s.sim) this.drawSimValues(c, s);
     c.restore();
+  }
+
+  /** Κάτω από ελατήριο ή εκκρεμές με δεδομένα: T, f, ω, υmax… και οι τιμές της στιγμής (x, υ, a). */
+  private drawSimValues(c: CanvasRenderingContext2D, s: StampItem): void {
+    const pend = s.name === 'pendulum';
+    const lines = simLines(s.sim, pend, s.name === 'springV');
+    if (!lines.length) return;
+    const st = this.b.springState(s);
+    const r = st.ph !== undefined ? Math.cos(st.ph) * (st.fade ?? 1) : st.pinned && st.amp ? st.d / st.amp : 0;
+    const live = st.ph !== undefined || st.pinned ? liveLine(s.sim, pend, r, st.ph, st.fade) : null;
+    const fs = Math.max(12, Math.min(22, Math.sqrt(s.w * s.h) * 0.07));
+    c.font = `600 ${fs}px system-ui, "Segoe UI", Roboto, sans-serif`;
+    c.textAlign = 'left';
+    c.textBaseline = 'top';
+    c.globalAlpha = 0.9;
+    const y0 = s.h + fs * (s.name === 'spring' ? 0.8 : 1.4);
+    // οι σταθερές τιμές σε δύο-τρεις σειρές, και από κάτω οι τιμές της στιγμής
+    const rows: string[] = [];
+    for (let i = 0; i < lines.length; i += 3) rows.push(lines.slice(i, i + 3).join('   '));
+    if (live) rows.push(live);
+    rows.forEach((row, i) => c.fillText(row, 0, y0 + i * fs * 1.35));
   }
 
   private drawTrig(c: CanvasRenderingContext2D, t: TrigItem): void {
