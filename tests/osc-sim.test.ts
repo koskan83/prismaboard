@@ -16,6 +16,8 @@ describe('προσομοίωση ταλάντωσης', () => {
   });
   it('διαβάζει και T, f, ω, ενέργεια, υmax, amax, δυνάμεις και Δl, όπως γράφονται', () => {
     expect(parseSim('M = 2 Kg\nK = 100 N/m\nEτ = 20 J')).toEqual({ m: 2, k: 100, E: 20 });
+    // έτσι το έγραψε η αναγνώριση στο πραγματικό χειρόγραφο
+    expect(parseSim('m = 2 kg\nk = 100 N/m\nE_t = 20 J')).toEqual({ m: 2, k: 100, E: 20 });
     expect(parseSim('T = 500 ms, f = 2 Hz, ω = 4 rad/s')).toEqual({ T: 0.5, f: 2, w: 4 });
     expect(parseSim('E_{ολ} = 1, Εολ = 9, υmax = 2, α_max = 8, ΣFmax = 6, Fελ,max = 30, Δl = 10 cm')).toEqual({ E: 1, v: 2, a: 8, F: 6, Fel: 30, dl: 0.1 });
   });

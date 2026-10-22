@@ -35,7 +35,8 @@ function keyOf(raw: string): Key | null {
   if (/^[TΤ]$/.test(n)) return 'T';
   if (n === 'f') return 'f';
   if (n === 'ω') return 'w';
-  if (/^[EΕ](τ|T|ολ|ταλ|μηχ|tot)?$/.test(n)) return 'E';
+  // και με λατινικά: «E_t», «Etot», «Eολ»
+  if (/^[EΕ](τ|T|t|ολ|ταλ|μηχ|tot|ol)?$/.test(n)) return 'E';
   if (/^[υuv](max|μεγ|0|ο)$/.test(n)) return 'v';
   if (/^[aα](max|μεγ)$/.test(n)) return 'a';
   if (/^Fελ(max|μεγ)?$/.test(n)) return 'Fel';
