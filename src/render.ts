@@ -1,7 +1,7 @@
 /** Σχεδίαση των στοιχείων του πίνακα στον καμβά: γραμμές, σχήματα, άξονες, ανάλυση, τριγωνομετρικός κύκλος, μετρήσεις. */
 
 import {
-  AngleItem, AxesAn, a4Frame, AxesItem, Doc, FnDef, Item, Page, Pic, Pt, Shape, StampItem, Stroke, TextItem, TrigItem, angleDegrees, angleEnds, axesRange, isDark, isPoly, itemCenter, itemFlip, itemRot, strokeTaper, tableLines, textFont, textLines, trianglePts,
+  AngleItem, AxesAn, a4Frame, AxesItem, Doc, FnDef, Item, Page, Pic, Pt, Shape, StampItem, Stroke, TextItem, TrigItem, angleDegrees, angleEnds, axesRange, isDark, isPoly, itemBounds, itemCenter, itemFlip, itemRot, strokeTaper, tableLines, textFont, textLines, trianglePts,
 } from './model';
 import { Fn, Params, compileCached, domText, fnOf, keyPoints } from './expr';
 import { Asymptotes, asymptotes, integrate, lineEq, nf, oneSided, riemann, slope, crossings } from './analysis';
@@ -104,7 +104,6 @@ export class Renderer {
   }
 
   drawStroke(c: CanvasRenderingContext2D, s: Stroke): void {
-    const pts = s.pts;
     c.save();
     c.strokeStyle = c.fillStyle = this.b.ink(s.color, s.hl);
     c.lineCap = 'round';
@@ -118,8 +117,58 @@ export class Renderer {
       if (flat) {
         c.strokeStyle = c.fillStyle = flat;
         c.globalCompositeOperation = dark ? 'lighten' : 'darken';
+        // σε σκούρο φόντο, πάνω σε εικόνα (π.χ. σελίδα PDF με λευκό φόντο) το «lighten» δεν θα φαινόταν:
+        // εκεί βάφει όπως σε λευκή σελίδα, και στο υπόλοιπο όπως πριν
+        const pics = dark ? this.picsUnder(s, w) : [];
+        if (pics.length) {
+          const light = hlFlat(this.b.ink(s.color, true), [255, 255, 255])!;
+          c.save();
+          c.beginPath();
+          c.rect(-1e7, -1e7, 2e7, 2e7);
+          this.picPaths(c, pics);
+          c.clip('evenodd');
+          this.strokePath(c, s, w);
+          c.restore();
+          c.beginPath();
+          this.picPaths(c, pics);
+          c.clip();
+          c.strokeStyle = c.fillStyle = light;
+          c.globalCompositeOperation = 'darken';
+        }
       } else c.globalAlpha = HL_ALPHA;
     }
+    this.strokePath(c, s, w);
+    c.restore();
+  }
+
+  /** Οι εικόνες της σελίδας του υπογραμμιστικού που περνά από πάνω τους. */
+  private picsUnder(s: Stroke, w: number): Pic[] {
+    const page = this.b.doc.pages.find((p) => p.items.includes(s)) ?? this.b.page;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const [x, y] of s.pts) {
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+    }
+    return page.items.filter((it): it is Pic => {
+      if (it.kind !== 'image') return false;
+      const b = itemBounds(it);
+      return b.x0 < x1 + w && b.x1 > x0 - w && b.y0 < y1 + w && b.y1 > y0 - w;
+    });
+  }
+
+  /** Τα ορθογώνια των εικόνων (και στραμμένα) στο τρέχον path. */
+  private picPaths(c: CanvasRenderingContext2D, pics: Pic[]): void {
+    const m = c.getTransform();
+    for (const p of pics) {
+      const [cx, cy] = itemCenter(p);
+      c.translate(cx, cy);
+      c.rotate(itemRot(p));
+      c.rect(-p.w / 2, -p.h / 2, p.w, p.h);
+      c.setTransform(m);
+    }
+  }
+
+  private strokePath(c: CanvasRenderingContext2D, s: Stroke, w: number): void {
+    const pts = s.pts;
     c.lineWidth = w;
     if (pts.length === 1) {
       c.beginPath();
@@ -152,7 +201,6 @@ export class Renderer {
       c.lineTo(last[0], last[1]);
       c.stroke();
     }
-    c.restore();
   }
 
   private drawShape(c: CanvasRenderingContext2D, s: Shape): void {
