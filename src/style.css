@@ -450,6 +450,8 @@ body.dark #libHead .lg.onLight { display: block; }
 #ppQuick, #ppActs { display: flex; gap: 8px; flex-wrap: wrap; }
 #ppBox button { font: inherit; font-size: 17px; color: inherit; border: 0; cursor: pointer; }
 #ppQuick button, #ppActs button { padding: 13px 18px; border-radius: 12px; background: var(--bar-2); }
+#ppQuick #ppText { margin-left: auto; }
+#ppQuick #ppText.on { background: var(--on-bg); color: var(--on-fg); font-weight: 600; }
 #ppActs { justify-content: flex-end; }
 #ppActs #ppOk { background: var(--ok); color: #fff; font-weight: 600; min-width: 220px; }
 #ppActs #ppOk:disabled { opacity: .45; cursor: default; }

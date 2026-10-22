@@ -76,8 +76,9 @@ export async function lessonPdf(all = false): Promise<Blob | null> {
 /**
  * Παράθυρο επιλογής σελίδων με μικρογραφίες: πατάς μια σελίδα για να μπει ή να βγει.
  * Επιστρέφει τους αριθμούς (από 0) με τη σειρά τους, ή null αν ακυρώθηκε. `current`: η τρέχουσα σελίδα, για το κουμπί «Μόνο αυτή».
+ * `asText`: δείχνει το κουμπί «Κείμενο που διορθώνεται» και κρατά εκεί την επιλογή.
  */
-export function pickPages(title: string, okText: string, n: number, thumb: (i: number, w: number) => Promise<HTMLCanvasElement>, current?: number): Promise<number[] | null> {
+export function pickPages(title: string, okText: string, n: number, thumb: (i: number, w: number) => Promise<HTMLCanvasElement>, current?: number, asText?: { on: boolean }): Promise<number[] | null> {
   return new Promise((resolve) => {
     closePopups();
     const el = $('pagePick');
@@ -87,6 +88,10 @@ export function pickPages(title: string, okText: string, n: number, thumb: (i: n
     let alive = true;
     $('ppTitle').textContent = title;
     $('ppCur').classList.toggle('hidden', current === undefined);
+    const txt = $('ppText');
+    txt.classList.toggle('hidden', !asText);
+    txt.classList.toggle('on', !!asText?.on);
+    txt.onclick = () => { if (asText) txt.classList.toggle('on', (asText.on = !asText.on)); };
     grid.innerHTML = '';
     const cells: HTMLElement[] = [];
     for (let i = 0; i < n; i++) {

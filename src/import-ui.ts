@@ -7,6 +7,7 @@ import { $, board, toast } from './app';
 import { pickPages } from './send-ui';
 import { lessons } from './main';
 import { t } from './i18n';
+import { BETA } from './beta';
 
 export async function importFiles(files: File[]): Promise<void> {
   for (const f of files) {
@@ -20,10 +21,11 @@ export async function importFiles(files: File[]): Promise<void> {
         const pdf = await (word ? openDocx(f) : openPdf(f));
         try {
           toast('', 1);
-          // με πάνω από μία σελίδα ρωτάμε ποιες θα μπουν
-          const list = pdf.n > 1 ? await pickPages(t(`Εισαγωγή από «${f.name}»`, `Import from “${f.name}”`), t('Εισαγωγή', 'Import'), pdf.n, (i, w) => pdf.thumb(i, w)) : [0];
+          // με πάνω από μία σελίδα ρωτάμε ποιες θα μπουν· στη beta πάντα, για την επιλογή «Κείμενο που διορθώνεται»
+          const asText = BETA ? { on: false } : undefined;
+          const list = pdf.n > 1 || asText ? await pickPages(t(`Εισαγωγή από «${f.name}»`, `Import from “${f.name}”`), t('Εισαγωγή', 'Import'), pdf.n, (i, w) => pdf.thumb(i, w), undefined, asText) : [0];
           if (!list) continue;
-          const pages = await pdf.pages(list, (d, n) => toast(t(`Εισαγωγή ${kind}… σελίδα ${Math.min(d + 1, n)} από ${n}`, `Importing ${kind}… page ${Math.min(d + 1, n)} of ${n}`), 0));
+          const pages = await pdf.pages(list, (d, n) => toast(t(`Εισαγωγή ${kind}… σελίδα ${Math.min(d + 1, n)} από ${n}`, `Importing ${kind}… page ${Math.min(d + 1, n)} of ${n}`), 0), asText?.on);
           board.appendPages(pages);
           toast(pages.length === 1 ? t(`Προστέθηκε 1 σελίδα από το ${kind}`, `Added 1 page from the ${kind}`) : t(`Προστέθηκαν ${pages.length} σελίδες από το ${kind}`, `Added ${pages.length} pages from the ${kind}`));
         } finally {

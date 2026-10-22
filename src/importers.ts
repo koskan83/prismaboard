@@ -1,9 +1,60 @@
-import { Page, uid } from './model';
+import { Page, TextItem, textFont, uid } from './model';
 import { t } from './i18n';
 import { BETA } from './beta';
+import { Run, runsToLines } from './doc-text';
 
 /** Οι σελίδες PDF/Word μπαίνουν ως «χαρτί» (βλ. Pic.paper)· προς το παρόν μόνο στη beta. */
 const PAPER = BETA || undefined;
+
+/**
+ * Σελίδα του πίνακα, πλάτους 1000, από την εικόνα μιας σελίδας. Με `runs` το κείμενο σβήνεται από την εικόνα
+ * και μπαίνει από πάνω της ως κείμενα που διορθώνονται· η εικόνα μένει ως «χαρτί» για σχήματα, φωτογραφίες και τύπους.
+ */
+function toPage(cv: HTMLCanvasElement, quality: number, runs?: Run[]): Page {
+  const k = 1000 / cv.width;
+  const texts: TextItem[] = [];
+  if (runs) {
+    const c = cv.getContext('2d')!;
+    c.fillStyle = '#ffffff';
+    for (const r of runs) c.fillRect(r.x - 1, r.top - 0.1 * r.h, r.w + 2, 1.35 * r.h);
+    const m = document.createElement('canvas').getContext('2d')!;
+    for (const l of runsToLines(runs)) {
+      let size = l.h * k;
+      m.font = textFont(size);
+      // η γραμματοσειρά του πίνακα είναι συνήθως φαρδύτερη: μικραίνει λίγο, ώστε η γραμμή να χωρά εκεί που ήταν
+      const w = m.measureText(l.text).width;
+      if (w > l.w * k) size *= Math.max(0.7, (l.w * k) / w);
+      texts.push({ kind: 'text', id: uid(), x: l.x * k, y: l.top * k, text: l.text, size: Math.round(size * 10) / 10, color: '#111111' });
+    }
+  }
+  return {
+    view: { x: 0, y: 0, k: 1 },
+    items: [{ kind: 'image', id: uid(), x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', quality), paper: runs ? true : PAPER }, ...texts],
+  };
+}
+
+/** Οι λέξεις μιας σελίδας του Word όπως τις στοίχισε ο browser, σε pixel της εικόνας της (κλίμακα `scale`). Οι τύποι μένουν στην εικόνα. */
+function domRuns(sec: HTMLElement, scale: number): Run[] {
+  const box = sec.getBoundingClientRect();
+  const out: Run[] = [];
+  const range = document.createRange();
+  const walk = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+    const el = n.parentElement;
+    if (!el || el.closest('math, svg')) continue;
+    const size = parseFloat(getComputedStyle(el).fontSize) || 16;
+    const s = n.textContent ?? '';
+    const re = /\S+/g;
+    for (let m = re.exec(s); m; m = re.exec(s)) {
+      range.setStart(n, m.index);
+      range.setEnd(n, m.index + m[0].length);
+      const r = range.getBoundingClientRect();
+      if (!r.width) continue;
+      out.push({ x: (r.left - box.left) * scale, top: (r.top - box.top + (r.height - size) / 2) * scale, w: r.width * scale, h: size * scale, str: m[0] });
+    }
+  }
+  return out;
+}
 
 export interface PicData {
   src: string;
@@ -33,8 +84,8 @@ export interface OpenPdf {
   n: number;
   /** Μικρογραφία της σελίδας i (από 0), πλάτους w. */
   thumb(i: number, w: number): Promise<HTMLCanvasElement>;
-  /** Οι σελίδες της λίστας (από 0) γίνονται σελίδες του πίνακα, καθεμιά με την εικόνα της. */
-  pages(list: number[], onProgress: (done: number, total: number) => void): Promise<Page[]>;
+  /** Οι σελίδες της λίστας (από 0) γίνονται σελίδες του πίνακα, καθεμιά με την εικόνα της· με `asText` και με το κείμενό της ως κείμενα. */
+  pages(list: number[], onProgress: (done: number, total: number) => void, asText?: boolean): Promise<Page[]>;
   close(): void;
 }
 
@@ -45,7 +96,7 @@ export async function openPdf(file: File): Promise<OpenPdf> {
 
   const data = new Uint8Array(await file.arrayBuffer());
   const pdf = await pdfjs.getDocument({ data }).promise;
-  const render = async (i: number, scaleFor: (w: number, h: number) => number): Promise<HTMLCanvasElement> => {
+  const render = async (i: number, scaleFor: (w: number, h: number) => number, withText = false): Promise<{ cv: HTMLCanvasElement; runs?: Run[] }> => {
     const page = await pdf.getPage(i + 1);
     const v1 = page.getViewport({ scale: 1 });
     const vp = page.getViewport({ scale: scaleFor(v1.width, v1.height) });
@@ -56,23 +107,30 @@ export async function openPdf(file: File): Promise<OpenPdf> {
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, cv.width, cv.height);
     await page.render({ canvasContext: ctx, viewport: vp, canvas: cv }).promise;
+    let runs: Run[] | undefined;
+    if (withText) {
+      runs = [];
+      for (const it of (await page.getTextContent()).items) {
+        if (!('str' in it) || !it.str.trim()) continue;
+        const [a, b, c, d, x, base] = pdfjs.Util.transform(vp.transform, it.transform) as number[];
+        // πλάγιο ή στραμμένο κείμενο μένει στην εικόνα
+        if (Math.abs(b) > 1e-3 || Math.abs(c) > 1e-3 || a <= 0) continue;
+        const h = Math.abs(d);
+        runs.push({ x, top: base - 0.85 * h, w: it.width * vp.scale, h, str: it.str });
+      }
+    }
     page.cleanup();
-    return cv;
+    return { cv, runs };
   };
   return {
     n: pdf.numPages,
-    thumb: (i, w) => render(i, (pw) => w / pw),
-    async pages(list, onProgress) {
+    thumb: async (i, w) => (await render(i, (pw) => w / pw)).cv,
+    async pages(list, onProgress, asText) {
       const pages: Page[] = [];
       for (let k = 0; k < list.length; k++) {
         onProgress(k, list.length);
-        const cv = await render(list[k], (pw, ph) => Math.min(1800 / pw, 2600 / ph, 3));
-        const w = 1000;
-        const h = (1000 * cv.height) / cv.width;
-        pages.push({
-          view: { x: 0, y: 0, k: 1 },
-          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w, h, src: cv.toDataURL('image/jpeg', 0.88), paper: PAPER }],
-        });
+        const { cv, runs } = await render(list[k], (pw, ph) => Math.min(1800 / pw, 2600 / ph, 3), asText);
+        pages.push(toPage(cv, 0.88, runs));
       }
       onProgress(list.length, list.length);
       return pages;
@@ -135,15 +193,14 @@ export async function openDocx(file: File): Promise<OpenPdf> {
   return {
     n: sections.length,
     thumb: (i, w) => render(i, (pw) => w / pw),
-    async pages(list, onProgress) {
+    async pages(list, onProgress, asText) {
       const pages: Page[] = [];
       for (let k = 0; k < list.length; k++) {
         onProgress(k, list.length);
-        const cv = await render(list[k], (pw, ph) => Math.min(1800 / pw, 2600 / ph, 3));
-        pages.push({
-          view: { x: 0, y: 0, k: 1 },
-          items: [{ kind: 'image', id: uid(), x: 0, y: 0, w: 1000, h: (1000 * cv.height) / cv.width, src: cv.toDataURL('image/jpeg', 0.9), paper: PAPER }],
-        });
+        const fit = (pw: number, ph: number): number => Math.min(1800 / pw, 2600 / ph, 3);
+        const cv = await render(list[k], fit);
+        const sec = sections[list[k]];
+        pages.push(toPage(cv, 0.9, asText ? domRuns(sec, fit(Math.ceil(sec.offsetWidth), Math.ceil(sec.offsetHeight))) : undefined));
       }
       onProgress(list.length, list.length);
       return pages;

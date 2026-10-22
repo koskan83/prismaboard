@@ -469,7 +469,7 @@ export function mountUi(app: HTMLElement): void {
   <div id="pagePick" class="hidden">
     <div id="ppBox">
       <b id="ppTitle"></b>
-      <div id="ppQuick"><button id="ppAll">${t('Όλες', 'All')}</button><button id="ppNone">${t('Καμία', 'None')}</button><button id="ppCur">${t('Μόνο αυτή που βλέπω', 'Current page only')}</button></div>
+      <div id="ppQuick"><button id="ppAll">${t('Όλες', 'All')}</button><button id="ppNone">${t('Καμία', 'None')}</button><button id="ppCur">${t('Μόνο αυτή που βλέπω', 'Current page only')}</button><button id="ppText" class="hidden" title="${t('Το κείμενο μπαίνει ως κείμενο του πίνακα, που διορθώνεται· σχήματα, εικόνες και τύποι μένουν ως εικόνα από πίσω', 'Text comes in as board text you can edit; shapes, pictures and formulas stay as a picture behind it')}">📝 ${t('Κείμενο που διορθώνεται', 'Editable text')}</button></div>
       <div id="ppGrid"></div>
       <div id="ppActs"><button id="ppCancel">${t('Άκυρο', 'Cancel')}</button><button id="ppOk"></button></div>
     </div>
