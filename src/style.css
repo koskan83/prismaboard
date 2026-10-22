@@ -830,3 +830,20 @@ body.beta.quiet #zoomCtl #zoomFit { width: 54px; height: 36px; }
 @media (prefers-reduced-motion: reduce) { body.beta #menuBtn, body.beta #zoomCtl { transition: none; } }
 /* η ένδειξη BETA: μικρή, στη γωνία του ☰, όχι στη μέση της οθόνης που βλέπει η τάξη */
 body.beta #betaTag { top: 6px; left: 50px; transform: none; z-index: 11; padding: 1px 6px; font-size: 10px; letter-spacing: .04em; }
+
+/* ---------- κινητό: κανένα μενού πλατύτερο από την οθόνη ---------- */
+@media (max-width: 640px) {
+  .popup { max-width: calc(100vw - 16px); box-sizing: border-box; }
+  /* με στήλες «όσες χωρούν» το μενού θα μίκραινε στις δύο: παίρνει όλο το πλάτος */
+  #fnMenu, #aiMenu, #gadgetMenu, #stampMenu { width: calc(100vw - 16px); }
+  #menu, #aiMenu { left: 8px; }
+  /* τα πλακίδια (Όργανα, σχήματα φυσικής…) σε όσες στήλες χωρούν, με κύλιση προς τα κάτω αντί να κόβονται δεξιά */
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
+  .tiles.small { grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); }
+  /* λίγο μικρότερα ονόματα, για να χωρά ολόκληρη η λέξη («Ολοκλήρωμα», «Εφαπτομένη») αντί να κόβεται στη μέση */
+  .tile small { font-size: 12px; }
+  /* η βασική γραμμή χωρίς τα ονόματα κάτω από τα εικονίδια (αλλιώς πιάνει το ένα τρίτο της οθόνης)·
+     η δεύτερη σειρά τα κρατά, γιατί εκεί τα εικονίδια (T=?, 📌, ΘΦΜ) δεν εξηγούνται μόνα τους */
+  #toolbar.labels > .group > button[data-l] { width: 44px; height: 44px; }
+  #toolbar.labels > .group > button[data-l]::after { display: none; }
+}
