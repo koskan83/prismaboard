@@ -5,7 +5,7 @@ import { GadgetKind } from './gadgets';
 import { isNative, isOverlay, nativeCheckUpdate, nativeExit, nativeRelaunch, openOverlay, type NativeUpdate } from './native';
 import { initSnip, toggleSnip } from './snip';
 import { isAndroid, isAndroidApp, openPage } from './platform';
-import { androidVoiceHelp } from './android';
+import { androidVoiceHelp, androidVoiceInfo } from './android';
 import { isEn, setLang, t } from './i18n';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
@@ -971,11 +971,13 @@ showFxPrefs();
 /** Ήχος για κάτι που έγινε σε εργαλείο του Δημοτικού· στις επιτυχίες και κομφετί από το σημείο (x, y) της οθόνης. */
 const noVoice = new Set<string>();
 function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): void {
-  if (!primary) return;
   if (ev.startsWith('say|')) {
-    // ορθογραφία: η λέξη λέγεται δυνατά· αν δεν ακουστεί, το λέμε μία φορά ανά γλώσσα
+    // ορθογραφία: η λέξη λέγεται δυνατά· αν δεν ακουστεί, το λέμε μία φορά ανά γλώσσα.
+    // και εκτός Δημοτικού: τα παιχνίδια ανοίγουν σε όλη την οθόνη από κάθε επίπεδο, και χωρίς τη λέξη δεν παίζονται
     const [, lang, text] = ev.split('|');
     void say(text, lang).then((heard) => {
+      // beta στο Android: κάθε λέξη λέει τι απάντησε η φωνή της συσκευής, για να βρεθεί γιατί κάποια tablet μένουν σιωπηλά
+      if (BETA && isAndroidApp) toast(`🔊 «${text}»: ${androidVoiceInfo()}`, 5000);
       if (heard || noVoice.has(lang)) return;
       noVoice.add(lang);
       if (isAndroidApp) return void toast(`${t('Δεν μπόρεσα να πω τη λέξη.', "Couldn't say the word.")} ${androidVoiceHelp(lang)}`, 10000);
@@ -984,6 +986,7 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): 
     });
     return;
   }
+  if (!primary) return;
   const num = /^num\|(\w*)\|(\d+)$/.exec(ev);
   if (num) {
     // κυβάκια και αριθμοί: μόνο ήχος, χωρίς φωνή

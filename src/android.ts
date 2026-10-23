@@ -67,12 +67,13 @@ interface SpeechPlugin {
 let speech: Promise<SpeechPlugin> | null = null;
 let talking = 0;
 /** Γιατί δεν ακούστηκε η τελευταία φράση (βλ. androidVoiceHelp). */
-let lastWhy = '', lastEngine = '';
+let lastWhy = '', lastEngine = '', lastMs = 0;
 
 /** Ανάγνωση φωναχτά με τη φωνή της συσκευής (SpeechPlugin.java): το WebView δεν έχει speechSynthesis. false αν δεν έχει φωνή για τη γλώσσα. */
 export async function androidSay(text: string, lang: string, rate: number): Promise<boolean> {
   speech ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<SpeechPlugin>('Speech'));
   talking++;
+  const t0 = performance.now();
   // μηχανή φωνής που δεν απαντά ποτέ: μετά από αρκετή ώρα για να ειπωθεί το κείμενο, το θεωρούμε αποτυχία αντί να μένουμε σιωπηλοί
   let timer = 0;
   const late = new Promise<{ spoken: boolean; why: string }>((done) => {
@@ -89,9 +90,13 @@ export async function androidSay(text: string, lang: string, rate: number): Prom
     return false;
   } finally {
     clearTimeout(timer);
+    lastMs = Math.round(performance.now() - t0);
     talking--;
   }
 }
+
+/** Τι απάντησε η φωνή της συσκευής στην τελευταία φράση, για δοκιμή στη beta: π.χ. «ok · com.google.android.tts · 840 ms». */
+export const androidVoiceInfo = (): string => `${lastWhy || 'ok'} · ${lastEngine || '?'} · ${lastMs} ms`;
 
 /** Μήνυμα για τον δάσκαλο όταν η androidSay γύρισε false: τι λείπει από τη συσκευή και πώς διορθώνεται. */
 export function androidVoiceHelp(lang: string): string {
@@ -103,6 +108,10 @@ export function androidVoiceHelp(lang: string): string {
       `This device has no text-to-speech voice. Install “Speech Services by Google” from Play and pick it in ${tts}.`);
     case 'nodata': return t(`Η φωνή της συσκευής${eng} δεν έχει κατεβάσει ${el ? 'ελληνικά' : 'αγγλικά'}: ${tts} → ⚙ → Εγκατάσταση δεδομένων φωνής.`,
       `The device voice${eng} has not downloaded ${el ? 'Greek' : 'English'}: ${tts} → ⚙ → Install voice data.`);
+    case 'mute': return t('Η ένταση των πολυμέσων είναι στο μηδέν: ανέβασέ τη με τα κουμπιά έντασης του tablet.',
+      'Media volume is at zero: turn it up with the tablet’s volume buttons.');
+    case 'silent': return t(`Η φωνή της συσκευής${eng} είπε ότι τελείωσε χωρίς να ακουστεί τίποτα: συχνά τα ${el ? 'ελληνικά' : 'αγγλικά'} της είναι μόνο από το δίκτυο. ${tts} → ⚙ → Εγκατάσταση δεδομένων φωνής, και κατέβασε τα ${el ? 'ελληνικά' : 'αγγλικά'} στη συσκευή.`,
+      `The device voice${eng} reported done without playing anything: often its ${el ? 'Greek' : 'English'} is network-only. ${tts} → ⚙ → Install voice data, and download ${el ? 'Greek' : 'English'} to the device.`);
     case 'timeout': return t(`Η φωνή της συσκευής${eng} δεν απάντησε. Δοκίμασε την «Αναπαραγωγή» στο ${tts}, ή διάλεξε τις «Υπηρεσίες ομιλίας από την Google».`,
       `The device voice${eng} did not respond. Try “Play” in ${tts}, or pick “Speech Services by Google”.`);
     case 'nolang': case '': return t(`Η φωνή της συσκευής${eng} δεν έχει ${el ? 'ελληνικά' : 'αγγλικά'}. Βάλε τα από το ${tts}.`,

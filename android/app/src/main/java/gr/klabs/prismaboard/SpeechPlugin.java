@@ -1,5 +1,7 @@
 package gr.klabs.prismaboard;
 
+import android.content.Context;
+import android.media.AudioManager;
 import android.speech.tts.TextToSpeech;
 import android.speech.tts.UtteranceProgressListener;
 import com.getcapacitor.JSObject;
@@ -26,6 +28,9 @@ public class SpeechPlugin extends Plugin {
     private PluginCall speaking;
     /** Το id της φράσης που λέγεται: τα μηνύματα μιας παλιότερης, που κόπηκε, δεν αφορούν την τωρινή. */
     private String speakingId;
+    /** Το πρόθεμα της φράσης που λέγεται ("sayN.") και αν άρχισε έστω ένα κομμάτι της να ακούγεται. */
+    private String speakingPrefix;
+    private boolean started;
     private int count;
     /** Η μηχανή φωνής που ζητήθηκε· null: η προεπιλογή της συσκευής. */
     private String engine;
@@ -49,8 +54,8 @@ public class SpeechPlugin extends Plugin {
             TextToSpeech t = made[0];
             // ο listener μπαίνει πριν γίνει ready: αλλιώς μια speak στο ενδιάμεσο δεν θα έπαιρνε ποτέ onDone
             if (status == TextToSpeech.SUCCESS) t.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                @Override public void onStart(String id) {}
-                @Override public void onDone(String id) { finish(id, true, ""); }
+                @Override public void onStart(String id) { heard(id); }
+                @Override public void onDone(String id) { spoken(id); }
                 @Override public void onError(String id) { finish(id, false, "error"); }
                 @Override public void onStop(String id, boolean interrupted) { finish(id, true, ""); }
             });
@@ -103,6 +108,12 @@ public class SpeechPlugin extends Plugin {
             done(call, false, has == TextToSpeech.LANG_MISSING_DATA ? "nodata" : "nolang");
             return;
         }
+        // η φωνή βγαίνει από την ένταση των πολυμέσων: στο μηδέν «μιλά» κανονικά αλλά δεν ακούγεται τίποτα
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        if (am != null && am.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
+            done(call, false, "mute");
+            return;
+        }
         tts.setSpeechRate(call.getFloat("rate", 1f));
         // η TextToSpeech δέχεται ως getMaxSpeechInputLength() χαρακτήρες ανά φράση: το μεγάλο κείμενο λέγεται σε κομμάτια
         List<String> parts = split(call.getString("text", ""), TextToSpeech.getMaxSpeechInputLength() - 1);
@@ -113,6 +124,8 @@ public class SpeechPlugin extends Plugin {
             id = "say" + (++count);
             speaking = call;
             speakingId = id + "." + (parts.size() - 1);
+            speakingPrefix = id + ".";
+            started = false;
         }
         for (int i = 0; i < parts.size(); i++) {
             int r = tts.speak(parts.get(i), i == 0 ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, id + "." + i);
@@ -151,6 +164,17 @@ public class SpeechPlugin extends Plugin {
         call.resolve();
     }
 
+    /** Ένα κομμάτι της τωρινής φράσης άρχισε να ακούγεται. */
+    private synchronized void heard(String id) {
+        if (speakingPrefix != null && id != null && id.startsWith(speakingPrefix)) started = true;
+    }
+
+    /** Η μηχανή λέει ότι τελείωσε: αν δεν άρχισε ποτέ να ακούγεται, δεν ειπώθηκε τίποτα (π.χ. φωνή από το δίκτυο χωρίς σύνδεση). */
+    private synchronized void spoken(String id) {
+        if (id == null || !id.equals(speakingId)) return;
+        finish(id, started, started ? "" : "silent");
+    }
+
     /** Τελείωσε (ή σταμάτησε) η φράση `id`. */
     private synchronized void finish(String id, boolean ok, String why) {
         if (id == null || !id.equals(speakingId)) return;
@@ -160,7 +184,7 @@ public class SpeechPlugin extends Plugin {
         if (c != null) done(c, ok, why);
     }
 
-    /** why: "" | noengine | nodata | nolang | speak | error· engine: η μηχανή φωνής, για το μήνυμα στον δάσκαλο. */
+    /** why: "" | noengine | nodata | nolang | mute | silent | speak | error· engine: η μηχανή φωνής, για το μήνυμα στον δάσκαλο. */
     private void done(PluginCall call, boolean spoken, String why) {
         JSObject out = new JSObject();
         out.put("spoken", spoken);
