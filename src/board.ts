@@ -19,7 +19,7 @@ import * as L from './board-live';
 // οι δοκιμές και όποιος τα χρειάζεται τα βρίσκουν ακόμα εδώ
 export { eraseMeasures, hlFlat, measureAngles, measureSides, radText } from './measure';
 
-type Mode = 'draw' | 'shape' | 'gadget' | 'erase' | 'move' | 'resize' | 'pan' | 'lasso' | 'gmove' | 'gresize' | 'rotate' | 'grotate' | 'measure' | 'laser' | 'osc' | 'kid' | 'none';
+type Mode = 'draw' | 'shape' | 'gadget' | 'erase' | 'move' | 'resize' | 'pan' | 'lasso' | 'gmove' | 'gresize' | 'rotate' | 'grotate' | 'measure' | 'laser' | 'osc' | 'sim' | 'kid' | 'none';
 
 export type Box = { x0: number; y0: number; x1: number; y1: number };
 /** Ίχνος του δείκτη λέιζερ· t = στιγμή που σηκώθηκε η γραφίδα (0 όσο γράφει). */
@@ -971,6 +971,15 @@ export class Board {
   simAt(wx: number, wy: number): StampItem | null { return O.simAt(this, wx, wy); }
 
   onSimRequest: (s: StampItem) => void = () => {};
+
+  /** Το επιλεγμένο ελατήριο, αν το σημείο πέφτει στο ✕ που σβήνει το πλαίσιο των τιμών του. */
+  simCloseAt(wx: number, wy: number): StampItem | null { return O.simCloseAt(this, wx, wy); }
+
+  /** Σβήνει το πλαίσιο των τιμών του επιλεγμένου ελατηρίου (με αναίρεση)· τα δεδομένα μένουν για την κίνηση. */
+  hideSim(): void {
+    this.updateSpring({ simOff: true });
+    this.onUi();
+  }
 
   /** Το ίδιο ελατήριο (ίδια άσκηση) στοιχισμένο κάτω ή δίπλα, στην επόμενη θέση: Θ.Ι. → +A → −A. */
   alignedCopy(): void {

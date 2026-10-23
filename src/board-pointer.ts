@@ -1,7 +1,7 @@
 /** Γραφίδα, δάχτυλα και ποντίκι: τι κάνει κάθε άγγιγμα ανάλογα με το εργαλείο (μέθοδοι της Board, σε δικό τους αρχείο). */
 
 import { carryTexts } from './board-select';
-import { pinSnap } from './board-springs';
+import { moveSim, pinSnap } from './board-springs';
 import { AxesItem, Item, Pt, inLasso, itemBounds, reboxShape, recognizeShape, rotateItem, roundAngle, smoothStroke, snapLine, scaleItem, translateItem, uid, unrot } from './model';
 import { STAMPS } from './stamps';
 import type { Board, PState, Twist } from './board';
@@ -149,14 +149,22 @@ export function down(bd: Board, e: PointerEvent): void {
       break;
     case 'select': {
       const items = bd.page.items;
-      // πάτημα στις τιμές κάτω από ένα ελατήριο: ανοίγουν για να αλλάξουν
+      // το ✕ στη γωνία των τιμών του επιλεγμένου ελατηρίου: το πλαίσιο σβήνεται
+      if (bd.simCloseAt(wx, wy)) {
+        bd.hideSim();
+        return;
+      }
+      // πάτημα στις τιμές κάτω από ένα ελατήριο: ανοίγουν για να αλλάξουν· σύρσιμο: το πλαίσιο μετακινείται
       const simIt = bd.simAt(wx, wy);
       if (simIt) {
         bd.selected = simIt.id;
         bd.multi = [];
+        ps.mode = 'sim';
+        ps.orig = simIt;
+        ps.start = [wx, wy];
+        ps.tap = true;
         bd.redraw();
         bd.onUi();
-        bd.onSimRequest(simIt);
         return;
       }
       // πιάνοντας το σώμα ενός ελατηρίου το τραβάς· όταν το αφήσεις ταλαντώνεται
@@ -367,6 +375,12 @@ export function cancelPointer(bd: Board, ps: PState): void {
   ps.live = undefined;
   ps.gadget = undefined;
   ps.preview = undefined;
+  if (ps.mode === 'sim' && ps.orig) {
+    // μισοτελειωμένο σύρσιμο του πλαισίου των τιμών: γυρίζει εκεί που ήταν
+    const before = ps.orig;
+    const i = bd.page.items.findIndex((x) => x.id === before.id);
+    if (i >= 0) bd.page.items[i] = before;
+  }
   ps.orig = undefined;
   if (ps.kidOrig) {
     // μισοτελειωμένο σύρσιμο πάνω σε εργαλείο του Δημοτικού: γυρίζει όπως ήταν
@@ -605,6 +619,19 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
       }
       break;
     }
+    case 'sim': {
+      const o = ps.orig;
+      const i = o ? bd.page.items.findIndex((x) => x.id === o.id) : -1;
+      if (!o || o.kind !== 'stamp' || i < 0) break;
+      // σε στραμμένο ελατήριο η μετακίνηση μετριέται στους δικούς του άξονες
+      const [ax, ay] = unrot(o, ps.start![0], ps.start![1]), [bx, by] = unrot(o, wx, wy);
+      // λίγο τρέμουλο του χεριού μετρά ακόμα για πάτημα
+      if (ps.tap && Math.hypot(bx - ax, by - ay) < 6 / bd.page.view.k) break;
+      ps.tap = false;
+      bd.page.items[i] = moveSim(o, bx - ax, by - ay);
+      bd.redraw();
+      break;
+    }
     case 'kid': {
       const cur = bd.page.items.find((x) => x.id === ps.kidOrig?.id);
       if (cur && cur.kind === 'stamp' && bd.kidPaint(ps, cur, wx, wy, false)) bd.redraw();
@@ -802,6 +829,17 @@ export function up(bd: Board, e: PointerEvent): void {
       ps.kidOrig = undefined;
       bd.redraw();
       bd.onUi();
+      return;
+    }
+    case 'sim': {
+      const before = ps.orig;
+      ps.orig = undefined;
+      const after = before && bd.page.items.find((x) => x.id === before.id);
+      if (!before || before.kind !== 'stamp' || !after) return;
+      // απλό πάτημα: οι τιμές ανοίγουν για να αλλάξουν· σύρσιμο: η νέα θέση του πλαισίου, με αναίρεση
+      if (ps.tap || after === before) bd.onSimRequest(before);
+      else bd.push({ t: 'mod', p: bd.cur, before, after });
+      bd.redraw();
       return;
     }
     case 'osc': {

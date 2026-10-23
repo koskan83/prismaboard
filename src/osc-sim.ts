@@ -145,16 +145,52 @@ export function num(v: number): string {
   return (Object.is(r, -0) ? 0 : r).toLocaleString(locale, { maximumFractionDigits: 6 });
 }
 
+/** Ο αριθμός είναι (σχεδόν ακριβώς) αυτός, ώστε να μη γράφεται «π» από σύμπτωση. */
+const same = (a: number, b: number): boolean => Math.abs(a - b) <= 1e-9 * Math.max(Math.abs(a), Math.abs(b));
+
+/** Ο συντελεστής του π σε απλή μορφή: [αριθμητής, παρονομαστής] (2, π/2, 3π/4, 2π/7) ή δεκαδικός (0,2π)· null αν δεν είναι απλός. */
+function coef(c: number): [string, number] | null {
+  // ακέραιος ή κλάσμα με μικρό παρονομαστή (π/5, π/10)· τα 3/10, 2/5 γράφονται όπως στα βιβλία, 0,3π
+  for (let q = 1; q <= 12; q++) {
+    const p = Math.round(c * q);
+    if (p === 0 || !same(p / q, c)) continue;
+    if (q <= 4 || p === 1 || !same(Number(c.toPrecision(3)), c)) return [String(p), q];
+    break;
+  }
+  if (same(Number(c.toPrecision(3)), c)) return [num(c), 1];
+  return null;
+}
+
+/**
+ * Τιμή που βγαίνει με π, όπως τη γράφει ο δάσκαλος: «2π», «π/2», «1/(2π)», «4π²», «0,2π ≈ 0,628»· αλλιώς όπως num().
+ * Το «≈» μπαίνει όταν η μορφή δεν είναι απλό πολλαπλάσιο ή κλάσμα του π.
+ */
+export function piNum(v: number): string {
+  if (!isFinite(v) || v <= 0 || same(Number(v.toPrecision(3)), v)) return num(v);
+  for (const n of [1, -1, 2, -2]) {
+    const c = coef(v / Math.PI ** n);
+    if (!c) continue;
+    const [p, q] = c;
+    const pi = Math.abs(n) === 2 ? 'π²' : 'π';
+    let s: string;
+    if (n > 0) s = `${p === '1' ? '' : p}${pi}${q > 1 ? `/${q}` : ''}`;
+    else s = q > 1 ? `${p}/(${q}${pi})` : `${p}/${pi}`;
+    const plain = n === 1 && /^\d+$/.test(p);
+    return plain ? s : `${s} ≈ ${num(v)}`;
+  }
+  return num(v);
+}
+
 /**
  * Ό,τι βγαίνει από τα δεδομένα, μία τιμή ανά στοιχείο: πρώτα τα βασικά που δεν δόθηκαν (k, m, L, A), μετά T, f, ω, υmax, amax, E
- * (και Δl στο κατακόρυφο). Ό,τι δόθηκε ήδη δεν ξαναγράφεται.
+ * (και Δl στο κατακόρυφο). Ό,τι δόθηκε ήδη δεν ξαναγράφεται· ό,τι βγαίνει με π κρατά το π («T = 2π s»).
  */
 export function simLines(s: OscSim | undefined, pendulum: boolean, vertical = false): string[] {
   if (!s) return [];
   const r = solve(s, pendulum, vertical);
   const out: string[] = [];
   const add = (k: Key, v: number | undefined): void => {
-    if (v !== undefined && s[k] === undefined) out.push(`${NAME[k][0]} = ${num(v)} ${NAME[k][1]}`);
+    if (v !== undefined && s[k] === undefined) out.push(`${NAME[k][0]} = ${piNum(v)} ${NAME[k][1]}`);
   };
   if (pendulum) add('L', r.L);
   else add('k', r.k);

@@ -9,7 +9,7 @@ import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
 import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, lineAngleMark, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
 import { locale, t as tr } from './i18n';
-import { simBox, simFont, simRows } from './board-springs';
+import { simBox, simClose, simFont, simRows } from './board-springs';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -792,7 +792,7 @@ export class Renderer {
     const r = simRows(this.b, s);
     const b = r && simBox(this.b, s);
     if (!r || !b) return;
-    const { rows, fs, y0 } = r;
+    const { rows, fs, x0, y0 } = r;
     // αχνό πλαίσιο: δείχνει ότι οι τιμές πατιούνται για να αλλάξουν
     c.save();
     c.globalAlpha = 0.3;
@@ -808,9 +808,27 @@ export class Renderer {
     rows.forEach((row, i) => {
       // πρώτη γραμμή τα δεδομένα, πιο έντονα· από κάτω ό,τι υπολογίζεται από αυτά
       c.globalAlpha = i === 0 ? 1 : 0.85;
-      c.fillText(row, 0, y0 + i * fs * 1.35);
+      c.fillText(row, x0, y0 + i * fs * 1.35);
     });
     c.globalAlpha = 1;
+    // επιλεγμένο: ✕ στη γωνία για να σβηστεί το πλαίσιο (σύρεται από οπουδήποτε)
+    const x = this.b.selected === s.id ? simClose(this.b, s) : null;
+    if (x) {
+      c.save();
+      c.fillStyle = '#e11d48';
+      c.beginPath();
+      c.arc(x.x, x.y, x.r, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = '#fff';
+      c.lineWidth = Math.max(1.5, x.r * 0.22);
+      c.lineCap = 'round';
+      const d = x.r * 0.42;
+      c.beginPath();
+      c.moveTo(x.x - d, x.y - d); c.lineTo(x.x + d, x.y + d);
+      c.moveTo(x.x + d, x.y - d); c.lineTo(x.x - d, x.y + d);
+      c.stroke();
+      c.restore();
+    }
   }
 
   private drawTrig(c: CanvasRenderingContext2D, t: TrigItem): void {
