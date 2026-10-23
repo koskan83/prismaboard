@@ -122,6 +122,11 @@ const PROMPT_EL: Record<AiTask, string> = {
     '(a triangle for an inclined plane, a tilted box on an incline, a curved path approximated by points, a zigzag spring).\n' +
     'T x y text : a short label centred at (x,y): a symbol or a symbol with its given value, e.g. "m = 2 kg", "F = 10 N", "υ₀", "θ = 30°", "h = 5 m", "A", "B". ' +
     'Greek letters and Unicode subscripts are allowed, no LaTeX. Put each label next to what it names, not on top of lines.\n' +
+    'S name x y w pairs : one of the ready-made textbook drawings listed at the end, with its top-left corner at (x,y) and w wide (its height follows the proportions given in the list). ' +
+    'Whenever the statement describes one of them (an inclined plane, a spring, a pendulum, a pulley, a collision…) use it instead of drawing it with lines, and add only what it lacks (forces, extra bodies, labels). ' +
+    'After w write pairs separated by ";" with the values of the statement: for a drawing that oscillates its given data, e.g. "S spring 10 20 70 m=0.2 kg; k=80 N/m; A=5 cm"; ' +
+    'for the others a letter of the drawing and what to write in its place, e.g. "S incline 10 15 75 φ=30°; m=2 kg". Values the drawing has no letter for go in T labels.\n' +
+    'Always write the given values of the statement (with their units) in the figure, next to what they belong to.\n' +
     'Keep it simple and schematic, like a clean textbook sketch: usually 4 to 15 commands. Make it large: use most of the canvas. Tilted boxes must sit exactly on the incline line. ' +
     'Example for "a box of mass 2 kg is pulled on horizontal ground by a horizontal force of 10 N":\n' +
     'L 5 50 95 50\nR 35 34 59 50\nT 47 42 m = 2 kg\nA 59 42 85 42 red\nT 74 36 F = 10 N\n' +
@@ -183,10 +188,12 @@ function clean(t: string): string {
 }
 
 /** Στέλνει την εικόνα (PNG) για αναγνώριση. Επιστρέφει κείμενο ή LaTeX· κενό αν δεν διαβάστηκε τίποτα. */
-export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise<string> {
+/** `extra`: ό,τι προστίθεται στο τέλος της εντολής (π.χ. ο κατάλογος των έτοιμων σχημάτων για το «figure»). */
+export async function recognize(png: Blob, kind: AiTask, s: AiSettings, extra = ''): Promise<string> {
   const key = s.keys[s.provider];
   if (!key) throw new Error(t('Δεν έχει οριστεί κλειδί', 'No key has been set'));
   const data = await toBase64(png);
+  const prompt = extra ? `${PROMPT[kind]}\n${extra}` : PROMPT[kind];
   const model = s.models[s.provider];
   let res: Response;
   // ο browser λέει «Failed to fetch» (αγγλικά, χωρίς εξήγηση) όταν δεν υπάρχει δίκτυο
@@ -196,7 +203,7 @@ export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: 'image/png', data } }, { text: PROMPT[kind] }] }],
+        contents: [{ parts: [{ inline_data: { mime_type: 'image/png', data } }, { text: prompt }] }],
         generationConfig: { temperature: 0 },
       }),
     });
@@ -214,7 +221,7 @@ export async function recognize(png: Blob, kind: AiTask, s: AiSettings): Promise
         max_tokens: kind === 'solve' ? 3000 : kind === 'check' ? 2000 : 1024,
         messages: [{
           role: 'user',
-          content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data } }, { type: 'text', text: PROMPT[kind] }],
+          content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data } }, { type: 'text', text: prompt }],
         }],
       }),
     });
@@ -272,10 +279,12 @@ export type FigCmd =
   | { k: 'rect'; pts: [number, number, number, number] }
   | { k: 'circle'; x: number; y: number; r: number }
   | { k: 'poly'; pts: [number, number][] }
-  | { k: 'text'; x: number; y: number; text: string };
+  | { k: 'text'; x: number; y: number; text: string }
+  /** Έτοιμο σχήμα (STAMPS) με πάνω αριστερή γωνία (x, y) και πλάτος w· vals: γράμμα και τι γράφεται στη θέση του, ή δεδομένα ταλάντωσης. */
+  | { k: 'stamp'; name: string; x: number; y: number; w: number; vals: [string, string][] };
 
 /**
- * Διαβάζει την απάντηση για σχήμα (γραμμές «L», «D», «A», «R», «C», «P», «T»). null όταν η εκφώνηση δεν χρειάζεται σχήμα («NONE»)·
+ * Διαβάζει την απάντηση για σχήμα (γραμμές «L», «D», «A», «R», «C», «P», «T», «S»). null όταν η εκφώνηση δεν χρειάζεται σχήμα («NONE»)·
  * ό,τι δεν καταλαβαίνει ή πέφτει πολύ έξω από τον καμβά το αφήνει.
  */
 export function parseFigureReply(text: string): FigCmd[] | null {
@@ -283,7 +292,7 @@ export function parseFigureReply(text: string): FigCmd[] | null {
   const out: FigCmd[] = [];
   const ok = (v: number): boolean => Number.isFinite(v) && v >= -20 && v <= 120;
   for (const raw of text.split('\n')) {
-    const m = /^\s*([LDARCPT])\s*:?\s+(.+?)\s*$/.exec(raw.replace(/[`*]/g, ''));
+    const m = /^\s*([LDARCPTS])\s*:?\s+(.+?)\s*$/.exec(raw.replace(/[`*]/g, ''));
     if (!m || out.length >= 40) continue;
     const k = m[1];
     if (k === 'T') {
@@ -292,6 +301,15 @@ export function parseFigureReply(text: string): FigCmd[] | null {
       const x = Number(t[1].replace(',', '.')), y = Number(t[2].replace(',', '.'));
       const label = t[3].replace(/^["«]|["»]$/g, '').trim().slice(0, 40);
       if (ok(x) && ok(y) && label) out.push({ k: 'text', x, y, text: label });
+      continue;
+    }
+    if (k === 'S') {
+      // «S incline 10 15 75 φ=30°; m=2 kg»: το όνομα, η θέση, το πλάτος και ζευγάρια γράμμα=τιμή
+      const t = /^([A-Za-z]\w*)\s+(-?[\d.]+)\s+(-?[\d.]+)\s+([\d.]+)\s*(.*)$/.exec(m[2]);
+      if (!t) continue;
+      const [x, y, w] = [Number(t[2]), Number(t[3]), Number(t[4])];
+      const vals = t[5].split(/[;\n]/).map((p) => /^\s*([^=]+?)\s*=\s*(.+?)\s*$/.exec(p.replace(/^["«]|["»]$/g, ''))).filter((v) => !!v).map((v): [string, string] => [v![1], v![2].slice(0, 30)]);
+      if (ok(x) && ok(y) && w > 2 && w <= 100) out.push({ k: 'stamp', name: t[1], x, y, w, vals });
       continue;
     }
     const nums: number[] = [];

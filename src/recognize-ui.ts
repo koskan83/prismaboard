@@ -14,6 +14,7 @@ import { isEn, t } from './i18n';
 import { androidSay, androidSpeaking, androidStopSay, androidVoiceHelp } from './android';
 import { isAndroidApp } from './platform';
 import { dataLine, parseSim } from './osc-sim';
+import { figureCatalog, figureStamp } from './figure-stamps';
 
 export const ai = loadAi();
 const aiMenu = $('aiMenu');
@@ -146,6 +147,9 @@ export function figureItems(cmds: FigCmd[], x: number, y: number, f: number, ink
     } else if (c.k === 'poly') {
       // ευθείες μία μία και όχι γραμμή γραφής: οι γωνίες μένουν αιχμηρές και κάθε πλευρά διορθώνεται χωριστά
       for (let i = 0; i + 1 < c.pts.length; i++) items.push({ kind: 'shape', id: uid(), shape: 'line', x0: X(c.pts[i][0]), y0: Y(c.pts[i][1]), x1: X(c.pts[i + 1][0]), y1: Y(c.pts[i + 1][1]), color: ink, width });
+    } else if (c.k === 'stamp') {
+      const it = figureStamp(c, X(c.x), Y(c.y), c.w * f, ink);
+      if (it) items.push(it);
     } else {
       // η ετικέτα δίνεται με το κέντρο της· το κείμενο του πίνακα μετριέται από πάνω αριστερά
       const w = [...c.text].length * size * 0.52;
@@ -258,7 +262,8 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
   aiBusy++;
   toast(kind === 'spell' ? t('✨ Ορθογραφία…', '✨ Spelling…') : kind === 'graph' ? t('✨ Γραφική παράσταση…', '✨ Graph…') : kind === 'figure' ? t('✨ Σχήμα…', '✨ Drawing…') : kind === 'solve' ? t('✨ Λύνεται…', '✨ Solving…') : kind === 'check' ? t('✨ Ελέγχεται…', '✨ Checking…') : t('✨ Αναγνώριση…', '✨ Recognizing…'), 0);
   try {
-    const out = await recognize(img.blob, kind, ai);
+    // για σχήμα: και ο κατάλογος με τα έτοιμα σχήματα Φυσικής, που το AI τα προτιμά από γραμμές
+    const out = await recognize(img.blob, kind, ai, kind === 'figure' ? `Ready-made drawings for S (name: what it is, width×height, letters it shows):\n${figureCatalog()}` : '');
     if (kind === 'graph') {
       if (moved()) toast(t('Άλλαξες σελίδα ή μάθημα· η γραφική παράσταση δεν μπήκε', 'You changed page or lesson; the graph was not added'));
       else plotReply(out);
