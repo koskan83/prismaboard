@@ -491,6 +491,7 @@ export function mountUi(app: HTMLElement): void {
         <div><i>${I.send}</i><b>${t('Στο τέλος, ένα QR', 'At the end, a QR code')}</b><span>${t('☰ → «Τέλος μαθήματος»: οι μαθητές σκανάρουν και παίρνουν το μάθημα σε PDF.', '☰ → “End of lesson”: students scan it and get the lesson as a PDF.')}</span></div>
       </div>
       <div id="wLevel"><span>${t('Για ποιες τάξεις;', 'Which grades?')}</span><button data-level="primary"><b>${t('Δημοτικό', 'Primary school')}</b><small>${t('Απλή γραμμή εργαλείων, αριθμογραμμή, κλάσματα, ρολόι, ζυγαριά', 'Simple toolbar, number line, fractions, clock, balance')}</small></button><button data-level="secondary"><b>${t('Γυμνάσιο – Λύκειο', 'Secondary school')}</b><small>${t('Συναρτήσεις, μετρήσεις, φυσική, λύση ασκήσεων', 'Functions, measurements, physics, solving exercises')}</small></button></div>
+      <div id="wPriv">🔒 ${t('Δεν συλλέγουμε κανένα δεδομένο: τα μαθήματά σου μένουν μόνο σε αυτή τη συσκευή. Τίποτα δεν στέλνεται πουθενά, εκτός αν το ζητήσεις εσύ (π.χ. Google Drive, AI, «Πρόβλημα ή πρόταση»).', 'We collect no data: your lessons stay on this device only. Nothing is sent anywhere unless you ask for it (e.g. Google Drive, AI, “Problem or idea”).')} <a href="./privacy.html" target="_blank" rel="noopener">${t('Απόρρητο', 'Privacy')}</a></div>
       <div id="wActs"><button id="wHelp">${t('Πλήρεις οδηγίες', 'Full guide')}</button><button id="wGo" class="go">${t('Ξεκίνα', 'Get started')}</button></div>
     </div>
   </div>

@@ -88,6 +88,9 @@ export interface LessonHost {
   toast(msg: string, ms?: number, action?: { label: string; run: () => void }): void;
 }
 
+/** Η επιλογή «＋ Νέο τμήμα…» στο κουτί του «Τι κάνουμε σήμερα;»: με κενό μπροστά, όπως δεν μπορεί να είναι όνομα τμήματος (κόβονται τα κενά). */
+const NEW_GROUP = ' new';
+
 
 function esc(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -230,23 +233,26 @@ export class Lessons {
     // μία μόνο άγραφη σελίδα: δεν υπάρχει κάτι να συνεχίσεις ή να διαλέξεις
     if (this.index.length === 1 && this.host.getDoc().pages.every((p) => p.items.length === 0)) return;
     const when = (ms: number): string => new Date(ms).toLocaleDateString(LOC, { weekday: 'long', day: 'numeric', month: 'long' });
-    const last = (g: string): LessonMeta | undefined => this.index.filter((m) => m.group === g).sort((a, b) => b.updated - a.updated)[0];
-    const rows = this.groups
-      .map((g) => ({ g, m: last(g)! }))
-      .sort((a, b) => b.m.updated - a.m.updated)
-      .slice(0, 6)
-      .map(({ g, m }) => `<div class="row"><span class="grp">${esc(g)}</span>
-        <button data-st="new" data-g="${esc(g)}">${t('＋ Νέο μάθημα', '＋ New lesson')}</button>
-        ${m.id === cur.id ? '' : `<button data-st="open" data-id="${esc(m.id)}" class="last"><small>${t('Τελευταίο', 'Latest')} · ${new Date(m.updated).toLocaleDateString(LOC, { day: 'numeric', month: 'numeric' })}</small>${esc(m.name)}</button>`}</div>`)
-      .join('');
+    // το τμήμα του νέου μαθήματος: ένα κουτί αντί για μία γραμμή ανά τμήμα, για να χωρούν και πολλά τμήματα
+    const opts = this.groups.map((g) => `<option value="${esc(g)}"${g === cur.group ? ' selected' : ''}>${esc(g)}</option>`).join('');
     this.startEl.querySelector('#stBox')!.innerHTML = `
       <div id="stHead"><b>${new Date().getHours() < 12 ? t('Καλημέρα', 'Good morning') : t('Καλησπέρα', 'Good afternoon')}! ${t('Τι κάνουμε σήμερα;', 'What are we doing today?')}</b><span>${when(Date.now())}</span></div>
       <button id="stCont" data-st="cont">
         <span class="th">${cur.thumb ? `<img src="${esc(cur.thumb)}" alt="" />` : ''}</span>
         <span class="tx"><small>${t('Συνέχισε από εκεί που έμεινες', 'Pick up where you left off')}</small><b>${cur.group ? `<i class="grp">${esc(cur.group)}</i>` : ''}${esc(cur.name)}</b><small>${when(cur.updated)} · ${cur.pages} ${cur.pages === 1 ? t('σελίδα', 'page') : t('σελίδες', 'pages')}</small></span>
       </button>
-      ${rows ? `<div id="stGroups">${rows}</div>` : ''}
-      <div id="stActs"><button data-st="lib">${t('Όλα τα μαθήματα', 'All lessons')}</button><button data-st="new" data-g="" class="go">${t('＋ Νέο μάθημα', '＋ New lesson')}</button></div>`;
+      <div id="stActs"><button data-st="lib">${t('Όλα τα μαθήματα', 'All lessons')}</button>
+        <span class="newLesson"><select id="stGroup" title="${t('Το τμήμα του νέου μαθήματος', 'Class for the new lesson')}"><option value="">${t('Χωρίς τμήμα', 'No class')}</option>${opts}<option value="${NEW_GROUP}">${t('＋ Νέο τμήμα…', '＋ New class…')}</option></select>
+        <button data-st="new" class="go">${t('＋ Νέο μάθημα', '＋ New lesson')}</button></span></div>`;
+    const sel = this.startEl.querySelector<HTMLSelectElement>('#stGroup')!;
+    let picked = sel.value;
+    sel.onchange = async () => {
+      if (sel.value !== NEW_GROUP) return void (picked = sel.value);
+      const g = (await ask(t('Όνομα νέου τμήματος', 'New class name'), { hint: t('π.χ. Β2 ή Φυσική Γ', 'e.g. 2B or Physics C') }))?.trim();
+      if (!g) return void (sel.value = picked);
+      if (![...sel.options].some((o) => o.value === g)) sel.lastElementChild!.before(new Option(g, g));
+      sel.value = picked = g;
+    };
     // το τερατάκι λέει την καλημέρα
     this.startEl.querySelector('#stHead')!.prepend(mascot(76, 1.4));
     this.startEl.classList.remove('hidden');
@@ -257,15 +263,12 @@ export class Lessons {
     const b = t.closest<HTMLElement>('[data-st]');
     // πάτημα έξω από το πλαίσιο: συνεχίζεις όπως ήσουν
     if (!b && t !== this.startEl) return;
+    const group = this.startEl.querySelector<HTMLSelectElement>('#stGroup')?.value ?? '';
     this.startEl.classList.add('hidden');
     const act = b?.dataset.st;
     if (act === 'lib') return this.open();
-    if (act === 'open' && b!.dataset.id && b!.dataset.id !== this.cur) {
-      await this.flush(false);
-      return this.show(b!.dataset.id);
-    }
     if (act === 'new') {
-      const g = b!.dataset.g ?? '';
+      const g = group === NEW_GROUP ? '' : group;
       await this.flush(false);
       const meta = await this.add(newDoc(), this.defaultName(g));
       if (g) {

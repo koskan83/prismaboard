@@ -504,6 +504,8 @@ body.dark #wHead .onLight { display: block; }
 #wCards i svg { width: 26px; height: 26px; }
 #wCards b { font-size: 19px; align-self: center; }
 #wCards span { font-size: 16px; line-height: 1.4; opacity: .85; }
+#wPriv { font-size: 16px; line-height: 1.4; padding: 10px 14px; border-radius: 14px; background: var(--bar-2); opacity: .9; }
+#wPriv a { color: inherit; }
 #wActs { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 #wActs button { font: inherit; font-size: 18px; color: inherit; border: 0; cursor: pointer; padding: 14px 22px; border-radius: 14px; background: var(--bar-2); }
 #wActs button.go { background: var(--ok); color: #fff; font-weight: 600; padding: 14px 44px; }
@@ -525,16 +527,15 @@ body.dark #wHead .onLight { display: block; }
 #stCont b { font-size: 24px; overflow: hidden; text-overflow: ellipsis; }
 #start .grp { display: inline-block; padding: 2px 12px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 17px; font-weight: 600; font-style: normal; }
 #stCont .grp { margin-right: 8px; font-size: 15px; vertical-align: 3px; }
-#stGroups { display: flex; flex-direction: column; gap: 8px; }
-#stGroups .row { display: flex; align-items: center; gap: 8px; }
-#stGroups .grp { flex: none; min-width: 64px; text-align: center; }
-#stGroups button { height: 58px; padding: 0 18px; border-radius: 14px; background: var(--bar-2); font-size: 18px; white-space: nowrap; }
-#stGroups button.last { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; overflow: hidden; text-overflow: ellipsis; }
-#stGroups button.last small { font-size: 14px; opacity: .7; }
-#stActs { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
-#stActs button { font-size: 18px; padding: 14px 22px; border-radius: 14px; background: var(--bar-2); }
+/* όλα σε μία γραμμή· το κουτί του τμήματος στενεύει πρώτο */
+#stActs { display: flex; gap: 10px; justify-content: flex-end; align-items: stretch; }
+#stActs button { flex: none; font-size: 18px; padding: 14px 22px; border-radius: 14px; background: var(--bar-2); white-space: nowrap; }
 #stActs button.go { background: var(--ok); color: #fff; font-weight: 600; }
-@media (max-width: 640px) { #stCont .th { width: 110px; } #stGroups .row { flex-wrap: wrap; } }
+#stActs .newLesson { display: flex; gap: 10px; min-width: 0; }
+#stGroup { width: 200px; min-width: 90px; flex: 0 1 auto; font: inherit; font-size: 18px; color: inherit; padding: 0 14px; border-radius: 14px; border: 2px solid var(--accent); background: var(--bar-2); cursor: pointer; }
+#stGroup option { background: var(--bar); color: var(--fg); }
+/* κινητό: «Όλα τα μαθήματα» από πάνω, τμήμα και νέο μάθημα μαζί από κάτω */
+@media (max-width: 640px) { #stCont .th { width: 110px; } #stActs { flex-wrap: wrap; } #stActs .newLesson { flex: 1 1 100%; } #stGroup { flex: 1; } }
 @media print { #start { display: none !important; } }
 #libGroups button.roster { margin-left: auto; border-radius: 12px; background: var(--bar-3); }
 .askText { min-height: 0; height: min(46vh, 420px); padding: 12px 16px; border-radius: 14px; border: 2px solid var(--bar-3); background: var(--bar-2); color: var(--fg); font: inherit; font-size: 22px; line-height: 1.35; resize: none; }

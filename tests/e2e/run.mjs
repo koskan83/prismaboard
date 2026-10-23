@@ -1002,7 +1002,9 @@ test('Πρώτο άνοιγμα της μέρας: «Τι κάνουμε σήμ�
   await page.reload();
   await page.waitForSelector('#start:not(.hidden)');
   assert((await page.textContent('#stCont')).includes('Δοκιμή Β2 νέο'), 'δεν προτείνει να συνεχίσεις το τελευταίο μάθημα');
-  await page.click('#stGroups [data-st="new"][data-g="Β2"]');
+  // το τμήμα διαλέγεται από το κουτί δίπλα στο «＋ Νέο μάθημα»
+  await page.selectOption('#stGroup', 'Β2');
+  await page.click('#stActs [data-st="new"]');
   await page.waitForFunction(() => document.getElementById('lessonName').textContent.startsWith('Β2 '));
   assert(!(await visible('#start')), 'η οθόνη έναρξης δεν έκλεισε');
   assert((await items()).length === 0, 'το νέο μάθημα δεν είναι άδειο');
