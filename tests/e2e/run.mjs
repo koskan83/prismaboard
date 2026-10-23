@@ -37,6 +37,8 @@ const ctx = await browser.newContext({ viewport: { width: 1280, height: 760 }, a
 // τα αρχεία κατεβαίνουν στις Λήψεις, χωρίς την ερώτηση για φάκελο και χωρίς αντίγραφο στο Drive (εκτός από το σενάριο που τα δοκιμάζει)
 await ctx.addInitScript(() => {
   try {
+    // beta: οι πάνω μπάρες μένουν ανοιχτές (📌), αλλιώς μαζεύονται με το πρώτο γράψιμο και τα κουμπιά τους κρύβονται· τις δοκιμάζει ένα δικό τους σενάριο
+    if (!localStorage.getItem('grafida.topPin')) localStorage.setItem('grafida.topPin', '1');
     if (!localStorage.getItem('grafida.files')) localStorage.setItem('grafida.files', 'downloads');
     if (!localStorage.getItem('grafida.files.drive')) localStorage.setItem('grafida.files.drive', '0');
   } catch { /* χωρίς αποθήκευση */ }
@@ -559,6 +561,21 @@ test('Διαγραφή σελίδας με «Αναίρεση»· το Esc κλ�
   assert(JSON.stringify(after.pages) === JSON.stringify(before.pages), 'η «Αναίρεση» δεν έφερε τη σελίδα πίσω όπως ήταν');
   assert((await page.textContent('#pageLabel')) === label, 'μετά την αναίρεση δεν είμαστε στην ίδια σελίδα');
   assert(opened && !(await visible('#gadgetMenu')), 'το Esc δεν έκλεισε τα Όργανα');
+});
+
+if (process.env.VITE_CHANNEL === 'beta') test('Beta: οι πάνω μπάρες μαζεύονται όταν γράφεις και ανοίγουν ξανά με το ποντίκι από πάνω τους', async () => {
+  const quiet = () => page.evaluate(() => document.body.classList.contains('quiet'));
+  await page.click('#topPin');
+  await pen();
+  await drag(500, 400, 640, 430);
+  const folded = await quiet();
+  const nameHidden = !(await visible('#lessonName'));
+  await page.hover('#menuBtn');
+  const woke = !(await quiet());
+  await page.click('#undo');
+  await page.click('#topPin');
+  assert(folded && nameHidden, 'οι πάνω μπάρες δεν μαζεύτηκαν με το γράψιμο');
+  assert(woke, 'το ποντίκι πάνω στο ☰ δεν άνοιξε ξανά τις μπάρες');
 });
 
 test('Εξαγωγή σε PDF μόνο της τρέχουσας σελίδας', async () => {
