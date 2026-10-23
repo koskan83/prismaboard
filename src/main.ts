@@ -1099,7 +1099,7 @@ function showUsage(): Promise<void> {
 }
 
 // μόνο τα τρία τελευταία νέα· τα υπόλοιπα με ένα πάτημα
-const showNews = (): Promise<void> => notice(t('Τι νέο στο PrismaBoard', "What's new in PrismaBoard"), NEWS.slice(0, 3), { hint: t(`Έκδοση ${VERSION}`, `Version ${VERSION}`), more: NEWS.slice(3) });
+const showNews = (): Promise<void> => notice(t('Τι νέο στο PrismaBoard', "What's new in PrismaBoard"), NEWS, { hint: t(`Έκδοση ${VERSION}`, `Version ${VERSION}`) });
 $('verLine').textContent = $('verMain').textContent = t(`Έκδοση ${VERSION}`, `Version ${VERSION}`);
 // οι οδηγίες ως σελίδα, με κινούμενα κλιπ· το PDF μένει για εκτύπωση
 $('wHelp').onclick = () => openPage('./odigies.html');
