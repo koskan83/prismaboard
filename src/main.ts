@@ -627,8 +627,8 @@ gadgetMenu.addEventListener('click', (e) => {
     closePopups();
     board.addStamp(kidTool);
     refreshUi();
-    // τα κυβάκια ανοίγουν κατευθείαν σε όλη την οθόνη· η πόρτα στο τέλος των υλικών γυρίζει στον πίνακα
-    if (kidTool === 'build' && board.selectionIds[0]) openBuildView(board, board.selectionIds[0], (ev) => kidFx(ev));
+    // τουβλάκια και κυβάκια και αριθμοί ανοίγουν κατευθείαν σε όλη την οθόνη· η πόρτα στο τέλος της μπάρας τα σβήνει από τη σελίδα
+    if ((kidTool === 'build' || kidTool === 'numcubes') && board.selectionIds[0]) openBuildView(board, board.selectionIds[0], (ev) => kidFx(ev), kidTool);
     // τα παιχνίδια (Συλλαβές, Ορθογραφία, Κρεμάλα) επίσης· η πόρτα πάνω δεξιά γυρίζει στον πίνακα
     const added = board.page.items.find((x) => x.id === board.selectionIds[0]);
     if (added && added.kind === 'stamp' && playsFull(added)) openGameView(board, added.id, (ev, at) => kidFx(ev, at.x, at.y, at, added.name));

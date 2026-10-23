@@ -4,11 +4,11 @@ import { t as tr } from '../i18n';
 import { type C, FONT, fullIcon, kid, rrect, text } from './common';
 
 /**
- * Χαρακτήρες από κυβάκια, 1 έως 1000, που ενώνονται (σύρεις το ένα πάνω στο άλλο), χωρίζονται (✂️), αλλάζουν σχήμα, χρώμα
+ * Χαρακτήρες από κυβάκια, 1 έως 726 (το NC_MAX: πιο πάνω ζορίζονται οι πίνακες της τάξης), που ενώνονται (σύρεις το ένα πάνω στο άλλο), χωρίζονται (✂️), αλλάζουν σχήμα, χρώμα
  * και φοράνε αξεσουάρ. Η σκηνή μετριέται σε κυβάκια (NC_W × NC_H), για να μη χρειάζεται το μέγεθος του κουτιού στο «άφημα».
  * Κατάσταση: [λειτουργία, επιλογή στην παλέτα, σημαίες σκηνής (S_*), και ανά χαρακτήρα NC_REC αριθμοί].
  */
-const NC_W = 28, NC_H = 13, NC_MAX = 1000, NC_ITEMS = 30, NC_HEAD = 3, NC_REC = 7;
+const NC_W = 28, NC_H = 13, NC_MAX = 726, NC_ITEMS = 30, NC_HEAD = 3, NC_REC = 7;
 /**
  * Σημαίες σκηνής: κρυφοί αριθμοί, ζυγαριά (η τιμή 2 ήταν η τραμπάλα: τα παλιά μαθήματα ανοίγουν με ζυγαριά),
  * εξίσωση με θέσεις, ο έλεγχος της απάντησης (σωστό / λάθος) και «έδειξε το αποτέλεσμα» (S_DONE). Τα bit 2–3 είναι το zoom.
@@ -69,7 +69,8 @@ export interface NCState { mode: number; sel: number; flags: number; cubes: NCub
 export function ncState(v: number[]): NCState {
   const cubes: NCube[] = [], z = ncZoom(v[2] ?? 0);
   for (let i = NC_HEAD; i + NC_REC <= v.length; i += NC_REC) {
-    const n = Math.max(1, Math.min(NC_MAX, v[i + 2] || 1));
+    // ως 1000, όπως ήταν το όριο παλιότερα: τα παλιά μαθήματα ανοίγουν με τους αριθμούς τους
+    const n = Math.max(1, Math.min(1000, v[i + 2] || 1));
     const e = { x: v[i], y: v[i + 1], n, h: Math.max(1, Math.min(n, v[i + 3] || Math.min(n, 10))), acc: v[i + 4] ?? 0, col: v[i + 5] ?? 0, f: v[i + 6] ?? 0 };
     ncFitH(e);
     // όσοι είναι σε θέση εξίσωσης σε μαθήματα με zoom, από την εποχή που η εξίσωση δεν απλωνόταν: πάνε στη μέση της θέσης τους
@@ -384,12 +385,16 @@ function ncZoomStep(s: NCState, dir: number): boolean {
   ncSetZoom(s, j);
   return true;
 }
-/** Πόσα κουμπιά έχει η πάνω σειρά της μπάρας σε κάθε λειτουργία: αριθμοί 1–10 ή αξεσουάρ. */
-const ncRowA = (mode: number): number => (mode === 4 ? NC_ACC.length : 10);
-/** Οι λειτουργίες της κάτω σειράς: ✋ μετακίνηση/ένωση, ✂️ χώρισμα, 🔄 σχήμα, 🎩 αξεσουάρ, 🧽 σβήσιμο ενός χαρακτήρα (το 3 ήταν το βάψιμο). */
-const NC_MODES = [0, 1, 2, 4, 5], NC_BTNS = ['✋', '✂️', '🔄', '🎩', '🧽'];
-/** Κουμπιά της κάτω σειράς μετά τις λειτουργίες (0–4): 🔢, ⚖️ ζυγαριά, + = εξίσωση, 🗑️, όλη η οθόνη. */
-const B_NUM = 5, B_SCALE = 6, B_EQ = 7, B_TRASH = 8, B_FULL = 9, NC_BAR = 10;
+/** Πόσα κουμπιά έχει η πάνω σειρά της μπάρας σε κάθε λειτουργία: αριθμοί 1–20 ή αξεσουάρ. */
+const NC_PICK = 20;
+const ncRowA = (mode: number): number => (mode === 4 ? NC_ACC.length : NC_PICK);
+/**
+ * Οι λειτουργίες της κάτω σειράς: ✋ μετακίνηση/ένωση, ✂️ χώρισμα, 🔄 σχήμα, 🎩 αξεσουάρ, 🧽 σβήσιμο ενός χαρακτήρα,
+ * 📑 αντίγραφο (πατάς το 50 και βγαίνει δίπλα του άλλο ένα 50). Το 3 ήταν το βάψιμο.
+ */
+const NC_MODES = [0, 1, 2, 4, 5, 6], NC_BTNS = ['✋', '✂️', '🔄', '🎩', '🧽', '📑'];
+/** Κουμπιά της κάτω σειράς μετά τις λειτουργίες (0–5): 🔢, ⚖️ ζυγαριά, + = εξίσωση, 🗑️, όλη η οθόνη. */
+const B_NUM = 6, B_SCALE = 7, B_EQ = 8, B_TRASH = 9, B_FULL = 10, NC_BAR = 11;
 /** + =: η εξίσωση μπαίνει (όσοι στέκονται πάνω από μια θέση κάθονται εκεί) ή φεύγει· δεν είναι ποτέ μαζί με τη ζυγαριά. */
 function ncEqToggle(s: NCState): void {
   if (s.flags & S_SCALE) ncScaleToggle(s);
@@ -452,7 +457,7 @@ function ncShow(s: NCState, a: NCube, b: NCube, r: NCube): void {
 /**
  * Πάτημα στο = της εξίσωσης. Με άδεια την τρίτη θέση, εμφανίζεται εκεί το αποτέλεσμα. Αν τα παιδιά έχουν βάλει ήδη
  * εκεί έναν χαρακτήρα (την απάντησή τους), ελέγχεται: σωστό (S_OK) ή λάθος (S_BAD). Λείπει αριθμός ή δεν βγαίνει
- * (αρνητικό, μη ακριβής διαίρεση, πάνω από το 1000): λάθος. Το × γίνεται ορθογώνιο και η ÷ καλάθια (βλ. ncShow).
+ * (αρνητικό, μη ακριβής διαίρεση, πάνω από το NC_MAX): λάθος. Το × γίνεται ορθογώνιο και η ÷ καλάθια (βλ. ncShow).
  */
 function ncSolve(s: NCState): void {
   const a = ncInSlot(s, 0), b = ncInSlot(s, 1), r = ncInSlot(s, 2);
@@ -1285,7 +1290,7 @@ function ncEquation(c: C, g: { S: number; ox: number; oy: number }, s: NCState):
 
 /** Η ανοχή της ένωσης (σε κυβάκια): ελάχιστο οριζόντιο κάλυμμα (ανά στήλη του στενότερου), ελάχιστο κάθετο, και πόσο πάνω από το κεφάλι. */
 const NC_JOIN_X = 0.35, NC_JOIN_Y = 0.25, NC_JOIN_UP = 1.5;
-/** Ο χαρακτήρας που μόλις αφέθηκε: στον κάδο σβήνεται, πάνω σε άλλον ενώνονται (ως το 1000), αλλιώς μένει εκεί. */
+/** Ο χαρακτήρας που μόλις αφέθηκε: στον κάδο σβήνεται, πάνω σε άλλον ενώνονται (ως το NC_MAX), αλλιώς μένει εκεί. */
 export function ncDrop(v: number[]): { v: number[]; ev: string } | null {
   const s = ncState(v), j = s.cubes.findIndex((e) => e.f & F_HELD);
   if (j < 0) return null;
@@ -1371,7 +1376,9 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
         if (s.mode === 4) ncAccIcon(c, k, cx, ya, ps);
         else {
           const n = k + 1;
-          ncChip(c, cx, ya, ps, n === 7 ? RAINBOW : [n === 10 ? '#ffffff' : NC_NUM[n]], n === 10 ? '#dc2626' : n === 7 ? '#475569' : darker(NC_NUM[n]), String(n));
+          // από το 10: άσπρο με το περίγραμμα της δεκάδας του (10–19 κόκκινο, 20 πορτοκαλί), όπως οι δεκάδες των χαρακτήρων
+          if (n >= 10) ncChip(c, cx, ya, ps, ['#ffffff'], NC_TENS[Math.floor(n / 10)], String(n));
+          else ncChip(c, cx, ya, ps, n === 7 ? RAINBOW : [NC_NUM[n]], n === 7 ? '#475569' : darker(NC_NUM[n]), String(n));
         }
         if (s.mode === 4 && k === s.sel) frame(cx, ya, ps);
       }
@@ -1534,6 +1541,17 @@ export const NUMCUBE_KIDS: Record<string, StampDef> = {
       if (s.mode === 5) {
         // 🧽: σβήνει μόνο αυτόν τον χαρακτήρα
         s.cubes.splice(j, 1);
+        return ncPack(s);
+      }
+      if (s.mode === 6) {
+        // 📑: ίδιος χαρακτήρας (σχήμα, χρώμα, αξεσουάρ) πάνω στο γρασίδι, δεξιά του· όχι πάνω του, αλλιώς θα ενώνονταν
+        if (s.cubes.length >= NC_ITEMS) return v;
+        const b = ncBox(e, th), z = ncZoom(s.flags);
+        const copy: NCube = { ...e, x: Math.round((b.x1 + ncCols(e) / 2 + 0.5) * 10), y: NC_H * 10, f: 0 };
+        // δεν χωρά δεξιά: μπαίνει αριστερά του
+        if (copy.x / 10 + ncCols(e) / 2 > ncView(z).x1) copy.x = Math.round((b.x0 - ncCols(e) / 2 - 0.5) * 10);
+        ncClamp(copy, z);
+        s.cubes.push(copy);
         return ncPack(s);
       }
       if (s.mode === 2) {

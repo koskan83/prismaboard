@@ -7,9 +7,6 @@ import type { Board } from './board';
 import { STAMPS } from './stamps';
 
 const COLS = 24, ROWS = 14;
-/** Εργαλεία που η πόρτα τα γυρίζει στον πίνακα αντί να τα σβήσει. */
-const ON_BOARD = new Set(['numcubes']);
-
 export function openBuildView(board: Board, id: string, onFx: (ev: string) => void = () => {}, name = 'build'): void {
   const d = STAMPS[name];
   let v = board.kidState(id);
@@ -80,8 +77,8 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     removeEventListener('keydown', key, true);
     document.body.classList.remove('building');
     root.remove();
-    // τα τουβλάκια φεύγουν από τη σελίδα (με αναίρεση)· τα κυβάκια και αριθμοί παίζονται και μέσα στον πίνακα, οπότε μένουν
-    if (!ON_BOARD.has(name)) board.dismissKid(id);
+    // φεύγουν από τη σελίδα (με αναίρεση), δεν μένουν μικρά στον πίνακα
+    board.dismissKid(id);
   };
   const key = (e: KeyboardEvent): void => {
     e.stopPropagation();

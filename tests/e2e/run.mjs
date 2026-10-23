@@ -1235,26 +1235,29 @@ test('Όλο το χέρι (5 δάχτυλα) πάνω στον πίνακα: τ
   assert(flat(s2), 'η αναίρεση δεν γύρισε τη γραμμή όπως ήταν');
 });
 
-test('Κυβάκια και αριθμοί μέσα στον πίνακα: σέρνεις το 2 πάνω στο 3 και γίνονται 5, με μία αναίρεση', async () => {
+test('Κυβάκια και αριθμοί: ανοίγουν σε όλη την οθόνη, η έξοδος τα σβήνει και η αναίρεση τα φέρνει πίσω', async () => {
   const level = async () => { await page.click('#menuBtn'); await page.click('#menu [data-act="level"]'); };
   const kid = async () => (await items()).find((i) => i.kind === 'stamp' && i.name === 'numcubes');
   await level();
   await page.click('#gadgetBtn');
   await page.click('#gTabs [data-gtab="play"]');
   await page.click('#gadgetMenu .tiles:not(#recentTiles) [data-kid="numcubes"]');
-  const box = await kid();
-  // ίδια γεωμετρία με το ncGeom: σκηνή 28 × 13 κυβάκια πάνω από τη μπάρα (22% του ύψους)
-  const S = Math.min(box.w / 28, (box.h * 0.78) / 13), ox = box.x + (box.w - 28 * S) / 2, oy = box.y + box.h * 0.78 - 13 * S;
-  const at = (n) => [ox + (box.v[3 + (n - 1) * 7] / 10) * S, oy + 12.5 * S];
-  await drag(...at(2), ...at(3));
-  const joined = (await kid()).v;
+  const fullOpen = await visible('#buildView');
+  await page.keyboard.press('Escape');
+  const gone = !(await kid()) && !(await visible('#buildView'));
   await page.click('#undo');
-  const back = (await kid()).v;
+  const box = await kid();
+  // ένα πάτημα πάνω τους στον πίνακα τα ξανανοίγει σε όλη την οθόνη
+  if (box) await page.mouse.click(box.x + box.w / 2, box.y + box.h / 2);
+  const reopened = await visible('#buildView');
+  await page.keyboard.press('Escape');
+  await page.click('#undo');
   await page.click('#undo');
   await level();
-  const ns = (v) => v.slice(3).filter((_, i) => i % 7 === 2);
-  assert(ns(joined).join() === '1,5,4,5', `μετά την ένωση: ${ns(joined)}`);
-  assert(ns(back).join() === '1,2,3,4,5', 'η αναίρεση δεν ξεχώρισε το 2 από το 3');
+  assert(fullOpen, 'τα κυβάκια και αριθμοί δεν άνοιξαν σε όλη την οθόνη');
+  assert(gone, 'η έξοδος δεν τα έσβησε από τη σελίδα');
+  assert(box && box.v.slice(3).filter((_, i) => i % 7 === 2).join() === '1,2,3,4,5', 'η αναίρεση δεν τα έφερε πίσω');
+  assert(reopened, 'το πάτημα στον πίνακα δεν τα άνοιξε σε όλη την οθόνη');
 });
 
 test('Κείμενο: ένα πάτημα με την Επιλογή το επιλέγει, το διπλό πάτημα το ανοίγει για διόρθωση', async () => {

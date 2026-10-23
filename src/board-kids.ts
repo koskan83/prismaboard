@@ -4,7 +4,7 @@ import { Item, Pt, StampItem, unrot } from './model';
 import { STAMPS, stampTexts, type KidArea } from './stamps';
 import type { Board, PState } from './board';
 import { t as tr } from './i18n';
-import { playsFull } from './game-view';
+import { opensFull } from './game-view';
 
 /** Η κατάσταση ενός εργαλείου άλλαξε (ή μια επιβράβευση μόλις μπήκε): ήχος, και κίνηση για όσο κρατά. */
 export function kidChanged(bd: Board, it: StampItem, prev: number[], ev?: string): void {
@@ -46,9 +46,9 @@ export function kidPaint(bd: Board, ps: PState, it: StampItem, wx: number, wy: n
   const d = STAMPS[it.name];
   if (!d?.paint) return false;
   if (first) ps.kid = {};
-  // παιχνίδι που παίζεται σε όλη την οθόνη: το πάτημα το ανοίγει, και το σύρσιμο που ακολουθεί δεν κάνει τίποτα στον πίνακα
+  // παιχνίδι που παίζεται σε όλη την οθόνη (και κυβάκια και αριθμοί): το πάτημα το ανοίγει, και το σύρσιμο που ακολουθεί δεν κάνει τίποτα στον πίνακα
   if (!first && ps.kid?.full) return true;
-  if (first && playsFull(it)) {
+  if (first && opensFull(it)) {
     ps.kid = { full: 1 };
     bd.onKidFull(it);
     return true;
@@ -78,7 +78,7 @@ export function kidPaint(bd: Board, ps: PState, it: StampItem, wx: number, wy: n
 export function pressKid(bd: Board, it: StampItem, at: Pt): boolean {
   const d = STAMPS[it.name];
   if (!d?.kid) return false;
-  if (playsFull(it)) {
+  if (opensFull(it)) {
     bd.selected = null;
     bd.onKidFull(it);
     bd.onUi();

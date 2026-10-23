@@ -23,6 +23,9 @@ export function playsFull(it: StampItem): boolean {
   return !(it.name === 'spell' && spellState(it.v ?? []).hand);
 }
 
+/** Ένα πάτημα στον πίνακα το ανοίγει σε όλη την οθόνη: τα παιχνίδια, και τα κυβάκια και αριθμοί (στη δική τους οθόνη, build-view.ts). */
+export const opensFull = (it: StampItem): boolean => playsFull(it) || it.name === 'numcubes';
+
 /** Πού είναι το παιχνίδι στην οθόνη (για το κομφετί και τη μασκότ). */
 export interface GameSpot { x: number; y: number; left: number; top: number; right: number; bottom: number }
 
