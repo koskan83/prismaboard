@@ -231,7 +231,9 @@ test('Σκούρος πίνακας: το μαύρο από την παλέτα 
   await page.click('#menu [data-act="bg-dark"]');
   await page.click('#menuBtn');
   await pen();
-  await page.click('#colorBtn');
+  // δεύτερο πάτημα στο χρώμα που είναι ήδη διαλεγμένο: ανοίγουν όλα τα χρώματα
+  await page.click('#colors .color.on');
+  assert(await visible('#colorMenu'), 'το πάτημα στο διαλεγμένο χρώμα δεν άνοιξε την παλέτα');
   await page.click('#colorGrid [data-color="#111111"]');
   await drag(300, 200, 520, 240);
   const s = (await items()).filter((i) => i.kind === 'stroke').pop();

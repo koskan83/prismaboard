@@ -98,7 +98,7 @@ board.onRead = async (ids) => {
 /** Βάζει άξονες με τις συναρτήσεις που διάβασε το AI· οι άξονες και η κλίμακα διαλέγονται από το πεδίο ορισμού και τις τιμές τους. */
 function plotReply(out: string): void {
   const r = parseGraphReply(out);
-  const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
+  const pal = [...new Set([...inkPalette().slice(1), '#ea580c', '#7c3aed'])];
   const fns: FnDef[] = [];
   const params: Params = {};
   for (const f of r.fns) {

@@ -104,9 +104,9 @@ function renderColors(): void {
   const key = list.join();
   if (key === colorsKey) return;
   colorsKey = key;
-  colorsEl.innerHTML =
-    list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('') +
-    `<button id="colorBtn" title="${t('Περισσότερα χρώματα', 'More colors')}" aria-label="${t('Περισσότερα χρώματα', 'More colors')}"><span data-em="🎨"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2.2-.6-1.5.3-2.8 2-2.8H18a3 3 0 0 0 3-3c0-5.500-4-10-9-10z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10.5" cy="7.5" r="1" fill="currentColor"/><circle cx="15" cy="8" r="1" fill="currentColor"/></svg></span></button>`;
+  // χωρίς κουμπί 🎨: πάτημα στο χρώμα που είναι ήδη διαλεγμένο ανοίγει τα περισσότερα χρώματα
+  const more = t('πάτα ξανά για περισσότερα χρώματα', 'tap again for more colors');
+  colorsEl.innerHTML = list.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)} (${more})"></button>`).join('');
 }
 $('colorGrid').innerHTML = MORE_COLORS.map((c) => `<button class="color" data-color="${c}" style="background:${c}" aria-label="${colorName(c)}" title="${colorName(c)}"></button>`).join('');
 
@@ -166,13 +166,12 @@ $('penKinds').addEventListener('click', (e) => {
   if (b) board.setTool(b.dataset.pen as PenKind);
 });
 colorsEl.addEventListener('click', (e) => {
-  const t = e.target as HTMLElement;
-  if (t.closest('#colorBtn')) {
-    togglePopup(colorMenu, $('colorBtn'));
-    return;
-  }
-  const b = t.closest<HTMLElement>('[data-color]');
-  if (b) pickColor(b.dataset.color!);
+  const b = (e.target as HTMLElement).closest<HTMLElement>('[data-color]');
+  if (!b) return;
+  // το ήδη διαλεγμένο χρώμα (με το εργαλείο γραφής ανοιχτό): ανοίγει την παλέτα με όλα τα χρώματα
+  if (b.dataset.color === board.color && ['highlighter', 'pen', 'shape', 'text'].includes(board.tool)) return void togglePopup(colorMenu, b);
+  closePopups();
+  pickColor(b.dataset.color!);
 });
 $('colorGrid').addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-color]');
@@ -367,7 +366,7 @@ board.onKidFull = (it) => {
 };
 board.onAsk = (q) => (q.lists ? askSpellWords({ title: q.title, voice: q.voice ?? 'el-GR', download }) : ask(q.title, { hint: q.hint, secret: q.secret, max: q.max ?? 24, voice: q.voice, value: q.value, picks: q.picks }));
 board.onMergeAxes = (target, dropped) => {
-  const pal = [...inkPalette().slice(1), '#ea580c', '#7c3aed'];
+  const pal = [...new Set([...inkPalette().slice(1), '#ea580c', '#7c3aed'])];
   const fns = [...(target.fns ?? [])];
   // κάθε συνάρτηση που έρχεται παίρνει χρώμα που δεν υπάρχει ήδη· οι κλάδοι της ίδιας (ίδιο χρώμα πριν) μένουν ομόχρωμοι
   const recolor = new Map<string, string>();
@@ -568,7 +567,7 @@ if (barMenu) {
   };
 }
 document.addEventListener('pointerdown', (e) => {
-  if (!(e.target as HTMLElement).closest('.popup, #menuBtn, #barMenu, #importBtn, #gadgetBtn, #colorBtn, #axesOpts')) closePopups();
+  if (!(e.target as HTMLElement).closest('.popup, #menuBtn, #barMenu, #importBtn, #gadgetBtn, #colors, #axesOpts')) closePopups();
 });
 
 // beta: οι πάνω μπάρες μαζεύονται (μικρό ☰ και μόνο το ποσοστό του zoom) μόλις αρχίσεις να γράφεις· όχι με χρονόμετρο,
@@ -1252,6 +1251,17 @@ if (isNative && !isOverlay) {
   };
   setTimeout(() => void check(), 8000);
   setInterval(() => void check(), 24 * 3600000);
+}
+
+// Εφαρμογή Android (π.χ. σε διαδραστικούς BenQ· ο Chrome στην ίδια συσκευή δεν το κάνει): μετά από λεπτά χωρίς γράψιμο, η πρώτη
+// γραμμή δεν φαινόταν για λίγο, σαν να «ξυπνούσε» ο πίνακας. Όσο δεν γράφει κανείς, ο καμβάς αγγίζεται αόρατα κάθε λίγα
+// δευτερόλεπτα για να μένει ενεργός (βλ. board.keepWarm και MainActivity.java).
+if (isAndroidApp) {
+  let lastInput = Date.now();
+  addEventListener('pointerdown', () => { lastInput = Date.now(); }, true);
+  setInterval(() => {
+    if (document.visibilityState === 'visible' && Date.now() - lastInput > 8000) board.keepWarm();
+  }, 10000);
 }
 
 // Πίνακας που μένει ανοιχτός για μέρες δεν παίρνει ποτέ τη νέα έκδοση: όταν ανέβει καινούρια, ένα μήνυμα προτείνει ανανέωση.

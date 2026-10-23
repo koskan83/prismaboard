@@ -103,7 +103,7 @@ export type EraserMode = 'stroke' | 'partial';
 
 /** Τα ανοιχτά χρώματα του σκούρου πίνακα και τα αντίστοιχά τους για λευκό χαρτί. */
 const PAPER_INK: Record<string, string> = {
-  '#ffffff': '#111111', '#fb7185': '#e11d48', '#7dd3fc': '#2563eb', '#86efac': '#16a34a',
+  '#ffffff': '#111111', '#fb7185': '#e11d48', '#7dd3fc': '#2563eb', '#86efac': '#16a34a', '#fdba74': '#ea580c',
   '#34d399': '#059669', '#f87171': '#dc2626', '#5eead4': '#0f766e', '#d1d5db': '#6b7280', '#fde047': '#ca8a04', '#a3e635': '#65a30d',
 };
 
@@ -193,6 +193,22 @@ export class Board {
     this.bindEvents();
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  }
+
+  private warm = false;
+  /**
+   * Ένα αόρατο pixel πάνω αριστερά στον καμβά του γραψίματος, που μπαίνει και βγαίνει εναλλάξ: έτσι το Android (WebView/Chrome)
+   * δεν θεωρεί τον καμβά ανενεργό και δεν ελευθερώνει τη μνήμη γραφικών του, οπότε το πρώτο γράψιμο μετά από ώρα φαίνεται αμέσως.
+   */
+  keepWarm(): void {
+    const c = this.lctx;
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    if ((this.warm = !this.warm)) {
+      c.fillStyle = 'rgba(128,128,128,0.01)';
+      c.fillRect(0, 0, 1, 1);
+    } else c.clearRect(0, 0, 1, 1);
+    c.restore();
   }
 
   // ---------- κατάσταση / σελίδες ----------

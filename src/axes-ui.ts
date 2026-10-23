@@ -158,7 +158,7 @@ export function resetFnMoved(): void {
 let fnParamKey = '';
 
 function nextFnColor(): string {
-  const pal = [...inkPalette(), '#ea580c', '#7c3aed'];
+  const pal = [...new Set([...inkPalette(), '#ea580c', '#7c3aed'])];
   return pal[1 + ((board.selectedAxes?.fns?.length ?? 0) % (pal.length - 1))];
 }
 /** Βάζει το πλαίσιο δίπλα στους άξονες, ώστε η καμπύλη να φαίνεται όσο γράφεις. */

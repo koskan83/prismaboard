@@ -21,8 +21,8 @@ import { t } from './i18n';
 
 /** Βασικά χρώματα ανά φόντο· ίδια θέση = αντίστοιχο χρώμα στο άλλο φόντο. */
 export const PALETTE = {
-  light: ['#111111', '#e11d48', '#2563eb', '#16a34a'],
-  dark: ['#ffffff', '#fb7185', '#7dd3fc', '#86efac'],
+  light: ['#111111', '#e11d48', '#2563eb', '#16a34a', '#ea580c'],
+  dark: ['#ffffff', '#fb7185', '#7dd3fc', '#86efac', '#fdba74'],
 };
 /** Ελληνικό όνομα για ένα χρώμα #rrggbb (για αναγνώστες οθόνης και tooltip), από την απόχρωση και τη φωτεινότητά του. */
 export function colorName(hex: string): string {
@@ -37,7 +37,7 @@ export function colorName(hex: string): string {
   return name[0].toUpperCase() + name.slice(1);
 }
 /** Χρώματα του υπογραμμιστικού (ίδια σε κάθε φόντο). */
-export const HL_PALETTE = ['#fde047', '#86efac', '#f9a8d4', '#7dd3fc'];
+export const HL_PALETTE = ['#fde047', '#86efac', '#f9a8d4', '#7dd3fc', '#fdba74'];
 export const MORE_COLORS = [
   '#111111', '#6b7280', '#d1d5db', '#ffffff', '#92400e', '#d6a36c',
   '#b91c1c', '#ef4444', '#fb7185', '#f472b6', '#be185d', '#a21caf',
