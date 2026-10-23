@@ -760,6 +760,9 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   const fg = await page.evaluate(() => { const bar = Math.max(64, Math.min(120, innerHeight * 0.12)); const s = Math.min(innerWidth / 24, (innerHeight - bar) / 14); return { x: (innerWidth + s * 24) / 2 - 10, y: (s * 14 + innerHeight) / 2 }; });
   await page.mouse.click(fg.x, fg.y);
   const fullClosed = !(await visible('#buildView'));
+  // η πόρτα σβήνει τα τουβλάκια από τη σελίδα· η αναίρεση τα φέρνει πίσω όπως ήταν
+  const doorGone = !(await items(pi)).some((i) => i.kind === 'stamp' && i.name === 'build');
+  await page.click('#undo');
   const fullBuilt = (await items(pi)).find((i) => i.kind === 'stamp' && i.name === 'build');
   const fullBlocks = fullBuilt ? fullBuilt.v.slice(1).filter((n) => n > 0).length : 0;
   const sky = () => page.evaluate(([x, y]) => {
@@ -787,6 +790,7 @@ test('Δημοτικό: απλή γραμμή εργαλείων, εργαλεί
   assert(fullOpen && barHidden, 'τα τουβλάκια δεν άνοιξαν σε όλη την οθόνη ή φαίνεται ακόμα η γραμμή εργαλείων');
   assert(fullBlocks >= 2, `σε όλη την οθόνη το σύρσιμο έχτισε ${fullBlocks} τουβλάκια αντί για τουλάχιστον 2`);
   assert(fullClosed, 'η πόρτα δεν γύρισε πίσω στον πίνακα');
+  assert(doorGone, 'η πόρτα δεν έσβησε τα τουβλάκια από τη σελίδα');
   assert(blocks > fullBlocks, 'μετά την επιστροφή, το χτίσιμο πάνω στη σελίδα δεν πρόσθεσε τουβλάκια');
   assert(skyBefore === '224,242,254', `τα τουβλάκια δεν ζωγραφίστηκαν εκεί που περίμενα (χρώμα ${skyBefore})`);
   assert(skyDuring === skyBefore, `όσο χτίζεις, το εργαλείο εξαφανίζεται από την οθόνη (χρώμα ${skyDuring})`);

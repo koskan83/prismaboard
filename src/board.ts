@@ -528,6 +528,14 @@ export class Board {
     this.redraw();
   }
 
+  /** Παιχνίδι που έκλεισε από την πόρτα της πλήρους οθόνης: φεύγει από τη σελίδα (με αναίρεση) αντί να μείνει μικρό. */
+  dismissKid(id: string): void {
+    if (this.selected === id) this.selected = null;
+    this.multi = this.multi.filter((x) => x !== id);
+    this.deleteItems([id]);
+    this.onUi();
+  }
+
   /**
    * Πάτημα στο σημείο `at` ενός εργαλείου του Δημοτικού. true αν έπεσε σε κουμπί του (και έγινε ό,τι κάνει το κουμπί).
    */

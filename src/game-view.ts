@@ -1,7 +1,7 @@
 /**
  * Παιχνίδια του Δημοτικού σε όλη την οθόνη (Συλλαβές, Ορθογραφία, Κρεμάλα): το παιχνίδι μεγαλώνει όσο χωράει, και κάθε
  * πάτημα ή σύρσιμο πάει σε αυτό· έτσι ένα γράμμα που πιάνεται λίγο δίπλα δεν μετακινεί το παιχνίδι ούτε τον πίνακα.
- * Η πόρτα πάνω δεξιά (ή το Esc) γυρίζει στον πίνακα· η κατάσταση γράφεται στη σελίδα, με αναίρεση. Δίπλα της, το «📋 Λέξεις»
+ * Η πόρτα πάνω δεξιά (ή το Esc) γυρίζει στον πίνακα και σβήνει το παιχνίδι από τη σελίδα (με αναίρεση). Δίπλα της, το «📋 Λέξεις»
  * δείχνει τις έτοιμες λέξεις του παιχνιδιού για να προστεθούν ή να βγουν (ready-ui.ts).
  */
 
@@ -119,7 +119,8 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
     if (name === 'spell' && spellState(v).hand) close();
   };
   let closed = false;
-  const close = (): void => {
+  /** `dismiss`: η πόρτα (ή το Esc) σβήνει το παιχνίδι από τη σελίδα· χωρίς αυτό (Ορθογραφία με το χέρι) μένει στον πίνακα. */
+  const close = (dismiss = false): void => {
     if (closed) return;
     closed = true;
     commit();
@@ -127,14 +128,15 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
     removeEventListener('keydown', key, true);
     document.body.classList.remove('building');
     root.remove();
+    if (dismiss) board.dismissKid(id);
   };
   const key = (e: KeyboardEvent): void => {
     // όσο είναι ανοιχτό ένα παράθυρο ερώτησης (λέξεις, δική μου λέξη), τα πλήκτρα είναι δικά του
     if (document.getElementById('ask')) return;
     e.stopPropagation();
-    if (e.key === 'Escape') close();
+    if (e.key === 'Escape') close(true);
   };
-  door.onclick = close;
+  door.onclick = () => close(true);
 
   const at = (e: PointerEvent): [number, number] => {
     const r = cv.getBoundingClientRect();

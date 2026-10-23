@@ -1,7 +1,7 @@
 import { t } from './i18n';
 import { voiceArt } from './class-art';
 import { loadVoice, saveVoice, type VoiceLevel } from './classroom';
-import { dragByHeader, keepOnScreen } from './panel';
+import { dragByHeader, keepOnScreen, resizable } from './panel';
 
 const NAMES = (): string[] => [t('Ησυχία', 'Silence'), t('Ψίθυροι', 'Whisper'), t('Κανονική φωνή', 'Normal voice')];
 const LEVELS: VoiceLevel[] = [0, 1, 2];
@@ -27,6 +27,7 @@ export class VoicePanel {
       else if (b.dataset.lv !== undefined) this.select(Number(b.dataset.lv) as VoiceLevel);
     });
     dragByHeader(this.el, this.el.querySelector<HTMLElement>('.thead')!);
+    resizable(this.el, 'grafida.size.voice');
     this.render();
   }
 

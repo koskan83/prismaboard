@@ -2,7 +2,7 @@ import { t } from './i18n';
 import { toast } from './app';
 import { noiseFace } from './class-art';
 import { DEFAULT_LIMIT, clamp, limitForVoice, loadLimit, loadVoice, rmsToLevel, saveLimit, smooth, zoneOf, type VoiceLevel } from './classroom';
-import { dragByHeader, keepOnScreen } from './panel';
+import { dragByHeader, keepOnScreen, resizable } from './panel';
 
 /** Πόση ώρα πάνω από το όριο πριν αναβοσβήσει κόκκινο το πάνελ. */
 const ALARM_MS = 1500;
@@ -51,6 +51,7 @@ export class NoisePanel {
     });
     this.bindLimitDrag();
     dragByHeader(this.el, this.el.querySelector<HTMLElement>('.thead')!);
+    resizable(this.el, 'grafida.size.noise');
     // όταν διαλέγεται επίπεδο φωνής, το όριο ακολουθεί (ο δάσκαλος μπορεί να το αλλάξει μετά)
     window.addEventListener('voicechange', (e) => this.setLimit(limitForVoice((e as CustomEvent<VoiceLevel>).detail)));
     document.addEventListener('visibilitychange', () => document.hidden && this.close());

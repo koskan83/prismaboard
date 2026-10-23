@@ -1,12 +1,14 @@
 /**
  * Τουβλάκια σε όλη την οθόνη: ο καμβάς του χτισίματος γεμίζει την οθόνη, η γραμμή εργαλείων φεύγει και μένει μόνο η σειρά
- * με τα υλικά. Στο τέλος της υπάρχει μια πόρτα που γυρίζει πίσω στον πίνακα.
+ * με τα υλικά. Στο τέλος της υπάρχει μια πόρτα που γυρίζει πίσω στον πίνακα και σβήνει τα τουβλάκια από τη σελίδα.
  */
 
 import type { Board } from './board';
 import { STAMPS } from './stamps';
 
 const COLS = 24, ROWS = 14;
+/** Εργαλεία που η πόρτα τα γυρίζει στον πίνακα αντί να τα σβήσει. */
+const ON_BOARD = new Set(['numcubes']);
 
 export function openBuildView(board: Board, id: string, onFx: (ev: string) => void = () => {}, name = 'build'): void {
   const d = STAMPS[name];
@@ -78,6 +80,8 @@ export function openBuildView(board: Board, id: string, onFx: (ev: string) => vo
     removeEventListener('keydown', key, true);
     document.body.classList.remove('building');
     root.remove();
+    // τα τουβλάκια φεύγουν από τη σελίδα (με αναίρεση)· τα κυβάκια και αριθμοί παίζονται και μέσα στον πίνακα, οπότε μένουν
+    if (!ON_BOARD.has(name)) board.dismissKid(id);
   };
   const key = (e: KeyboardEvent): void => {
     e.stopPropagation();

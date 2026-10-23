@@ -207,6 +207,10 @@ body.inking #toolbar { pointer-events: none; }
 .cpanel { position: fixed; right: 20px; top: 90px; z-index: 18; width: 340px; border-radius: 18px; overflow: hidden;
   background: var(--bar); color: var(--fg); box-shadow: 0 8px 28px rgba(0,0,0,.4); }
 #voice { right: 380px; }
+/* λαβή μεγέθους (panel.ts resizable): γωνία κάτω δεξιά */
+.cpanel .pgrip { position: absolute; right: 0; bottom: 0; width: 34px; height: 34px; cursor: nwse-resize; touch-action: none; z-index: 3;
+  background: linear-gradient(135deg, transparent 50%, currentColor 50% 56%, transparent 56% 66%, currentColor 66% 72%, transparent 72% 82%, currentColor 82% 88%, transparent 88%); opacity: .45; }
+.cpanel .pgrip:hover { opacity: .8; }
 #noise { right: 740px; }
 .cpanel .thead { display: flex; justify-content: space-between; align-items: center; padding: 8px 8px 8px 16px;
   background: var(--bar-2); cursor: move; touch-action: none; font-weight: 600; }
