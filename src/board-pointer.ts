@@ -191,6 +191,12 @@ export function down(bd: Board, e: PointerEvent): void {
         const b = itemBounds(sel);
         const corner = bd.cornerResizable(sel) && Math.hypot(wx - b.x1, wy - b.y1) < 24 / v.k;
         const rh = bd.rotHandle(b);
+        // ↔ ↕ πάνω από τη λαβή περιστροφής: καθρέφτης με ένα πάτημα
+        const fh = hi < 0 && !corner && bd.rotatable(sel) ? bd.flipHandleAt(b, wx, wy) : -1;
+        if (fh >= 0) {
+          bd.flipSelected(fh === 1);
+          return;
+        }
         if (hi < 0 && !corner && bd.rotatable(sel) && Math.hypot(wx - rh[0], wy - rh[1]) < 22 / v.k) {
           ps.mode = 'rotate';
           ps.orig = sel;
@@ -217,6 +223,11 @@ export function down(bd: Board, e: PointerEvent): void {
           const corner = Math.hypot(wx - b.x1, wy - b.y1) < 24 / v.k;
           const inside = wx >= b.x0 && wx <= b.x1 && wy >= b.y0 && wy <= b.y1;
           const rh = bd.rotHandle(b);
+          const fh = corner ? -1 : bd.flipHandleAt(b, wx, wy);
+          if (fh >= 0) {
+            bd.flipSelected(fh === 1);
+            return;
+          }
           if (!corner && Math.hypot(wx - rh[0], wy - rh[1]) < 22 / v.k) {
             ps.mode = 'grotate';
             ps.before = items.slice();

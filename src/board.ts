@@ -746,11 +746,17 @@ export class Board {
     return !!this.selected || this.multi.length > 0;
   }
 
-  /** Αν ο καθρέφτης αλλάζει κάτι: ένα μόνο κείμενο, άξονες ή κύκλος μένουν όπως είναι. */
+  /**
+   * Αν ο καθρέφτης έχει νόημα: σχήματα Φυσικής, εικόνες, γραμμές γραφής, γωνίες, τρίγωνα και παραλληλόγραμμα, ή ομάδα.
+   * Κείμενο, άξονες, κύκλος, ορθογώνιο, έλλειψη, ρόμβος, ευθεία, βέλος και εργαλεία του Δημοτικού δεν αλλάζουν ουσιαστικά (ή τα χαλά).
+   */
   get selectionFlippable(): boolean {
     if (this.multi.length > 1) return true;
     const it = this.selected ? this.page.items.find((x) => x.id === this.selected) : undefined;
-    return !!it && it.kind !== 'text' && it.kind !== 'axes' && it.kind !== 'trig';
+    if (!it) return false;
+    if (it.kind === 'stamp') return !STAMPS[it.name]?.kid;
+    if (it.kind === 'shape') return it.shape === 'triangle' || it.shape === 'para';
+    return it.kind === 'image' || it.kind === 'stroke' || it.kind === 'angle';
   }
 
   /** Τα id της τρέχουσας επιλογής (μονής ή ομαδικής). */
@@ -1083,6 +1089,19 @@ export class Board {
   /** Η λαβή περιστροφής: πάνω από τη μέση του πλαισίου επιλογής. */
   rotHandle(b: Box): Pt {
     return [(b.x0 + b.x1) / 2, b.y0 - 38 / this.page.view.k];
+  }
+
+  /** Τα δύο κουμπιά του καθρέφτη πάνω από τη λαβή περιστροφής: αριστερά–δεξιά (↔) και πάνω–κάτω (↕). */
+  flipHandles(b: Box): [Pt, Pt] {
+    const [hx, hy] = this.rotHandle(b);
+    const k = this.page.view.k;
+    return [[hx - 15 / k, hy - 32 / k], [hx + 15 / k, hy - 32 / k]];
+  }
+
+  /** Ποιο κουμπί του καθρέφτη (0: ↔, 1: ↕) είναι κάτω από το σημείο, ή −1. */
+  flipHandleAt(b: Box, wx: number, wy: number): number {
+    if (!this.selectionFlippable) return -1;
+    return this.flipHandles(b).findIndex((p) => Math.hypot(wx - p[0], wy - p[1]) < 14 / this.page.view.k);
   }
 
 

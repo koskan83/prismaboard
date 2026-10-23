@@ -211,8 +211,6 @@ $('del').onclick = () => board.deleteSelected();
 $('dup').onclick = () => board.duplicateSelected();
 $('bigger').onclick = () => board.scaleSelected(1.25);
 $('smaller').onclick = () => board.scaleSelected(0.8);
-$('flipH').onclick = () => board.flipSelected(false);
-$('flipV').onclick = () => board.flipSelected(true);
 // μόνο στη beta
 document.getElementById('paperBtn')?.addEventListener('click', () => board.togglePaper());
 $('sumBtn').onclick = () => board.addResultant();
@@ -280,7 +278,6 @@ export function refreshUi(): void {
   show('dup', board.hasSelection);
   for (const id of ['bigger', 'smaller']) show(id, board.hasSelection);
   // σκέτο κείμενο, άξονες ή τριγωνομετρικός κύκλος δεν καθρεφτίζονται (μένουν αναγνώσιμα)
-  for (const id of ['flipH', 'flipV']) show(id, board.selectionFlippable);
   const pic = tool === 'select' ? board.selectedPic : null;
   document.getElementById('paperBtn')?.classList.toggle('hidden', !pic);
   document.getElementById('paperBtn')?.classList.toggle('on', !!pic?.paper);
@@ -1052,7 +1049,7 @@ const EMOJI: Record<string, string> = {
   '[data-shape="triangle"]': '🔺', '[data-shape="rhombus"]': '🔷', '[data-shape="para"]': '🔶', '[data-shape="angle"]': '📐',
   '[data-ins="table"]': '🔲', '[data-eraser="partial"]': '⭕', '[data-eraser="stroke"]': '〰️', '#eraseAll': '🗑️',
   // επιλογή
-  '#del': '🗑️', '#dup': '👯', '#bigger': '➕', '#smaller': '➖', '#flipH': '↔️', '#flipV': '↕️',
+  '#del': '🗑️', '#dup': '👯', '#bigger': '➕', '#smaller': '➖',
   // Όργανα
   '[data-kid="numline"]': '➡️', '[data-kid="hundred"]': '💯', '[data-kid="times"]': '✖️', '[data-kid="colops"]': '🧮',
   '[data-kid="fracpie"]': '🥧', '[data-kid="fracbar"]': '🟩', '[data-gadget="timer"]': '⏱️', '[data-gadget="ruler"]': '📏',

@@ -81,6 +81,7 @@ export function renderLive(bd: Board): void {
     }
     if (bd.rotatable(selItem)) {
       drawRotHandle(bd, c, b);
+      if (bd.selectionFlippable) drawFlipHandles(bd, c, b);
       if (bd.pivot?.key === bd.pivotKey()) drawPivot(bd, c, bd.pivotPoint(b, selItem));
     }
     c.restore();
@@ -107,6 +108,7 @@ export function renderLive(bd: Board): void {
       c.arc(b.x1, b.y1, 12 / k, 0, Math.PI * 2);
       c.fill();
       drawRotHandle(bd, c, b);
+      if (bd.selectionFlippable) drawFlipHandles(bd, c, b);
       if (bd.pivot?.key === bd.pivotKey()) drawPivot(bd, c, bd.pivotPoint(b));
     }
     c.restore();
@@ -203,6 +205,38 @@ function drawPivot(bd: Board, c: CanvasRenderingContext2D, p: Pt): void {
   c.beginPath();
   c.arc(p[0], p[1], 4 / k, 0, Math.PI * 2);
   c.fill();
+  c.restore();
+}
+
+/** ↔ και ↕ πάνω από τη λαβή περιστροφής: λευκοί κύκλοι με μπλε περίγραμμα, για να ξεχωρίζουν από τη λαβή. */
+function drawFlipHandles(bd: Board, c: CanvasRenderingContext2D, b: Box): void {
+  const k = bd.page.view.k;
+  const r = 12 / k, d = 6.5 / k, a = 3 / k;
+  c.save();
+  c.setLineDash([]);
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  bd.flipHandles(b).forEach(([x, y], i) => {
+    c.fillStyle = '#ffffff';
+    c.strokeStyle = '#2563eb';
+    c.lineWidth = 2 / k;
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+    c.stroke();
+    // διπλό βελάκι: οριζόντιο για αριστερά–δεξιά, κατακόρυφο για πάνω–κάτω
+    const [ux, uy] = i ? [0, 1] : [1, 0];
+    c.lineWidth = 1.8 / k;
+    c.beginPath();
+    c.moveTo(x - ux * d, y - uy * d); c.lineTo(x + ux * d, y + uy * d);
+    for (const s of [-1, 1]) {
+      const tx = x + s * ux * d, ty = y + s * uy * d;
+      c.moveTo(tx - s * ux * a + uy * a, ty - s * uy * a + ux * a);
+      c.lineTo(tx, ty);
+      c.lineTo(tx - s * ux * a - uy * a, ty - s * uy * a - ux * a);
+    }
+    c.stroke();
+  });
   c.restore();
 }
 
