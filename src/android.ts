@@ -61,22 +61,54 @@ export async function androidShare(blob: Blob, name: string): Promise<void> {
 }
 
 interface SpeechPlugin {
-  speak(o: { text: string; lang: string; rate: number }): Promise<{ spoken: boolean }>;
+  speak(o: { text: string; lang: string; rate: number }): Promise<{ spoken: boolean; why?: string; engine?: string }>;
   stop(): Promise<void>;
 }
 let speech: Promise<SpeechPlugin> | null = null;
 let talking = 0;
+/** Γιατί δεν ακούστηκε η τελευταία φράση (βλ. androidVoiceHelp). */
+let lastWhy = '', lastEngine = '';
 
 /** Ανάγνωση φωναχτά με τη φωνή της συσκευής (SpeechPlugin.java): το WebView δεν έχει speechSynthesis. false αν δεν έχει φωνή για τη γλώσσα. */
 export async function androidSay(text: string, lang: string, rate: number): Promise<boolean> {
   speech ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<SpeechPlugin>('Speech'));
   talking++;
+  // μηχανή φωνής που δεν απαντά ποτέ: μετά από αρκετή ώρα για να ειπωθεί το κείμενο, το θεωρούμε αποτυχία αντί να μένουμε σιωπηλοί
+  let timer = 0;
+  const late = new Promise<{ spoken: boolean; why: string }>((done) => {
+    timer = window.setTimeout(() => done({ spoken: false, why: 'timeout' }), 6000 + text.length * 150);
+  });
   try {
-    return (await (await speech).speak({ text, lang, rate })).spoken;
-  } catch {
+    const r = await Promise.race([(await speech).speak({ text, lang, rate }), late]);
+    lastWhy = r.spoken ? '' : r.why || 'nolang';
+    if ('engine' in r && r.engine) lastEngine = r.engine;
+    if (lastWhy === 'timeout') void androidStopSay();
+    return r.spoken;
+  } catch (e) {
+    lastWhy = `plugin: ${String(e)}`;
     return false;
   } finally {
+    clearTimeout(timer);
     talking--;
+  }
+}
+
+/** Μήνυμα για τον δάσκαλο όταν η androidSay γύρισε false: τι λείπει από τη συσκευή και πώς διορθώνεται. */
+export function androidVoiceHelp(lang: string): string {
+  const el = lang.startsWith('el');
+  const tts = t('Ρυθμίσεις → Σύστημα → Γλώσσες → Μετατροπή κειμένου σε ομιλία', 'Settings → System → Languages → Text-to-speech');
+  const eng = lastEngine ? ` (${lastEngine})` : '';
+  switch (lastWhy) {
+    case 'noengine': return t(`Η συσκευή δεν έχει φωνή για ανάγνωση. Βάλε από το Play τις «Υπηρεσίες ομιλίας από την Google» και διάλεξέ τες στο ${tts}.`,
+      `This device has no text-to-speech voice. Install “Speech Services by Google” from Play and pick it in ${tts}.`);
+    case 'nodata': return t(`Η φωνή της συσκευής${eng} δεν έχει κατεβάσει ${el ? 'ελληνικά' : 'αγγλικά'}: ${tts} → ⚙ → Εγκατάσταση δεδομένων φωνής.`,
+      `The device voice${eng} has not downloaded ${el ? 'Greek' : 'English'}: ${tts} → ⚙ → Install voice data.`);
+    case 'timeout': return t(`Η φωνή της συσκευής${eng} δεν απάντησε. Δοκίμασε την «Αναπαραγωγή» στο ${tts}, ή διάλεξε τις «Υπηρεσίες ομιλίας από την Google».`,
+      `The device voice${eng} did not respond. Try “Play” in ${tts}, or pick “Speech Services by Google”.`);
+    case 'nolang': case '': return t(`Η φωνή της συσκευής${eng} δεν έχει ${el ? 'ελληνικά' : 'αγγλικά'}. Βάλε τα από το ${tts}.`,
+      `The device voice${eng} has no ${el ? 'Greek' : 'English'}. Add it in ${tts}.`);
+    default: return t(`Η φωνή της συσκευής${eng} δεν μίλησε (${lastWhy}). Δοκίμασέ τη στο ${tts}.`,
+      `The device voice${eng} did not speak (${lastWhy}). Test it in ${tts}.`);
   }
 }
 

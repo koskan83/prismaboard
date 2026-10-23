@@ -11,7 +11,7 @@ import { askSpellWords } from './spell-lists';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, refreshUi } from './main';
 import { isEn, t } from './i18n';
-import { androidSay, androidSpeaking, androidStopSay } from './android';
+import { androidSay, androidSpeaking, androidStopSay, androidVoiceHelp } from './android';
 import { isAndroidApp } from './platform';
 import { dataLine, parseSim } from './osc-sim';
 
@@ -236,9 +236,8 @@ async function speakAndroid(): Promise<void> {
     toast(t('Δεν βρήκα κάτι να διαβάσω', 'Nothing found to read'));
     return;
   }
-  if (!(await androidSay(words, isEn ? 'en-US' : 'el-GR', 0.85))) {
-    toast(t('Η συσκευή δεν έχει ελληνική φωνή. Βάλε τη από τις Ρυθμίσεις → Σύστημα → Γλώσσες → Μετατροπή κειμένου σε ομιλία.', 'This device has no English voice. Add one in Settings → System → Languages → Text-to-speech.'), 8000);
-  }
+  const lang = isEn ? 'en-US' : 'el-GR';
+  if (!(await androidSay(words, lang, 0.85))) toast(androidVoiceHelp(lang), 10000);
 }
 
 async function runRecognition(ids: string[], kind: AiTask): Promise<void> {

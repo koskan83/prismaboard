@@ -5,6 +5,7 @@ import { GadgetKind } from './gadgets';
 import { isNative, isOverlay, nativeCheckUpdate, nativeExit, nativeRelaunch, openOverlay, type NativeUpdate } from './native';
 import { initSnip, toggleSnip } from './snip';
 import { isAndroid, isAndroidApp, openPage } from './platform';
+import { androidVoiceHelp } from './android';
 import { isEn, setLang, t } from './i18n';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
@@ -978,6 +979,7 @@ function kidFx(ev: string, x?: number, y?: number, near?: Spot, game?: string): 
     void say(text, lang).then((heard) => {
       if (heard || noVoice.has(lang)) return;
       noVoice.add(lang);
+      if (isAndroidApp) return void toast(`${t('Δεν μπόρεσα να πω τη λέξη.', "Couldn't say the word.")} ${androidVoiceHelp(lang)}`, 10000);
       toast(t(`Δεν μπόρεσα να πω τη λέξη: η συσκευή δεν έχει ${lang.startsWith('el') ? 'ελληνική' : 'αγγλική'} φωνή. Πες τη εσύ, ή δείξε τη με το 👁.`,
         `Couldn't say the word: this device has no ${lang.startsWith('el') ? 'Greek' : 'English'} voice. Say it yourself, or show it with 👁.`), 8000);
     });

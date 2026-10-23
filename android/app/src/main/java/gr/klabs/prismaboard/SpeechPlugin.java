@@ -27,28 +27,54 @@ public class SpeechPlugin extends Plugin {
     /** Το id της φράσης που λέγεται: τα μηνύματα μιας παλιότερης, που κόπηκε, δεν αφορούν την τωρινή. */
     private String speakingId;
     private int count;
+    /** Η μηχανή φωνής που ζητήθηκε· null: η προεπιλογή της συσκευής. */
+    private String engine;
+    private static final String GOOGLE = "com.google.android.tts";
 
     @Override
     public void load() {
-        tts = new TextToSpeech(getContext(), (status) -> {
+        init();
+    }
+
+    /** (Ξανα)στήνει τη φωνή· ό,τι περιμένει στο pending λέγεται μόλις ετοιμαστεί. */
+    private void init() {
+        synchronized (this) {
+            if (tts != null) tts.shutdown();
+            // null και όχι η παλιά: χωρίς μηχανή η onInit έρχεται μέσα στον constructor, πριν το tts πάρει τη νέα τιμή
+            tts = null;
+            ready = null;
+        }
+        final TextToSpeech[] made = new TextToSpeech[1];
+        TextToSpeech.OnInitListener onInit = (status) -> {
+            TextToSpeech t = made[0];
             // ο listener μπαίνει πριν γίνει ready: αλλιώς μια speak στο ενδιάμεσο δεν θα έπαιρνε ποτέ onDone
-            if (status == TextToSpeech.SUCCESS) tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            if (status == TextToSpeech.SUCCESS) t.setOnUtteranceProgressListener(new UtteranceProgressListener() {
                 @Override public void onStart(String id) {}
-                @Override public void onDone(String id) { finish(id, true); }
-                @Override public void onError(String id) { finish(id, false); }
-                @Override public void onStop(String id, boolean interrupted) { finish(id, true); }
+                @Override public void onDone(String id) { finish(id, true, ""); }
+                @Override public void onError(String id) { finish(id, false, "error"); }
+                @Override public void onStop(String id, boolean interrupted) { finish(id, true, ""); }
             });
             List<PluginCall> calls;
             synchronized (this) {
+                if (t != tts) return; // παλιά, στο μεταξύ στήθηκε άλλη
                 ready = status == TextToSpeech.SUCCESS;
+                // η φωνή της Google δεν ξεκίνησε: την επόμενη φορά πάλι η προεπιλογή της συσκευής
+                if (!ready) engine = null;
                 calls = new ArrayList<>(pending);
                 pending.clear();
             }
-            for (PluginCall c : calls) speak(c);
-        });
+            // αποτυχία: δεν ξαναδοκιμάζουμε εδώ (η speak θα ξαναέστηνε τη φωνή χωρίς τέλος)· η επόμενη κλήση ξαναδοκιμάζει
+            for (PluginCall c : calls) {
+                if (Boolean.TRUE.equals(ready)) speak(c);
+                else done(c, false, "noengine");
+            }
+        };
+        synchronized (this) {
+            tts = made[0] = engine == null ? new TextToSpeech(getContext(), onInit) : new TextToSpeech(getContext(), onInit, engine);
+        }
     }
 
-    /** { text, lang: 'el-GR', rate: 0.8 } → { spoken } όταν τελειώσει· spoken: false αν η συσκευή δεν έχει φωνή για τη γλώσσα. */
+    /** { text, lang: 'el-GR', rate: 0.8 } → { spoken, why, engine } όταν τελειώσει· spoken: false αν η συσκευή δεν έχει φωνή για τη γλώσσα. */
     @PluginMethod
     public void speak(PluginCall call) {
         synchronized (this) {
@@ -56,14 +82,25 @@ public class SpeechPlugin extends Plugin {
                 pending.add(call);
                 return;
             }
-        }
-        if (!ready) {
-            done(call, false);
-            return;
+            if (!ready) {
+                // η φωνή δεν στήθηκε (π.χ. η μηχανή άργησε να ξεκινήσει με την εφαρμογή): μία νέα προσπάθεια για αυτή την κλήση
+                pending.add(call);
+                init();
+                return;
+            }
         }
         int has = tts.setLanguage(Locale.forLanguageTag(call.getString("lang", "el-GR")));
         if (has == TextToSpeech.LANG_MISSING_DATA || has == TextToSpeech.LANG_NOT_SUPPORTED) {
-            done(call, false);
+            // η προεπιλεγμένη μηχανή (π.χ. του κατασκευαστή) δεν έχει τη γλώσσα: δοκιμάζουμε της Google, αν υπάρχει
+            if (engine == null && !GOOGLE.equals(tts.getDefaultEngine()) && hasEngine(GOOGLE)) {
+                synchronized (this) {
+                    engine = GOOGLE;
+                    pending.add(call);
+                }
+                init();
+                return;
+            }
+            done(call, false, has == TextToSpeech.LANG_MISSING_DATA ? "nodata" : "nolang");
             return;
         }
         tts.setSpeechRate(call.getFloat("rate", 1f));
@@ -72,7 +109,7 @@ public class SpeechPlugin extends Plugin {
         String id;
         synchronized (this) {
             // ό,τι λεγόταν κόβεται (QUEUE_FLUSH)· η κλήση τελειώνει με το τελευταίο κομμάτι
-            finish(speakingId, true);
+            finish(speakingId, true, "");
             id = "say" + (++count);
             speaking = call;
             speakingId = id + "." + (parts.size() - 1);
@@ -81,11 +118,16 @@ public class SpeechPlugin extends Plugin {
             int r = tts.speak(parts.get(i), i == 0 ? TextToSpeech.QUEUE_FLUSH : TextToSpeech.QUEUE_ADD, null, id + "." + i);
             if (r != TextToSpeech.SUCCESS) {
                 synchronized (this) {
-                    finish(speakingId, false);
+                    finish(speakingId, false, "speak");
                 }
                 return;
             }
         }
+    }
+
+    private boolean hasEngine(String name) {
+        for (TextToSpeech.EngineInfo e : tts.getEngines()) if (name.equals(e.name)) return true;
+        return false;
     }
 
     /** Κομμάτια ως `max` χαρακτήρες, κομμένα σε τέλος πρότασης ή σε κενό όταν γίνεται. */
@@ -105,22 +147,29 @@ public class SpeechPlugin extends Plugin {
     @PluginMethod
     public void stop(PluginCall call) {
         if (Boolean.TRUE.equals(ready)) tts.stop();
-        finish(speakingId, true);
+        finish(speakingId, true, "");
         call.resolve();
     }
 
     /** Τελείωσε (ή σταμάτησε) η φράση `id`. */
-    private synchronized void finish(String id, boolean ok) {
+    private synchronized void finish(String id, boolean ok, String why) {
         if (id == null || !id.equals(speakingId)) return;
         PluginCall c = speaking;
         speaking = null;
         speakingId = null;
-        if (c != null) done(c, ok);
+        if (c != null) done(c, ok, why);
     }
 
-    private void done(PluginCall call, boolean spoken) {
+    /** why: "" | noengine | nodata | nolang | speak | error· engine: η μηχανή φωνής, για το μήνυμα στον δάσκαλο. */
+    private void done(PluginCall call, boolean spoken, String why) {
         JSObject out = new JSObject();
         out.put("spoken", spoken);
+        out.put("why", why);
+        String e = null;
+        try {
+            if (tts != null) e = engine != null ? engine : tts.getDefaultEngine();
+        } catch (RuntimeException ignored) { /* χωρίς μηχανή */ }
+        out.put("engine", e == null ? "" : e);
         call.resolve(out);
     }
 
