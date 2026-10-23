@@ -64,14 +64,15 @@ interface SpeechPlugin {
   speak(o: { text: string; lang: string; rate: number }): Promise<{ spoken: boolean; why?: string; engine?: string }>;
   stop(): Promise<void>;
 }
-let speech: Promise<SpeechPlugin> | null = null;
+// το plugin κρατιέται όπως είναι και όχι μέσα σε Promise: ο Proxy του Capacitor απαντά και στο `then`,
+// οπότε ένα Promise που λύνεται με αυτόν περιμένει για πάντα (η φωνή δεν μιλούσε ποτέ, χωρίς μήνυμα)
+let speech: SpeechPlugin | null = null;
 let talking = 0;
 /** Γιατί δεν ακούστηκε η τελευταία φράση (βλ. androidVoiceHelp). */
 let lastWhy = '', lastEngine = '', lastMs = 0;
 
 /** Ανάγνωση φωναχτά με τη φωνή της συσκευής (SpeechPlugin.java): το WebView δεν έχει speechSynthesis. false αν δεν έχει φωνή για τη γλώσσα. */
 export async function androidSay(text: string, lang: string, rate: number): Promise<boolean> {
-  speech ??= import('@capacitor/core').then(({ registerPlugin }) => registerPlugin<SpeechPlugin>('Speech'));
   talking++;
   const t0 = performance.now();
   // μηχανή φωνής που δεν απαντά ποτέ: μετά από αρκετή ώρα για να ειπωθεί το κείμενο, το θεωρούμε αποτυχία αντί να μένουμε σιωπηλοί
@@ -80,7 +81,11 @@ export async function androidSay(text: string, lang: string, rate: number): Prom
     timer = window.setTimeout(() => done({ spoken: false, why: 'timeout' }), 6000 + text.length * 150);
   });
   try {
-    const r = await Promise.race([(await speech).speak({ text, lang, rate }), late]);
+    if (!speech) {
+      const { registerPlugin } = await import('@capacitor/core');
+      speech = registerPlugin<SpeechPlugin>('Speech');
+    }
+    const r = await Promise.race([speech.speak({ text, lang, rate }), late]);
     lastWhy = r.spoken ? '' : r.why || 'nolang';
     if ('engine' in r && r.engine) lastEngine = r.engine;
     if (lastWhy === 'timeout') void androidStopSay();
@@ -124,5 +129,5 @@ export function androidVoiceHelp(lang: string): string {
 export const androidSpeaking = (): boolean => talking > 0;
 
 export async function androidStopSay(): Promise<void> {
-  if (speech) await (await speech).stop().catch(() => undefined);
+  if (speech) await speech.stop().catch(() => undefined);
 }
