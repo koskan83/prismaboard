@@ -1,7 +1,8 @@
 /** Γραφίδα, δάχτυλα και ποντίκι: τι κάνει κάθε άγγιγμα ανάλογα με το εργαλείο (μέθοδοι της Board, σε δικό τους αρχείο). */
 
 import { carryTexts } from './board-select';
-import { moveSim, pinSnap } from './board-springs';
+import { pinSnap } from './board-springs';
+import { moveSim } from './board-sim';
 import { AxesItem, Item, Pt, inLasso, itemBounds, reboxShape, recognizeShape, rotateItem, roundAngle, smoothStroke, snapLine, scaleItem, translateItem, uid, unrot } from './model';
 import { STAMPS } from './stamps';
 import type { Board, PState, Twist } from './board';
@@ -160,7 +161,9 @@ export function down(bd: Board, e: PointerEvent): void {
         bd.selected = simIt.id;
         bd.multi = [];
         ps.mode = 'sim';
+        // όσο σέρνεται, το ελατήριο ζωγραφίζεται από την προεπισκόπηση (το ps.orig το κρύβει από τη σελίδα)
         ps.orig = simIt;
+        ps.preview = simIt;
         ps.start = [wx, wy];
         ps.tap = true;
         bd.redraw();
@@ -386,12 +389,6 @@ export function cancelPointer(bd: Board, ps: PState): void {
   ps.live = undefined;
   ps.gadget = undefined;
   ps.preview = undefined;
-  if (ps.mode === 'sim' && ps.orig) {
-    // μισοτελειωμένο σύρσιμο του πλαισίου των τιμών: γυρίζει εκεί που ήταν
-    const before = ps.orig;
-    const i = bd.page.items.findIndex((x) => x.id === before.id);
-    if (i >= 0) bd.page.items[i] = before;
-  }
   ps.orig = undefined;
   if (ps.kidOrig) {
     // μισοτελειωμένο σύρσιμο πάνω σε εργαλείο του Δημοτικού: γυρίζει όπως ήταν
@@ -632,15 +629,13 @@ export function moveOne(bd: Board, ps: PState, e: PointerEvent): void {
     }
     case 'sim': {
       const o = ps.orig;
-      const i = o ? bd.page.items.findIndex((x) => x.id === o.id) : -1;
-      if (!o || o.kind !== 'stamp' || i < 0) break;
+      if (!o || o.kind !== 'stamp') break;
       // σε στραμμένο ελατήριο η μετακίνηση μετριέται στους δικούς του άξονες
       const [ax, ay] = unrot(o, ps.start![0], ps.start![1]), [bx, by] = unrot(o, wx, wy);
       // λίγο τρέμουλο του χεριού μετρά ακόμα για πάτημα
       if (ps.tap && Math.hypot(bx - ax, by - ay) < 6 / bd.page.view.k) break;
       ps.tap = false;
-      bd.page.items[i] = moveSim(o, bx - ax, by - ay);
-      bd.redraw();
+      ps.preview = moveSim(o, bx - ax, by - ay);
       break;
     }
     case 'kid': {
@@ -843,13 +838,20 @@ export function up(bd: Board, e: PointerEvent): void {
       return;
     }
     case 'sim': {
-      const before = ps.orig;
+      const before = ps.orig, after = ps.preview;
       ps.orig = undefined;
-      const after = before && bd.page.items.find((x) => x.id === before.id);
-      if (!before || before.kind !== 'stamp' || !after) return;
+      ps.preview = undefined;
+      const i = before ? bd.page.items.findIndex((x) => x.id === before.id) : -1;
+      if (!before || before.kind !== 'stamp' || i < 0) {
+        bd.redraw();
+        return;
+      }
       // απλό πάτημα: οι τιμές ανοίγουν για να αλλάξουν· σύρσιμο: η νέα θέση του πλαισίου, με αναίρεση
-      if (ps.tap || after === before) bd.onSimRequest(before);
-      else bd.push({ t: 'mod', p: bd.cur, before, after });
+      if (ps.tap || !after || after === before) bd.onSimRequest(before);
+      else {
+        bd.page.items[i] = after;
+        bd.push({ t: 'mod', p: bd.cur, before, after });
+      }
       bd.redraw();
       return;
     }

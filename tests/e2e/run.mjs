@@ -1345,6 +1345,55 @@ test('Περίγραμμα Α4: η εικόνα της σελίδας βγαίν
   await page.click('#undo');
 });
 
+test('Ταλάντωση: όσο σέρνεις το πλαίσιο των τιμών φαίνονται και το ελατήριο και οι τιμές, και στο άφημα μένει εκεί', async () => {
+  // μάθημα από αρχείο με ένα ελατήριο που έχει δεδομένα (στην κανονική έκδοση δεν υπάρχει κουμπί «Τιμές»)
+  const d = await doc();
+  const spring = { kind: 'stamp', id: 'sp-e2e', name: 'spring', x: 200, y: 150, w: 380, h: 100, color: '#111111', width: 3, sim: { m: 1, T: 2, A: 0.1 } };
+  const lesson = { ...d, pages: [{ ...d.pages[0], items: [spring], view: { x: 0, y: 0, k: 1 } }] };
+  await page.setInputFiles('#fileOpen', { name: 'Ελατήριο e2e.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(lesson)) });
+  for (let i = 0; !(await items()).some((x) => x.id === 'sp-e2e'); i++) {
+    assert(i < 20, 'το μάθημα με το ελατήριο δεν άνοιξε');
+    await sleep(250);
+  }
+  await tool('select');
+  const r = await page.locator('#live').boundingBox();
+  /** Πόσα σκούρα pixel έχει ένα κομμάτι της οθόνης, στη σελίδα ή στο ζωντανό στρώμα (εκεί ζωγραφίζεται ό,τι σέρνεται). */
+  const ink = (x0, y0, x1, y1) => page.evaluate(([x0, y0, x1, y1]) => {
+    let n = 0;
+    for (const id of ['base', 'live']) {
+      const cv = document.getElementById(id);
+      const f = cv.width / cv.getBoundingClientRect().width;
+      const px = cv.getContext('2d').getImageData(Math.round(x0 * f), Math.round(y0 * f), Math.round((x1 - x0) * f), Math.round((y1 - y0) * f)).data;
+      for (let i = 0; i < px.length; i += 4) if (px[i + 3] > 128 && px[i] < 90 && px[i + 1] < 90 && px[i + 2] < 90) n++;
+    }
+    return n;
+  }, [x0, y0, x1, y1]);
+  // το ελατήριο πιάνει x 200–580, y 150–250· οι τιμές γράφονται από κάτω του (y ≈ 265)
+  const springInk = () => ink(r.x + 200, r.y + 150, r.x + 580, r.y + 250);
+  const before = await springInk();
+  assert(before > 200, `το ελατήριο δεν ζωγραφίστηκε (${before} σκούρα pixel)`);
+  await page.mouse.move(r.x + 300, r.y + 275);
+  await page.mouse.down();
+  await page.mouse.move(r.x + 420, r.y + 395, { steps: 10 });
+  await sleep(100);
+  const during = await springInk();
+  const boxInk = await ink(r.x + 400, r.y + 380, r.x + 760, r.y + 440);
+  await page.mouse.up();
+  assert(during > before * 0.6, `όσο σερνόταν το πλαίσιο το ελατήριο χάθηκε (${during} αντί για ${before} σκούρα pixel)`);
+  assert(boxInk > 100, `όσο σερνόταν δεν φαινόταν το πλαίσιο των τιμών στη νέα θέση (${boxInk})`);
+  const it = (await items()).find((i) => i.id === 'sp-e2e');
+  assert(it && it.x === 200 && it.y === 150, 'μετακινήθηκε το ελατήριο αντί για το πλαίσιο');
+  assert(it.simXY && Math.abs(it.simXY[0] - 120) < 2 && Math.abs(it.simXY[1] - 120) < 2, `το πλαίσιο δεν έμεινε εκεί που αφέθηκε (${JSON.stringify(it.simXY)})`);
+  assert(it.sim?.m === 1 && !it.simOff, 'χάθηκαν οι τιμές');
+  // επιλεγμένο ελατήριο: μόνο τα δικά του κουμπιά, με τη σειρά τους (stamp-opts.ts)
+  const shown = await page.$$eval('#springOpts button', (bs) => bs.filter((b) => !b.classList.contains('hidden')).map((b) => b.id));
+  const beta = process.env.VITE_CHANNEL === 'beta';
+  assert(JSON.stringify(shown) === JSON.stringify(beta ? ['spSim', 'spMarks', 'spDamp', 'spStop', 'spPos', 'spPin', 'spCopy'] : ['spMarks', 'spDamp', 'spStop']), `κουμπιά του ελατηρίου: ${shown}`);
+  // μία αναίρεση το γυρίζει κάτω από το σχήμα
+  await page.click('#undo');
+  assert(!(await items()).find((i) => i.id === 'sp-e2e').simXY, 'η αναίρεση δεν γύρισε το πλαίσιο πίσω');
+});
+
 for (const t of tests) {
   try {
     await t.fn();
