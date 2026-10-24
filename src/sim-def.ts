@@ -57,7 +57,7 @@ export interface SimQty {
   conv?: Record<string, number>;
 }
 
-const SUB = '₀₁₂₃₄₅₆₇₈₉';
+const SUB = '₀₁₂₃₄₅₆₇₈₉', SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
 
 /** parse, text και dataLine από τον πίνακα των μεγεθών: ό,τι κοινό έχουν τα σχήματα με τιμές (εκτός από την ταλάντωση, που έχει δικά της). */
 export function simKit(qty: SimQty[], num: (v: number) => string): Pick<SimDef, 'parse' | 'text' | 'dataLine'> {
@@ -66,18 +66,28 @@ export function simKit(qty: SimQty[], num: (v: number) => string): Pick<SimDef, 
   return {
     parse(s) {
       const out: SimData = {};
-      const re = /(?:^|[^\p{L}\p{N}_])(\p{L}[\p{L}\p{N}_{}]*)\s*=\s*([-−]?\d+(?:[.,]\d+)?)\s*([\p{L}°]+)?/gu;
+      // αριθμοί και με δύναμη του 10: «1,6·10⁻¹⁹», «1.6e-19», «2 × 10^6», «10⁶» (όπως τα γράφει το πλαίσιο)
+      const re = /(?:^|[^\p{L}\p{N}_])(\p{L}[\p{L}\p{N}_{}]*)\s*=\s*([-−]?\d+(?:[.,]\d+)?)(?:[eE]([-+−]?\d+)|\s*[·×x*]\s*10\s*\^?\s*([-−⁻]?[\d⁰¹²³⁴⁵⁶⁷⁸⁹]+)|([⁻⁰¹²³⁴⁵⁶⁷⁸⁹]+))?\s*([\p{L}°/²³]+)?/gu;
       for (const m of s.matchAll(re)) {
         const name = [...m[1].replace(/[_{}]/g, '')].map((c) => (SUB.includes(c) ? String(SUB.indexOf(c)) : c)).join('');
         const q = qty.find((x) => x.is.test(name));
         if (!q || out[q.key] !== undefined) continue;
-        const unit = m[3] ?? '';
+        const unit = m[6] ?? '';
         const f = unit === q.unit ? q.scale ?? 1 : q.conv?.[unit] ?? 1;
-        out[q.key] = parseFloat(m[2].replace('−', '-').replace(',', '.')) * f;
+        const sup = (x: string): string => [...x].map((c) => { const i = SUP.indexOf(c); return i >= 0 ? String(i) : c === '⁻' || c === '−' ? '-' : c; }).join('');
+        // «10⁶»: το 10 υψωμένο στη δύναμη
+        if (m[5]) {
+          const b = parseFloat(m[2].replace('−', '-').replace(',', '.'));
+          out[q.key] = Math.sign(b) * Math.abs(b) ** Number(sup(m[5])) * f;
+          continue;
+        }
+        const e = m[3] ?? (m[4] ? sup(m[4]) : '0');
+        // «1.6e-19» ακριβώς, χωρίς το σφάλμα του 1,6 × 10⁻¹⁹ σε δύο βήματα
+        out[q.key] = Number(`${m[2].replace('−', '-').replace(',', '.')}e${e.replace('−', '-')}`) * f;
       }
       return out;
     },
     text: (d) => list(d).map((q) => `${q.name} = ${show(q, d[q.key])}`).join(', '),
-    dataLine: (d) => list(d).map((q) => `${q.name} = ${show(q, d[q.key])} ${q.unit}`).join(' · '),
+    dataLine: (d) => list(d).map((q) => `${q.name} = ${show(q, d[q.key])}${q.unit === '°' ? '°' : q.unit ? ` ${q.unit}` : ''}`).join(' · '),
   };
 }

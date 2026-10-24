@@ -778,12 +778,12 @@ export class Renderer {
         c.restore();
       };
       try {
-        d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined);
+        d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined, s.sim);
       } finally {
         // ξανά η κανονική μέθοδος του καμβά
         delete (c as Partial<CanvasRenderingContext2D>).fillText;
       }
-    } else d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined);
+    } else d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined, s.sim);
     if (s.sim && stampSim(s.name)) this.drawSimValues(c, s);
     c.restore();
   }

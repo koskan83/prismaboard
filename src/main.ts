@@ -9,7 +9,7 @@ import { androidVoiceHelp, androidVoiceInfo } from './android';
 import { isEn, setLang, t } from './i18n';
 import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
-import { ask, notice } from './dialog';
+import { ask, confirmBox, notice } from './dialog';
 import { posName } from './board-springs';
 import { OPTS, stampOpts, type OptId } from './stamp-opts';
 import { openBuildView } from './build-view';
@@ -196,7 +196,17 @@ widthsEl.addEventListener('click', (e) => {
 $('eraserOpts').addEventListener('click', (e) => {
   const tg = e.target as HTMLElement;
   if (tg.closest('#eraseAll')) {
-    if (board.page.items.length === 0) return;
+    if (board.page.items.length === 0) {
+      // η σελίδα είναι ήδη άδεια: ίσως θέλει να φύγει η ίδια η σελίδα (όχι αν είναι η μόνη του μαθήματος)
+      if (board.doc.pages.length > 1) {
+        void confirmBox(t('Η σελίδα είναι ήδη άδεια. Να διαγραφεί η σελίδα;', 'The page is already empty. Delete the page?'), t('Διαγραφή σελίδας', 'Delete page'), true).then((yes) => {
+          if (!yes || board.page.items.length) return;
+          const gone = board.deletePage();
+          toast(t('Η σελίδα διαγράφηκε', 'Page deleted'), 9000, { label: t('Αναίρεση', 'Undo'), run: () => board.restorePage(gone) });
+        });
+      }
+      return;
+    }
     board.clearPage();
     toast(t('Σβήστηκαν όλα στη σελίδα — πάτα ↶ για να τα φέρεις πίσω', 'Everything on the page was erased — tap ↶ to bring it back'));
     return;
@@ -715,12 +725,14 @@ impMenu.addEventListener('click', (e) => {
 // ---------- σχήματα φυσικής ----------
 
 for (const [cat, title] of Object.entries(STAMP_CATS)) {
+  // τα σχήματα της beta μόνο στη beta (τα μαθήματα που τα έχουν ανοίγουν και στην κανονική)· κατηγορία χωρίς σχήματα δεν φαίνεται
+  const shown = Object.entries(STAMPS).filter(([, d]) => !d.kid && !d.hidden && d.cat === cat && (!d.beta || BETA));
+  if (!shown.length) continue;
   const head = document.createElement('div');
   head.className = 'stHead';
   head.textContent = title;
   $('stampGrid').append(head);
-  // τα σχήματα της beta μόνο στη beta (τα μαθήματα που τα έχουν ανοίγουν και στην κανονική)
-  for (const [name, d] of Object.entries(STAMPS)) if (!d.kid && !d.hidden && d.cat === cat && (!d.beta || BETA)) addStampTile(name, d);
+  for (const [name, d] of shown) addStampTile(name, d);
 }
 function addStampTile(name: string, d: StampDef): void {
   const b = document.createElement('button');

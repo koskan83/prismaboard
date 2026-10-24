@@ -6,7 +6,8 @@ import { hatch, label, path, zigzag } from './draw-util';
 import { PHYSICS } from './physics';
 import { t } from './i18n';
 import { oscDef } from './osc-sim';
-import type { SimDef } from './sim-def';
+import { inclineDef } from './mech-sim';
+import type { SimData, SimDef } from './sim-def';
 import type { OptId } from './stamp-opts';
 
 type C = CanvasRenderingContext2D;
@@ -78,6 +79,7 @@ export const STAMP_CATS = {
   mom: t('Ορμή και κρούσεις', 'Momentum and collisions'),
   osc: t('Ταλαντώσεις', 'Oscillations'),
   wave: t('Κύματα', 'Waves'),
+  gas: t('Αέρια και θερμοδυναμική', 'Gases and thermodynamics'),
   circ: t('Ηλεκτρικά κυκλώματα', 'Electric circuits'),
   em: t('Ηλεκτρικό και μαγνητικό πεδίο', 'Electric and magnetic fields'),
 } as const;
@@ -95,7 +97,8 @@ export interface StampDef {
   /** Αρχικό μέγεθος σε μονάδες πίνακα. */
   w: number;
   h: number;
-  draw(c: C, w: number, h: number, st?: SpringState): void;
+  /** `sim`: τα δεδομένα του σχήματος (StampItem.sim), για όσα ζωγραφίζονται από τις τιμές τους (π.χ. η επιμήκυνση του ελατηρίου). */
+  draw(c: C, w: number, h: number, st?: SpringState, sim?: SimData): void;
   /** Μόνο για ελατήρια: το σώμα μπορεί να τραβηχτεί και να ταλαντωθεί. */
   spring?(w: number, h: number): SpringGeom;
   /** Σχήμα με τιμές: τα δεδομένα που δέχεται και οι απαντήσεις που γράφει στο πλαίσιο κάτω του (βλ. sim-def.ts). */
@@ -200,7 +203,7 @@ function meter(letter: string): StampDef['draw'] {
 
 export const STAMPS: Record<string, StampDef> = {
   incline: {
-    label: t('Κεκλιμένο επίπεδο', 'Inclined plane'), cat: 'mech', w: 320, h: 180,
+    label: t('Κεκλιμένο επίπεδο', 'Inclined plane'), cat: 'mech', w: 320, h: 180, sim: inclineDef(),
     draw(c, w, h) {
       path(c, [[0, h], [w, h], [w, h * 0.25], [0, h]], true);
       // σώμα πάνω στο επίπεδο

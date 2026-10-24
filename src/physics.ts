@@ -8,6 +8,10 @@ import { hatch, label, path, zigzag } from './draw-util';
 import type { SpringState, StampDef, STAMP_CATS } from './stamps';
 import { t } from './i18n';
 import { chargesDef, circDef, type Topo } from './elec-sim';
+import { MOTION_T, fallAt, fallDef, fallT, floats, forcesDef, fluidDef, frictionDef, hookeDef, hookeDl, motionAt, motionDef, motionTime, resultant } from './mech-sim';
+import type { SimData } from './sim-def';
+import { bulletDef, chargeBDef, circularDef, coilDef, collisionDef, explosionDef, gasDef, generatorDef, gravityDef, interferenceDef, leverDef, photoDef, projectileDef, pvDef, railsDef, resonanceAmp, resonanceDef, springHitDef, standingDef, waveDef, wireDef } from './lyceum-sim';
+import { oscDef, solve } from './osc-sim';
 
 type C = CanvasRenderingContext2D;
 type P2 = [number, number];
@@ -194,11 +198,11 @@ function kit(c: C, sx: number, sy: number): Kit {
 }
 
 /** Σχήμα σε κουτί W × H σχεδίου. */
-function fig(title: string, cat: keyof typeof STAMP_CATS, W: number, H: number, body: (k: Kit, st?: SpringState) => void, play = false): StampDef {
+function fig(title: string, cat: keyof typeof STAMP_CATS, W: number, H: number, body: (k: Kit, st?: SpringState, sim?: SimData) => void, play = false): StampDef {
   return {
     label: title, cat, w: W, h: H, play: play || undefined,
-    draw(c, w, h, st) {
-      body(kit(c, w / W, h / H), st);
+    draw(c, w, h, st, sim) {
+      body(kit(c, w / W, h / H), st, sim);
     },
   };
 }
@@ -643,3 +647,332 @@ export const PHYSICS: Record<string, StampDef> = {
 for (const [n, topo] of [['circMeters', '1'], ['circSeries2', 's2'], ['circPar2', 'p2'], ['circSeries3', 's3'], ['circPar3', 'p3'], ['circSeriesPar3', 'sp'], ['circParSeries3', 'ps']] as [string, Topo][]) PHYSICS[n].sim = circDef(topo);
 PHYSICS.dipole.sim = chargesDef(true);
 PHYSICS.likeCharges.sim = chargesDef(false);
+
+// ---------- μηχανική με τιμές (beta): σχήματα που ζωγραφίζονται από τα δεδομένα τους ----------
+
+PHYSICS.friction.sim = frictionDef();
+
+/** Λίγο χρώμα σε ό,τι κατά τα άλλα είναι μονόχρωμο (υγρό, μπάρες ενέργειας). */
+function fillWith(k: Kit, color: string, alpha: number, f: () => void): void {
+  k.c.save();
+  k.c.fillStyle = color;
+  k.c.globalAlpha *= alpha;
+  f();
+  k.c.restore();
+}
+
+/** Μικρό διάγραμμα y(t) στο κουτί (x0, y0)–(x1, y1): όλη η καμπύλη αχνά και ως τη στιγμή tt έντονα, με τελεία. */
+function graph(k: Kit, x0: number, y0: number, x1: number, y1: number, f: (tt: number) => number, tt: number, yName: string, span = MOTION_T): void {
+  let lo = 0, hi = 0;
+  for (let i = 0; i <= 60; i++) { const v = f((span * i) / 60); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  if (hi - lo < 1e-9) { hi += 1; lo -= 1; }
+  const X = (u: number): number => x0 + ((x1 - x0) * u) / span, Y = (v: number): number => y1 - ((y1 - y0) * (v - lo)) / (hi - lo);
+  k.arrow(x0, Y(0), x1 + 10, Y(0));
+  k.arrow(x0, y1, x0, y0 - 10);
+  k.text(yName, x0 - 14, y0, 18);
+  k.text('t', x1 + 8, Y(0) + 16, 18);
+  k.curve((u) => [X(u), Y(f(u))], 0, span, 60, true);
+  if (tt > 0) {
+    k.curve((u) => [X(u), Y(f(u))], 0, tt, 40);
+    k.dot(X(tt), Y(f(tt)));
+  }
+}
+
+Object.assign(PHYSICS, {
+  motion1d: { ...fig(t('Κίνηση σε άξονα', 'Motion on a line'), 'mech', 560, 380, (k, st, sim) => {
+    const d = sim ?? { v0: 2, a: 0.5 }, tt = motionTime(st);
+    // ο δρόμος: όλη η διαδρομή χωράει στο πλάτος
+    let lo = Infinity, hi = -Infinity;
+    for (let i = 0; i <= 40; i++) { const x = motionAt(d, (MOTION_T * i) / 40).x; lo = Math.min(lo, x); hi = Math.max(hi, x); }
+    if (hi - lo < 1e-9) hi = lo + 1;
+    const X = (x: number): number => 50 + (460 * (x - lo)) / (hi - lo);
+    k.arrow(20, 110, 545, 110);
+    k.text('x', 540, 130, 18);
+    k.dash([X(d.x0 ?? 0), 100], [X(d.x0 ?? 0), 120]);
+    const r = motionAt(d, tt), cx = X(r.x);
+    k.block(cx - 26, 64, cx + 26, 96);
+    k.circle(cx - 15, 102, 7);
+    k.circle(cx + 15, 102, 7);
+    if (Math.abs(r.v) > 1e-9) k.arrow(cx, 48, cx + Math.sign(r.v) * Math.min(90, 20 + Math.abs(r.v) * 8), 48, 'υ', [cx + Math.sign(r.v) * 40, 30]);
+    graph(k, 40, 170, 175, 340, (u) => motionAt(d, u).x, tt, 'x');
+    graph(k, 220, 170, 355, 340, (u) => motionAt(d, u).v, tt, 'υ');
+    graph(k, 400, 170, 535, 340, () => d.a ?? 0, tt, 'a');
+  }, true), playMs: MOTION_T * 1000 + 500, beta: true, sim: motionDef() },
+
+  freefall: { ...fig(t('Ελεύθερη πτώση και ενέργεια', 'Free fall and energy'), 'mech', 320, 440, (k, st, sim) => {
+    const d = sim ?? { h: 20 }, h = d.h ?? 20, T = fallT(d);
+    const tt = st?.t === undefined ? 0 : Math.min(st.t / 1000, T);
+    const Y = (y: number): number => 378 - (310 * y) / h;
+    k.ground(10, 230, 400);
+    k.dash([40, Y(h)], [40, 400]);
+    k.text('h', 26, (Y(h) + 400) / 2);
+    k.arrow(205, 30, 205, 80, 'g', [222, 55]);
+    // στιγμιότυπα σε ίσους χρόνους: η απόσταση μεγαλώνει, γιατί η ταχύτητα αυξάνεται
+    k.c.save();
+    k.c.globalAlpha *= 0.3;
+    for (let i = 1; i < 6; i++) if ((i * T) / 6 <= tt) k.ball(110, Y(fallAt(d, (i * T) / 6).y), 22);
+    k.c.restore();
+    const r = fallAt(d, tt);
+    k.ball(110, Y(r.y), 22, 'm');
+    if (r.v > 0) k.arrow(110, Y(r.y) + 24, 110, Y(r.y) + 24 + Math.min(70, 10 + r.v * 2.5), 'υ', [128, Y(r.y) + 50]);
+    // ενέργεια: U (δυναμική) + K (κινητική) = E, σταθερή
+    const u = r.y / h, bars: [string, number, string][] = [['U', u, '#3b82f6'], ['K', 1 - u, '#ef4444'], ['E', 1, '#22c55e']];
+    bars.forEach(([n, f, col], i) => {
+      const x = 245 + i * 24;
+      fillWith(k, col, 0.85, () => k.poly([[x, 400], [x + 18, 400], [x + 18, 400 - 200 * f], [x, 400 - 200 * f]], true));
+      k.rect(x, 200, x + 18, 400);
+      k.text(n, x + 9, 418, 17);
+    });
+  }, true), playMs: 6000, beta: true, sim: fallDef() },
+
+  fluid: { ...fig(t('Υγρό: πίεση και άνωση', 'Liquid: pressure and buoyancy'), 'mech', 360, 380, (k, _st, sim) => {
+    const d = sim ?? {}, f = floats(d);
+    const top = 150, bot = 350, l = 40, r = 320;
+    fillWith(k, '#38bdf8', 0.35, () => k.poly([[l, top], [r, top], [r, bot], [l, bot]], true));
+    k.line([l, 100], [l, bot], [r, bot], [r, 100]);
+    k.line([l, top], [r, top]);
+    // σημείο σε βάθος h, για την υδροστατική πίεση
+    k.dash([260, top], [260, 290]);
+    k.dot(260, 290);
+    k.text('h', 276, 220);
+    // σώμα: κρέμεται από δυναμόμετρο, επιπλέει (βυθισμένο όσο ρσ/ρυγρ) ή κάθεται στον πάτο
+    const rs = d.rs ?? (d.m && d.V ? d.m / d.V : undefined), frac = f === 1 && rs ? Math.min(1, rs / (d.rho ?? 1000)) : 0;
+    const y0 = f === 1 ? top - 56 * (1 - frac) : f === -1 ? bot - 56 : 200;
+    if (f === null || f === 0) {
+      k.line([150, 20], [150, 50]);
+      k.rect(138, 50, 162, 90);
+      k.text('N', 150, 70, 15, false);
+      k.line([150, 90], [150, y0]);
+    }
+    k.block(122, y0, 178, y0 + 56, 'm');
+    k.arrow(150, y0 + 28, 150, y0 - 32, 'A', [134, y0 - 18]);
+    k.arrow(150, y0 + 28, 150, y0 + 92, 'B', [168, y0 + 80]);
+  }), beta: true, sim: fluidDef() },
+
+  hooke: { ...fig(t('Ελατήριο: νόμος του Hooke', "Spring: Hooke's law"), 'mech', 260, 420, (k, _st, sim) => {
+    const d = sim ?? {}, dl = hookeDl(d) ?? 0;
+    // η επιμήκυνση στο σχήμα: ανάλογη του Δl (σε σχέση με το L₀ αν δόθηκε)
+    const L0 = 130, ext = Math.min(170, d.L0 ? (130 * dl) / d.L0 : dl * 400);
+    k.line([30, 20], [170, 20]);
+    for (let x = 40; x <= 165; x += 18) k.line([x, 20], [x - 10, 8]);
+    const end = 30 + L0 + ext;
+    k.line([100, 20], [100, 40]);
+    k.line(...(zigzag(40, end - 20, 100, 16, 12) as P2[]).map(([a, b]) => [b, a] as P2));
+    k.line([100, end - 20], [100, end]);
+    k.block(70, end, 130, end + 50, 'm');
+    k.arrow(100, end + 50, 100, end + 50 + Math.min(70, 30 + ext * 0.3), 'F', [118, end + 80]);
+    // χάρακας με το φυσικό μήκος και το νέο μήκος
+    k.line([220, 20], [220, 400]);
+    for (let y = 20; y <= 400; y += 20) k.line([214, y], [226, y]);
+    k.dash([150, 30 + L0], [215, 30 + L0]);
+    k.text('L₀', 240, 30 + L0, 17);
+    if (ext > 1) {
+      k.dash([150, end], [215, end]);
+      k.text('L', 240, end, 17);
+      k.text('Δl', 190, 30 + L0 + ext / 2, 16);
+    }
+  }), beta: true, sim: hookeDef() },
+
+  forces2: { ...fig(t('Δύο δυνάμεις: συνισταμένη', 'Two forces: resultant'), 'mech', 380, 300, (k, _st, sim) => {
+    const F1 = sim?.F1 ?? 3, F2 = sim?.F2 ?? 4, th = sim?.th ?? 60;
+    const r = resultant(F1, F2, th), sc = 210 / Math.max(F1, F2, r.R, 1e-9);
+    const O: P2 = [80, 220], a = (th * Math.PI) / 180, p = (r.phi * Math.PI) / 180;
+    const A: P2 = [O[0] + F1 * sc, O[1]], B: P2 = [O[0] + F2 * sc * Math.cos(a), O[1] - F2 * sc * Math.sin(a)];
+    const R: P2 = [O[0] + r.R * sc * Math.cos(p), O[1] - r.R * sc * Math.sin(p)];
+    // παραλληλόγραμμο
+    k.dash(A, R, B);
+    k.arrow(...O, ...A, 'F₁');
+    k.arrow(...O, ...B, 'F₂');
+    k.c.save();
+    k.c.lineWidth *= 1.6;
+    k.arrow(...O, ...R, 'R');
+    k.c.restore();
+    // η δύναμη που ισορροπεί: ίση και αντίθετη της R
+    k.c.save();
+    k.c.setLineDash([8 * k.s, 6 * k.s]);
+    k.arrow(...O, O[0] - (R[0] - O[0]) * 0.45, O[1] - (R[1] - O[1]) * 0.45, 'F₃');
+    k.c.restore();
+    k.curve((u) => [O[0] + 40 * Math.cos(u), O[1] - 40 * Math.sin(u)], 0, a, 20);
+    k.text('θ', O[0] + 56 * Math.cos(a / 2), O[1] - 56 * Math.sin(a / 2), 18);
+    k.dot(...O);
+  }), beta: true, sim: forcesDef() },
+} as Record<string, StampDef>);
+
+// ---------- Β΄ και Γ΄ Λυκείου: τιμές σε όσα υπάρχουν, και νέα σχήματα (beta) ----------
+
+for (const [n, d] of [['projectile', projectileDef], ['circular', circularDef], ['collision', collisionDef], ['bullet', bulletDef], ['explosion', explosionDef],
+  ['springHit', springHitDef], ['waveT', waveDef], ['waveL', waveDef], ['waveS', standingDef], ['interference', interferenceDef], ['lever', leverDef],
+  ['wireField', wireDef], ['coilField', coilDef], ['rails', railsDef]] as [string, () => import('./sim-def').SimDef][]) PHYSICS[n].sim = d();
+
+/** Ο χρόνος του ▶ σε δευτερόλεπτα (0 όσο είναι ακίνητο). */
+const secs = (st?: SpringState): number => (st?.t === undefined ? 0 : st.t / 1000);
+/** Τριγωνική «αναπήδηση» από 0 ως L και πίσω: η θέση μορίου που χτυπά στα τοιχώματα. */
+const bounce = (x: number, L: number): number => { const m = ((x % (2 * L)) + 2 * L) % (2 * L); return m < L ? m : 2 * L - m; };
+
+Object.assign(PHYSICS, {
+  gasbox: { ...fig(t('Αέριο σε δοχείο με έμβολο', 'Gas in a cylinder'), 'gas', 380, 260, (k, st, sim) => {
+    const T = sim?.T ?? 300, Vv = sim?.V ?? 0.0224, tt = secs(st);
+    // το έμβολο μετακινείται με τον όγκο· τα μόρια τρέχουν πιο γρήγορα όσο ανεβαίνει η θερμοκρασία (υ ∝ √T)
+    const w = 140 + 180 * Math.min(1, Vv / 0.03), x0 = 30, y0 = 40, y1 = 220, sp = 40 * Math.sqrt(T / 300);
+    k.line([x0 + w, y0 - 10], [x0, y0 - 10], [x0, y1 + 10], [x0 + w, y1 + 10]);
+    k.c.save();
+    k.c.lineWidth *= 3;
+    k.line([x0 + w, y0 - 10], [x0 + w, y1 + 10]);
+    k.c.restore();
+    k.line([x0 + w, (y0 + y1) / 2], [x0 + w + 40, (y0 + y1) / 2]);
+    for (let i = 0; i < 26; i++) {
+      const a = i * 2.39996, vx = Math.cos(a), vy = Math.sin(a);
+      k.circle(x0 + 8 + bounce(i * 37 + vx * sp * tt * 3, w - 16), y0 + bounce(i * 23 + vy * sp * tt * 3, y1 - y0), 5, true);
+    }
+    k.text(`T = ${Math.round(T)} K`, x0 + w / 2, y1 + 32, 17, false);
+  }, true), beta: true, sim: gasDef() },
+
+  pv: { ...fig(t('Διάγραμμα p–V', 'p–V diagram'), 'gas', 360, 300, (k, _st, sim) => {
+    const p1 = sim?.p1 ?? 1e5, V1 = sim?.V1 ?? 2e-3, p2 = sim?.p2 ?? p1, V2 = sim?.V2 ?? (sim?.p2 !== undefined ? V1 : 6e-3);
+    const pm = Math.max(p1, p2) * 1.25, Vm = Math.max(V1, V2) * 1.25;
+    const X = (v: number): number => 50 + (280 * v) / Vm, Y = (p: number): number => 260 - (220 * p) / pm;
+    k.arrow(50, 260, 345, 260);
+    k.arrow(50, 260, 50, 20);
+    k.text('V', 340, 280, 18);
+    k.text('p', 32, 26, 18);
+    // το έργο είναι το εμβαδόν κάτω από τη μεταβολή
+    k.c.save();
+    k.c.globalAlpha *= 0.18;
+    k.poly([[X(V1), Y(p1)], [X(V2), Y(p2)], [X(V2), 260], [X(V1), 260]], true);
+    k.c.restore();
+    k.dash([X(V1), Y(p1)], [X(V1), 260]);
+    k.dash([X(V2), Y(p2)], [X(V2), 260]);
+    k.dash([50, Y(p1)], [X(V1), Y(p1)]);
+    if (Math.hypot(X(V2) - X(V1), Y(p2) - Y(p1)) > 1) k.arrow(X(V1), Y(p1), X(V2), Y(p2));
+    k.dot(X(V1), Y(p1));
+    k.dot(X(V2), Y(p2));
+    k.text('A', X(V1) - 14, Y(p1) - 14, 19);
+    k.text('B', X(V2) + 14, Y(p2) - 14, 19);
+    k.text('W', (X(V1) + X(V2)) / 2, 240, 18);
+  }), beta: true, sim: pvDef() },
+
+  gravity: { ...fig(t('Πεδίο βαρύτητας της Γης', "Earth's gravitational field"), 'mech', 360, 300, (k, _st, sim) => {
+    const R = sim?.RE ?? 6.4e6, h = sim?.h ?? 3.2e6, r = Math.min(135, 70 * (1 + h / R));
+    k.c.save();
+    k.c.fillStyle = '#38bdf8';
+    k.c.globalAlpha *= 0.35;
+    k.circle(130, 150, 70, true);
+    k.c.restore();
+    k.circle(130, 150, 70);
+    k.curve((u) => [130 + r * Math.cos(u), 150 + r * Math.sin(u)], 0, 2 * Math.PI, 80, true);
+    const sx = 130 + r * Math.cos(-0.6), sy = 150 + r * Math.sin(-0.6);
+    k.block(sx - 9, sy - 9, sx + 9, sy + 9);
+    k.arrow(sx - 12 * Math.cos(-0.6), sy - 12 * Math.sin(-0.6), sx - 48 * Math.cos(-0.6), sy - 48 * Math.sin(-0.6), 'g');
+    k.line([130, 150], [60, 150]);
+    k.text('R', 95, 136);
+    k.dash([200, 150], [130 + r, 150]);
+    k.text('h', (200 + 130 + r) / 2, 136);
+    k.arrow(sx + 14, sy + 6, sx + 50, sy + 46, 'υ');
+  }), beta: true, sim: gravityDef() },
+
+  shm: { ...fig(t('Ταλάντωση με διαγράμματα', 'Oscillation with graphs'), 'osc', 560, 380, (k, st, sim) => {
+    const d = sim ?? { m: 1, k: 100, A: 0.1 };
+    const w = solve(d, false).w ?? 2 * Math.PI, A = solve(d, false).A ?? 0.1, T = (2 * Math.PI) / w, span = 2 * T;
+    const tt = st?.t === undefined ? 0 : (st.t / 1000) % span;
+    // το σώμα στο ελατήριο (x = A συν ωt), και από κάτω x–t, υ–t, a–t για δύο περιόδους
+    k.wall(20, 20, 120);
+    k.ground(20, 400, 120);
+    const bx = 200 + 70 * Math.cos(w * tt);
+    k.line(...(zigzag(20, bx - 30, 85, 14, 12) as P2[]));
+    k.block(bx - 30, 60, bx + 30, 120, 'm');
+    k.dash([200, 40], [200, 130]);
+    k.text('Θ.Ι.', 200, 30, 15, false);
+    graph(k, 40, 180, 175, 340, (u) => A * Math.cos(w * u), tt, 'x', span);
+    graph(k, 220, 180, 355, 340, (u) => -w * A * Math.sin(w * u), tt, 'υ', span);
+    graph(k, 400, 180, 535, 340, (u) => -w * w * A * Math.cos(w * u), tt, 'a', span);
+    // ενέργεια: K + U = E σταθερή
+    const u = Math.cos(w * tt) ** 2;
+    ([['U', u, '#3b82f6'], ['K', 1 - u, '#ef4444'], ['E', 1, '#22c55e']] as [string, number, string][]).forEach(([n, f, col], i) => {
+      const x = 440 + i * 30;
+      fillWith(k, col, 0.85, () => k.poly([[x, 120], [x + 22, 120], [x + 22, 120 - 90 * f], [x, 120 - 90 * f]], true));
+      k.rect(x, 30, x + 22, 120);
+      k.text(n, x + 11, 138, 16);
+    });
+  }, true), beta: true, sim: oscDef('h') },
+
+  resonance: { ...fig(t('Συντονισμός', 'Resonance'), 'osc', 380, 280, (k, _st, sim) => {
+    const f0 = sim?.f0 ?? 1, fd = sim?.fd ?? 0.7 * f0;
+    const X = (f: number): number => 50 + (300 * f) / (2 * f0), Y = (a: number): number => 240 - 190 * a;
+    k.arrow(50, 240, 360, 240);
+    k.arrow(50, 240, 50, 20);
+    k.text('fδ', 350, 262, 18);
+    k.text('A', 32, 28, 18);
+    k.curve((f) => [X(f), Y(resonanceAmp(f0, f))], 0.01 * f0, 2 * f0, 100);
+    k.dash([X(f0), 240], [X(f0), Y(1)]);
+    k.text('f₀', X(f0), 260, 18);
+    if (fd > 0 && fd <= 2 * f0) {
+      k.dash([X(fd), 240], [X(fd), Y(resonanceAmp(f0, fd))]);
+      k.dot(X(fd), Y(resonanceAmp(f0, fd)));
+    }
+  }), beta: true, sim: resonanceDef() },
+
+  chargeB: { ...fig(t('Φορτίο σε μαγνητικό πεδίο', 'Charge in a magnetic field'), 'em', 360, 300, (k, st, sim) => {
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 6; j++) {
+      const x = 30 + i * 43, y = 30 + j * 48;
+      k.line([x - 5, y - 5], [x + 5, y + 5]);
+      k.line([x - 5, y + 5], [x + 5, y - 5]);
+    }
+    k.text('B', 340, 18, 18);
+    k.curve((u) => [180 + 95 * Math.cos(u), 150 + 95 * Math.sin(u)], 0, 2 * Math.PI, 80, true);
+    // θετικό φορτίο, πεδίο προς τα μέσα: κυκλική τροχιά αντίθετα από τους δείκτες του ρολογιού
+    const a = Math.PI / 2 - (sim?.q !== undefined && sim.q < 0 ? -1 : 1) * secs(st) * 1.6, px = 180 + 95 * Math.cos(a), py = 150 + 95 * Math.sin(a);
+    const dir = sim?.q !== undefined && sim.q < 0 ? 1 : -1;
+    k.ball(px, py, 11, sim?.q !== undefined && sim.q < 0 ? '−' : '+');
+    k.arrow(px, py, px + dir * 55 * Math.sin(a) * -1, py + dir * 55 * Math.cos(a), 'υ');
+    k.arrow(px, py, px - 45 * Math.cos(a), py - 45 * Math.sin(a), 'F');
+    k.dash([180, 150], [px, py]);
+    k.text('R', (180 + px) / 2 + 12, (150 + py) / 2);
+  }, true), beta: true, sim: chargeBDef() },
+
+  generator: { ...fig(t('Στρεφόμενο πλαίσιο (εναλλακτήρας)', 'Rotating coil (generator)'), 'em', 380, 300, (k, st) => {
+    const ph = secs(st) * Math.PI;
+    k.block(10, 40, 70, 160, 'N');
+    k.block(310, 40, 370, 160, 'S');
+    for (const y of [70, 100, 130]) k.dash([72, y], [308, y]);
+    // το πλαίσιο από το πλάι: το πλάτος του μικραίνει και μεγαλώνει όσο γυρίζει
+    const half = 70 * Math.abs(Math.cos(ph));
+    k.rect(190 - half, 50, 190 + half, 150);
+    k.line([190, 30], [190, 170]);
+    // η τάση από κάτω: e = E₀ ημ(ωt)
+    const gx0 = 40, gx1 = 340, gy = 240;
+    k.arrow(gx0, gy, gx1 + 10, gy);
+    k.text('e', gx0 - 14, gy - 40, 18);
+    k.text('t', gx1 + 6, gy + 16, 18);
+    const span = 4;
+    k.curve((u) => [gx0 + ((gx1 - gx0) * u) / span, gy - 40 * Math.sin(Math.PI * u)], 0, span, 80, true);
+    const tt = secs(st) % span;
+    if (st?.t !== undefined) k.dot(gx0 + ((gx1 - gx0) * tt) / span, gy - 40 * Math.sin(Math.PI * tt));
+  }, true), beta: true, sim: generatorDef() },
+
+  photo: { ...fig(t('Φωτοηλεκτρικό φαινόμενο', 'Photoelectric effect'), 'wave', 400, 300, (k, _st, sim) => {
+    const Hh = 6.63e-34, e = 1.6e-19, phi = sim?.phi ?? 4 * e;
+    const f = sim?.f ?? (sim?.lam ? 3e8 / sim.lam : 1.5e15), f0 = phi / Hh, K = (Hh * f - phi) / e;
+    // μέταλλο, φως που πέφτει, και ηλεκτρόνια που βγαίνουν (μόνο αν f > f₀)
+    k.rect(20, 200, 150, 220);
+    k.curve((u) => [40 + u * 50 + 6 * Math.sin(u * 30), 110 + u * 85], 0, 1, 60);
+    k.head(90, 195, 0.5, 0.85);
+    k.text('hf', 40, 150, 18);
+    if (K > 0) {
+      k.arrow(105, 198, 140, 130, 'e⁻', [118, 150]);
+      k.arrow(125, 198, 175, 145);
+    }
+    // διάγραμμα Kmax–f: ευθεία με κλίση h, ξεκινά από το f₀
+    const fm = Math.max(2 * f0, f * 1.2), Km = Math.max(1, (Hh * fm - phi) / e);
+    const X = (x: number): number => 200 + (180 * x) / fm, Y = (kk: number): number => 250 - (200 * kk) / Km;
+    k.arrow(200, 250, 390, 250);
+    k.arrow(200, 250, 200, 30);
+    k.text('f', 385, 268, 18);
+    k.text('K', 186, 36, 18);
+    k.line([X(f0), 250], [X(fm), Y(Km)]);
+    k.text('f₀', X(f0), 268, 17);
+    if (K > 0) {
+      k.dash([X(f), 250], [X(f), Y(K)]);
+      k.dot(X(f), Y(K));
+    }
+  }), beta: true, sim: photoDef() },
+} as Record<string, StampDef>);

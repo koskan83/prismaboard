@@ -2,7 +2,7 @@
 
 import { BETA } from './beta';
 import { t } from './i18n';
-import { STAMPS } from './stamps';
+import { STAMPS, STAMP_CATS } from './stamps';
 
 declare const __BUILD__: string;
 declare const __APP__: string;
@@ -12,7 +12,7 @@ export const VERSION: string = typeof __BUILD__ === 'string'
   : t('δοκιμαστική', 'test build');
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
-export const NEWS_ID = BETA ? '2026-10-24b-beta' : '2026-10-23';
+export const NEWS_ID = BETA ? '2026-10-25b-beta' : '2026-10-23';
 
 /** Συνοπτικά, ανά θέμα: λίγες γραμμές που διαβάζονται με μια ματιά, αντί για κάθε αλλαγή χωριστά. */
 /**
@@ -20,8 +20,10 @@ export const NEWS_ID = BETA ? '2026-10-24b-beta' : '2026-10-23';
  * Όταν προστίθεται νέο, αλλάζει και το NEWS_ID, για να φανεί το «Τι νέο».
  */
 export function betaStampNews(): string[] {
-  const n = Object.values(STAMPS).filter((d) => !d.kid && !d.hidden && (d.beta || d.sim?.beta)).map((d) => d.label);
-  return n.length ? [t(`Στη beta, σχήματα Φυσικής με τιμές και απαντήσεις: ${n.join(', ')}. Πάτα «Τιμές» ή πάνω στο πλαίσιο κάτω από το σχήμα.`, `In the beta, Physics drawings with values and answers: ${n.join(', ')}. Tap “Values” or the box under the drawing.`)] : [];
+  const ds = Object.values(STAMPS).filter((d) => !d.kid && !d.hidden && (d.beta || d.sim?.beta));
+  // πόσα και σε ποιες κατηγορίες: η λίστα με όλα τα ονόματα δεν θα διαβαζόταν
+  const cats = [...new Set(ds.map((d) => d.cat).filter((c) => !!c))].map((c) => STAMP_CATS[c!].toLowerCase());
+  return ds.length ? [t(`Στη beta, ${ds.length} σχήματα Φυσικής με τιμές και απαντήσεις (${cats.join(', ')}). Πάτα «Τιμές» ή πάνω στο πλαίσιο κάτω από το σχήμα.`, `In the beta, ${ds.length} Physics drawings with values and answers (${cats.join(', ')}). Tap “Values” or the box under the drawing.`)] : [];
 }
 
 export const NEWS: string[] = [

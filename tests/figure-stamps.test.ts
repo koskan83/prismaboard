@@ -40,8 +40,8 @@ describe('σχήμα από εκφώνηση με τα έτοιμα σχήματ
   it('σχήματα της beta: μόνο στη beta, και στο «Τι νέο» της beta', () => {
     // σήμερα: οι τιμές του ηλεκτρισμού, σε μία γραμμή
     expect(betaStampNews()).toHaveLength(1);
-    expect(betaStampNews()[0]).toContain(STAMPS.circSeries2.label);
-    expect(betaStampNews()[0]).not.toContain(STAMPS.spring.label);
+    expect(betaStampNews()[0]).toMatch(/\d+ σχήματα Φυσικής/);
+    expect(betaStampNews()[0]).toContain('κυκλώματα');
     STAMPS.zzBeta = { ...STAMPS.incline, beta: true };
     STAMPS.zzSimBeta = { ...STAMPS.spring, sim: { ...STAMPS.spring.sim!, beta: true } };
     try {
@@ -49,7 +49,7 @@ describe('σχήμα από εκφώνηση με τα έτοιμα σχήματ
       expect(figureStampNames(true)).toContain('zzBeta');
       // το σχήμα υπάρχει και στην κανονική· μόνο οι τιμές του είναι της beta
       expect(figureStampNames(false)).toContain('zzSimBeta');
-      expect(betaStampNews()[0]).toContain(STAMPS.incline.label);
+      expect(betaStampNews()[0]).toContain('δυνάμεις και κινήσεις');
     } finally {
       delete STAMPS.zzBeta;
       delete STAMPS.zzSimBeta;

@@ -10,9 +10,10 @@ describe('κουμπιά του επιλεγμένου σχήματος', () => 
     }
   });
   it('σχήματα με κίνηση: μόνο ▶· χωρίς επιλογές: τίποτα', () => {
-    expect(stampOpts('waveT', true)).toEqual(['play']);
+    expect(stampOpts('waveT', true)).toEqual(['play', 'sim']);
+    expect(stampOpts('waveT', false)).toEqual(['play']);
     expect(stampOpts('projectile', false)).toEqual(['play']);
-    expect(stampOpts('incline', true)).toEqual([]);
+    expect(stampOpts('pulley', true)).toEqual([]);
     expect(stampOpts('δεν-υπάρχει', true)).toEqual([]);
     expect(stampOpts('constructor', true)).toEqual([]);
   });
