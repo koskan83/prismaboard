@@ -278,6 +278,23 @@ describe('ανάγνωση αποθηκευμένου πίνακα', () => {
     const d = readDoc({ v: 1, pages: [{ items: [...bad, rect(), good] }] });
     expect(d.pages[0].items.map((it) => it.id)).toEqual([rect().id, 'f']);
   });
+  it('ελατήρια παλιών μαθημάτων: τα δεδομένα, το μετακινημένο και το σβησμένο πλαίσιο μένουν όπως ήταν', () => {
+    const sp = (name: string, extra: object) => ({ kind: 'stamp', id: name, name, x: 0, y: 0, w: 100, h: 100, color: '#000', width: 3, ...extra });
+    const old = [
+      sp('spring', { sim: { m: 2, k: 200, A: 0.1 }, simXY: [10, -5] }),
+      sp('springV', { sim: { m: 1, dl: 0.1 }, simOff: true }),
+      sp('springIncline', { sim: { k: 100, E: 20 } }),
+      sp('pendulum', { sim: { L: 1, A: 0.05 } }),
+    ];
+    const d = readDoc({ v: 1, pages: [{ items: old }] });
+    expect(d.pages[0].items).toEqual(old);
+  });
+  it('δεδομένα σχήματος από έξω: μόνο αριθμοί', () => {
+    const it = { kind: 'stamp', id: 's', name: 'spring', x: 0, y: 0, w: 1, h: 1, color: '#000', width: 2, sim: { m: 2, k: 'πολύ', A: NaN, T: null } };
+    expect(readDoc({ v: 1, pages: [{ items: [it] }] }).pages[0].items[0]).toMatchObject({ sim: { m: 2 } });
+    const none = readDoc({ v: 1, pages: [{ items: [{ ...it, sim: 'x' }] }] }).pages[0].items[0];
+    expect('sim' in none).toBe(false);
+  });
   it('κρατά το περίγραμμα Α4 και πετά ό,τι άγνωστο', () => {
     expect(readDoc({ v: 1, pages: [], a4: 'h' }).a4).toBe('h');
     expect(readDoc({ v: 1, pages: [], a4: 'A3' }).a4).toBeUndefined();

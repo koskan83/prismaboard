@@ -1,6 +1,6 @@
 /** Άξονες: ονόματα, κλίμακα, συναρτήσεις και εργαλεία ανάλυσης. */
 
-import { AxesAn, AxesItem, FnDef, StampItem } from './model';
+import { AxesAn, AxesItem, FnDef } from './model';
 import { Params, compile, fnOf, paramsOf } from './expr';
 import { crossings, enclosing, fitScaleY } from './analysis';
 import { axesRange, itemBounds } from './model';
@@ -9,7 +9,6 @@ import { $, board, esc, toast } from './app';
 // κυκλική αναφορά με το main: μόνο συναρτήσεις, που καλούνται αφού στηθεί όλη η εφαρμογή
 import { closePopups, inkPalette, placeNear, savePrefs, togglePopup } from './main';
 import { t } from './i18n';
-import { SIM_HINT, simText } from './osc-sim';
 
 const labelMenu = $('labelMenu');
 const fnMenu = $('fnMenu');
@@ -274,17 +273,6 @@ $('spStop').onclick = () => board.stopSpring();
 document.getElementById('spPos')?.addEventListener('click', () => board.cyclePos());
 document.getElementById('spPin')?.addEventListener('click', () => board.updateSpring({ pin: !board.selectedSpring?.pin || undefined }));
 document.getElementById('spCopy')?.addEventListener('click', () => board.alignedCopy());
-/** Τα δεδομένα της ταλάντωσης σε πλαίσιο: από το κουμπί «Τιμές» ή πατώντας πάνω στις τιμές κάτω από το σχήμα. */
-async function editSim(sp: StampItem): Promise<void> {
-  const pend = sp.name === 'pendulum';
-  const v = await ask(t('Δεδομένα της ταλάντωσης', 'Oscillation data'), { value: simText(sp.sim), hint: SIM_HINT(pend), max: 80 });
-  if (v !== null && board.selectedSpring?.id === sp.id) board.setSim(v);
-}
-board.onSimRequest = (sp) => void editSim(sp);
-document.getElementById('spSim')?.addEventListener('click', () => {
-  const sp = board.selectedSpring;
-  if (sp) void editSim(sp);
-});
 $('spPlay').onclick = () => board.togglePlay();
 fnInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') addFn();

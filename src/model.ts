@@ -1,5 +1,5 @@
 import { t } from './i18n';
-import type { OscSim } from './osc-sim';
+import type { SimData } from './sim-def';
 
 export type Pt = [number, number];
 
@@ -203,7 +203,7 @@ export interface StampItem {
   /** Ελατήρια: όταν αφήνεις το σώμα μένει εκεί, αντί να ταλαντωθεί. */
   pin?: boolean;
   /** Ελατήρια: δεδομένα για την προσομοίωση (SI): μάζα, σταθερά, πλάτος, μήκος νήματος, g. */
-  sim?: OscSim;
+  sim?: SimData;
   /** Ελατήρια: πόσο μετακίνησε ο χρήστης το πλαίσιο των τιμών από τη θέση του κάτω από το σχήμα (μονάδες του σχήματος). */
   simXY?: [number, number];
   /** Ελατήρια: το πλαίσιο των τιμών σβήστηκε (τα δεδομένα μένουν για την κίνηση· ξαναφαίνεται όταν αλλάξουν). */
@@ -300,6 +300,14 @@ const isPts = (p: unknown): boolean => Array.isArray(p) && p.every((q) => Array.
  * Τα πεδία που, σε λάθος μορφή, θα έριχναν το ζωγράφισμα σε κάθε άνοιγμα του μαθήματος (π.χ. `pts` που δεν είναι λίστα).
  * Αρχεία από έξω (συνάδελφος, Drive) δεν είναι έμπιστα· ό,τι δεν περνά, απλώς δεν μπαίνει.
  */
+/** Μόνο αριθμοί που υπάρχουν: τα δεδομένα σχήματος από αρχείο ή από παλιότερη έκδοση δεν σπάνε το πλαίσιο των τιμών. */
+export function cleanSim(raw: unknown): SimData | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const out: SimData = {};
+  for (const [k, v] of Object.entries(raw)) if (typeof v === 'number' && Number.isFinite(v)) out[k] = v;
+  return Object.keys(out).length ? out : undefined;
+}
+
 function itemOk(it: Item): boolean {
   switch (it.kind) {
     case 'stroke':
@@ -314,7 +322,14 @@ function itemOk(it: Item): boolean {
       return it.fns === undefined || (Array.isArray(it.fns) && it.fns.every((f) => !!f && typeof f.expr === 'string'));
     case 'stamp':
       // όχι «constructor», «toString» κ.λπ., που θα έβρισκε το STAMPS[name] σε κάθε αντικείμενο
-      return typeof it.name === 'string' && !(it.name in Object.prototype);
+      if (typeof it.name !== 'string' || it.name in Object.prototype) return false;
+      // δεδομένα σχήματος: μόνο αριθμοί (ό,τι άλλο θα έσπαγε το πλαίσιο των τιμών)
+      if (it.sim !== undefined) {
+        const sim = cleanSim(it.sim);
+        if (sim) it.sim = sim;
+        else delete it.sim;
+      }
+      return true;
     default:
       return true;
   }

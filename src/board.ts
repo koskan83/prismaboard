@@ -14,6 +14,7 @@ import * as M from './board-measure';
 import * as K from './board-kids';
 import * as S from './board-select';
 import * as O from './board-springs';
+import * as SIM from './board-sim';
 import * as L from './board-live';
 
 // οι δοκιμές και όποιος τα χρειάζεται τα βρίσκουν ακόμα εδώ
@@ -966,24 +967,30 @@ export class Board {
 
   setPinnedAt(id: string, d: number): void { O.setPinnedAt(this, id, d); }
 
-  setSim(text: string): void { O.setSim(this, text); }
+  // ---------- σχήματα με τιμές (βλ. board-sim.ts) ----------
 
-  /** Λάσο γύρω από ελατήριο και τα δεδομένα του (κείμενο ή χειρόγραφα): οι τιμές m, k, A… πάνε στο ελατήριο. */
-  get springAndText(): { s: StampItem; text: string; ink: string[] } | null { return O.springAndText(this); }
+  /** Το επιλεγμένο σχήμα, αν έχει τιμές (ελατήρια, εκκρεμές και ό,τι άλλο έχει StampDef.sim). */
+  get selectedSim(): StampItem | null { return SIM.selectedSim(this); }
 
-  applySim(id: string, sim: NonNullable<StampItem['sim']>): StampItem | null { return O.applySim(this, id, sim); }
+  /** Τα δεδομένα του επιλεγμένου σχήματος από κείμενο· κενό τα σβήνει. */
+  setSim(text: string): void { SIM.setSim(this, text); }
 
-  /** Το ελατήριο του οποίου οι τιμές είναι κάτω από το σημείο (πάτημα πάνω τους = αλλαγή). */
-  simAt(wx: number, wy: number): StampItem | null { return O.simAt(this, wx, wy); }
+  /** Λάσο γύρω από σχήμα με τιμές και τα δεδομένα του (κείμενο ή χειρόγραφα): οι τιμές πάνε στο σχήμα. */
+  get simAndText(): { s: StampItem; text: string; ink: string[] } | null { return SIM.simAndText(this); }
+
+  applySim(id: string, sim: NonNullable<StampItem['sim']>): StampItem | null { return SIM.applySim(this, id, sim); }
+
+  /** Το σχήμα του οποίου οι τιμές είναι κάτω από το σημείο (πάτημα πάνω τους = αλλαγή). */
+  simAt(wx: number, wy: number): StampItem | null { return SIM.simAt(this, wx, wy); }
 
   onSimRequest: (s: StampItem) => void = () => {};
 
-  /** Το επιλεγμένο ελατήριο, αν το σημείο πέφτει στο ✕ που σβήνει το πλαίσιο των τιμών του. */
-  simCloseAt(wx: number, wy: number): StampItem | null { return O.simCloseAt(this, wx, wy); }
+  /** Το επιλεγμένο σχήμα, αν το σημείο πέφτει στο ✕ που σβήνει το πλαίσιο των τιμών του. */
+  simCloseAt(wx: number, wy: number): StampItem | null { return SIM.simCloseAt(this, wx, wy); }
 
-  /** Σβήνει το πλαίσιο των τιμών του επιλεγμένου ελατηρίου (με αναίρεση)· τα δεδομένα μένουν για την κίνηση. */
+  /** Σβήνει το πλαίσιο των τιμών του επιλεγμένου σχήματος (με αναίρεση)· τα δεδομένα μένουν για την κίνηση. */
   hideSim(): void {
-    this.updateSpring({ simOff: true });
+    SIM.updateSelected(this, { simOff: true });
     this.onUi();
   }
 

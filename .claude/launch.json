@@ -1,7 +1,43 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "grafida", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "5173"], "port": 5173 },
-    { "name": "grafida-5174", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev", "--", "--port", "5174"], "port": 5174 }
+    {
+      "name": "grafida",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "grafida-5174",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5174"
+      ],
+      "port": 5174
+    },
+    {
+      "name": "grafida-beta",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_CHANNEL=beta",
+        "npm",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5175"
+      ],
+      "port": 5175
+    }
   ]
 }

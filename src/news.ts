@@ -2,6 +2,7 @@
 
 import { BETA } from './beta';
 import { t } from './i18n';
+import { STAMPS } from './stamps';
 
 declare const __BUILD__: string;
 declare const __APP__: string;
@@ -11,10 +12,20 @@ export const VERSION: string = typeof __BUILD__ === 'string'
   : t('δοκιμαστική', 'test build');
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
-export const NEWS_ID = BETA ? '2026-10-23-beta' : '2026-10-23';
+export const NEWS_ID = BETA ? '2026-10-24-beta' : '2026-10-23';
 
 /** Συνοπτικά, ανά θέμα: λίγες γραμμές που διαβάζονται με μια ματιά, αντί για κάθε αλλαγή χωριστά. */
+/**
+ * Στη beta: τα σχήματα (ή οι τιμές σχημάτων) που υπάρχουν μόνο εκεί, σε μία γραμμή, από τις σημαίες beta του STAMPS.
+ * Όταν προστίθεται νέο, αλλάζει και το NEWS_ID, για να φανεί το «Τι νέο».
+ */
+export function betaStampNews(): string[] {
+  const n = Object.values(STAMPS).filter((d) => !d.kid && !d.hidden && (d.beta || d.sim?.beta)).map((d) => d.label);
+  return n.length ? [t(`Στη beta, σχήματα Φυσικής με τιμές και απαντήσεις: ${n.join(', ')}. Πάτα «Τιμές» ή πάνω στο πλαίσιο κάτω από το σχήμα.`, `In the beta, Physics drawings with values and answers: ${n.join(', ')}. Tap “Values” or the box under the drawing.`)] : [];
+}
+
 export const NEWS: string[] = [
+  ...(BETA ? betaStampNews() : []),
   // μόνο στο beta: η κανονική έκδοση δεν έχει ακόμη αυτά τα εργαλεία
   ...(BETA ? [t('Στη δοκιμαστική έκδοση (beta): «Επίπεδο φωνής», «Μετρητής θορύβου» (ο ήχος δεν ηχογραφείται) και χρονόμετρο με δίσκο-πίτα. Στις ταλαντώσεις οι απαντήσεις κρατούν το π (T = 2π s, f = 1/(2π) ≈ 0,159 Hz), και το πλαίσιο των τιμών σέρνεται όπου θέλεις ή σβήνεται με το ✕.', 'In the beta: “Voice level”, a “Noise meter” (sound is never recorded) and a timer with a pie disk. In oscillations the answers keep π (T = 2π s, f = 1/(2π) ≈ 0.159 Hz), and the values box can be dragged anywhere or removed with ✕.')] : []),
   t('Κυβάκια και αριθμοί (Όργανα → Παιχνίδια): αριθμοί ως το 1000, οι τέσσερις πράξεις (+ − × :) με το 3 × 4 ως ορθογώνιο και το 12 : 3 σε καλάθια, ασκήσεις μόνες τους με το 🎲, και ζυγαριά με δύο πιατέλες για συγκρίσεις.', 'Number Cubes (Tools → Games): numbers up to 1000, all four operations (+ − × :) with 3 × 4 as a rectangle and 12 : 3 in baskets, exercises by themselves with 🎲, and a two-pan scale for comparisons.'),

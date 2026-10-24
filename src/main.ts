@@ -11,6 +11,7 @@ import { STAMPS, STAMP_CATS, type StampDef } from './stamps';
 import { PEN_ICON, PenKind } from './ui';
 import { ask, notice } from './dialog';
 import { posName } from './board-springs';
+import { OPTS, stampOpts, type OptId } from './stamp-opts';
 import { openBuildView } from './build-view';
 import { openGameView, playsFull } from './game-view';
 import { loadReady } from './ready-ui';
@@ -18,6 +19,7 @@ import { confetti, loadFx, playFx, saveFx, say } from './fx';
 import { NEWS, VERSION, newsPending } from './news';
 import { $, HL_PALETTE, MORE_COLORS, PALETTE, colorName, SIZES, SIZE_NAME, app, board, curtain, curtainTop, download, layoutBar, spot, stamp, timer, toast, voice, noise } from './app';
 import { fitY, renderFns, resetFnDraft, resetFnMoved, scaleText, toggleAnalysis } from './axes-ui';
+import './sim-ui';
 import { clearMeasShape } from './measure-ui';
 import { ai, autoKind, openAi } from './recognize-ui';
 import { endLesson, lessonPdf, openSend, pdfLogo, setPdfLogo } from './send-ui';
@@ -294,21 +296,20 @@ export function refreshUi(): void {
   show('angBtn', angs.length > 0);
   $('angBtn').classList.toggle('on', angs.length > 0 && angs.some((x) => !x.noAng));
   show('axesOpts', !!ax);
-  const sp = tool === 'select' ? board.selectedSpring : null;
-  show('springOpts', !!sp);
+  // τα κουμπιά του επιλεγμένου σχήματος: η ρητή λίστα του (stamp-opts.ts), με τη σειρά της
+  const selIt = tool === 'select' && board.selected ? board.page.items.find((x) => x.id === board.selected) : undefined;
+  const sp = selIt?.kind === 'stamp' ? selIt : null;
+  const opts = sp ? stampOpts(sp.name) : [];
+  show('springOpts', opts.length > 0);
+  for (const [id, o] of Object.entries(OPTS) as [OptId, (typeof OPTS)[OptId]][]) if (!o.beta || BETA) show(o.el, opts.includes(id));
   $('spMarks').classList.toggle('on', !!sp?.marks);
   // στο εκκρεμές δεν υπάρχει φυσικό μήκος: οι θέσεις είναι η ισορροπία και οι ακραίες
   $('spMarks').querySelector('span')!.textContent = sp?.name === 'pendulum' ? '±A' : t('ΘΦΜ', 'L₀');
   $('spDamp').classList.toggle('on', !!sp?.damp);
   ($('spStop') as HTMLButtonElement).disabled = !board.springMoving;
-  // σχήματα με κίνηση (κύματα, κρούση): μόνο ▶/⏸· τα ελατήρια και το εκκρεμές: θέσεις, απόσβεση, στοπ
-  const playable = !!sp && !!STAMPS[sp.name]?.play;
-  show('spPlay', playable);
-  for (const id of ['spMarks', 'spDamp', 'spStop']) show(id, !!sp && !playable);
   // μόνο στη beta: θέση του σώματος, 📌 και τιμές της προσομοίωσης
   if (BETA) {
-    for (const id of ['spPos', 'spPin', 'spSim', 'spCopy']) show(id, !!sp && !playable);
-    show('simTxt', tool === 'select' && !!board.springAndText);
+    show('simTxt', tool === 'select' && !!board.simAndText);
     $('spPos').querySelector('span')!.textContent = sp ? posName(sp) : t('Θ.Ι.', 'Eq.');
     $('spPos').classList.toggle('on', sp?.pos !== undefined && Math.abs(sp.pos) > 1e-6);
     $('spPin').classList.toggle('on', !!sp?.pin);
@@ -718,7 +719,8 @@ for (const [cat, title] of Object.entries(STAMP_CATS)) {
   head.className = 'stHead';
   head.textContent = title;
   $('stampGrid').append(head);
-  for (const [name, d] of Object.entries(STAMPS)) if (!d.kid && !d.hidden && d.cat === cat) addStampTile(name, d);
+  // τα σχήματα της beta μόνο στη beta (τα μαθήματα που τα έχουν ανοίγουν και στην κανονική)
+  for (const [name, d] of Object.entries(STAMPS)) if (!d.kid && !d.hidden && d.cat === cat && (!d.beta || BETA)) addStampTile(name, d);
 }
 function addStampTile(name: string, d: StampDef): void {
   const b = document.createElement('button');

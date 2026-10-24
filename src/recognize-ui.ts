@@ -13,7 +13,7 @@ import { closePopups, inkPalette, refreshUi } from './main';
 import { isEn, t } from './i18n';
 import { androidSay, androidSpeaking, androidStopSay, androidVoiceHelp } from './android';
 import { isAndroidApp } from './platform';
-import { dataLine, parseSim } from './osc-sim';
+import { stampSim } from './sim-def';
 import { figureCatalog, figureStamp } from './figure-stamps';
 
 export const ai = loadAi();
@@ -347,7 +347,7 @@ async function runRecognition(ids: string[], kind: AiTask): Promise<void> {
  * οι τιμές (m, k ή D, A, L, g) πάνε στο ελατήριο και τα χειρόγραφα μένουν όπως είναι.
  */
 async function simFromSelection(): Promise<void> {
-  const r = board.springAndText;
+  const r = board.simAndText;
   if (!r) return;
   let text = r.text;
   if (r.ink.length) {
@@ -374,14 +374,17 @@ async function simFromSelection(): Promise<void> {
       return;
     }
   }
-  const sim = parseSim(text);
+  const def = stampSim(r.s.name);
+  if (!def) return;
+  const sim = def.parse(text);
   const read = text.replace(/\s+/g, ' ').trim();
   if (!Object.keys(sim).length) {
-    toast(t(`Δεν βρήκα τιμές${read ? ` στο «${read.slice(0, 60)}»` : ''}. Γράψε τες π.χ. m = 2 kg, k = 100 N/m, A = 10 cm`, `No values found${read ? ` in “${read.slice(0, 60)}”` : ''}. Write them e.g. m = 2 kg, k = 100 N/m, A = 10 cm`), 7000);
+    // το παράδειγμα του ίδιου του σχήματος (ελατήριο, εκκρεμές, κεκλιμένο…)
+    toast(t(`Δεν βρήκα τιμές${read ? ` στο «${read.slice(0, 60)}»` : ''}. ${def.hint()}`, `No values found${read ? ` in “${read.slice(0, 60)}”` : ''}. ${def.hint()}`), 7000);
     return;
   }
   const s = board.applySim(r.s.id, sim);
-  if (s) toast(t(`Τιμές στο σχήμα: ${dataLine(s.sim)}. Πάτα πάνω τους για να τις αλλάξεις.`, `Values on the drawing: ${dataLine(s.sim)}. Tap them to change them.`), 6000);
+  if (s) toast(t(`Τιμές στο σχήμα: ${def.dataLine(s.sim ?? {})}. Πάτα πάνω τους για να τις αλλάξεις.`, `Values on the drawing: ${def.dataLine(s.sim ?? {})}. Tap them to change them.`), 6000);
 }
 document.getElementById('simTxt')?.addEventListener('click', () => void simFromSelection());
 

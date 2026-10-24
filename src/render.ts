@@ -9,7 +9,8 @@ import { STAMPS, SpringState } from './stamps';
 import { CM } from './gadgets';
 import { ANGLE_KEY, HL_ALPHA, angleSides, fmt, fmtU, hlFlat, lineAngleMark, measureAngles, measureSides, radText, sideText, trigPoint, unitsFor } from './measure';
 import { locale, t as tr } from './i18n';
-import { simBox, simClose, simFont, simRows } from './board-springs';
+import { simBox, simClose, simFont, simRows } from './board-sim';
+import { stampSim } from './sim-def';
 
 /** Ό,τι χρειάζεται η σχεδίαση από τον πίνακα. */
 export interface RenderHost {
@@ -783,7 +784,7 @@ export class Renderer {
         delete (c as Partial<CanvasRenderingContext2D>).fillText;
       }
     } else d.draw(c, s.w, s.h, d.spring || d.play ? this.b.springState(s) : undefined);
-    if (d.spring && s.sim) this.drawSimValues(c, s);
+    if (s.sim && stampSim(s.name)) this.drawSimValues(c, s);
     c.restore();
   }
 

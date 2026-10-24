@@ -4,12 +4,14 @@
  */
 
 import { locale, t } from './i18n';
+import type { SimDef } from './sim-def';
+import type { SpringState } from './stamps';
 
 /** Τα δεδομένα όπως τα έδωσε ο χρήστης (SI). w = ω, E = ολική ενέργεια, v = υmax, a = amax, F = μέγιστη δύναμη επαναφοράς, Fel = μέγιστη δύναμη ελατηρίου, dl = Δl στη θέση ισορροπίας. */
-export interface OscSim {
+export type OscSim = {
   m?: number; k?: number; A?: number; L?: number; g?: number;
   T?: number; f?: number; w?: number; E?: number; v?: number; a?: number; F?: number; Fel?: number; dl?: number;
-}
+};
 type Key = keyof OscSim;
 
 /** Το g όταν δεν δίνεται: όπως στα σχολικά βιβλία. */
@@ -138,9 +140,18 @@ export function omega(s: OscSim | undefined, pendulum: boolean, vertical = false
   return solve(s, pendulum, vertical).w ?? null;
 }
 
-/** Αριθμός με τρία σημαντικά ψηφία, με το κόμμα της γλώσσας. */
+const SUP = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+/** Αριθμός με τρία σημαντικά ψηφία, με το κόμμα της γλώσσας· πολύ μεγάλοι ή πολύ μικροί όπως στα βιβλία, 2·10⁶ ή 1,5·10⁻⁴. */
 export function num(v: number): string {
   if (!isFinite(v)) return '—';
+  const a = Math.abs(v);
+  if (a >= 1e5 || (a > 0 && a < 1e-3)) {
+    const e = Math.floor(Math.log10(Number(a.toPrecision(3))));
+    const m = num(v / 10 ** e);
+    const p = [...String(Math.abs(e))].map((c) => SUP[+c]).join('');
+    return `${m === '1' ? '' : m === '-1' ? '-' : `${m}·`}10${e < 0 ? '⁻' : ''}${p}`;
+  }
   const r = Number(v.toPrecision(3));
   return (Object.is(r, -0) ? 0 : r).toLocaleString(locale, { maximumFractionDigits: 6 });
 }
@@ -232,3 +243,28 @@ export function periodMs(s: OscSim | undefined, pendulum: boolean, vertical = fa
 export const SIM_HINT = (pendulum: boolean): string => pendulum
   ? t('Π.χ. L = 1, A = 0,05 ή T = 2, Eτ = 0,1, m = 0,5 (SI· g = 10 αν δεν δοθεί). Κενό: χωρίς τιμές.', 'E.g. L = 1, A = 0.05 or T = 2, E = 0.1, m = 0.5 (SI; g = 10 if not given). Empty: no values.')
   : t('Π.χ. m = 2, k = 100, Eτ = 20 ή f = 2, υmax = 1, Fελ = 30, Δl = 10 cm (SI· g = 10 αν δεν δοθεί). Κενό: χωρίς τιμές.', 'E.g. m = 2, k = 100, E = 20 or f = 2, vmax = 1, Fel = 30, Δl = 10 cm (SI; g = 10 if not given). Empty: no values.');
+
+/** Η θέση του σώματος ως κλάσμα του πλάτους (−1 έως 1): όσο ταλαντώνεται από τη φάση, ακίνητο από τη θέση όπου κρατιέται. */
+function liveR(st: SpringState): number {
+  return st.ph !== undefined ? Math.cos(st.ph) * (st.fade ?? 1) : st.pinned && st.amp ? st.d / st.amp : 0;
+}
+
+/**
+ * Οι τιμές της ταλάντωσης ως ορισμός σχήματος (βλ. sim-def.ts): 'h' οριζόντιο ή σε κεκλιμένο, 'v' κατακόρυφο, 'p' εκκρεμές.
+ * `gap`: πόσο κάτω από το σχήμα αρχίζει το πλαίσιο των τιμών.
+ */
+export function oscDef(kind: 'h' | 'v' | 'p', gap = 1.4): SimDef {
+  const pend = kind === 'p', vert = kind === 'v';
+  return {
+    title: t('Δεδομένα της ταλάντωσης', 'Oscillation data'),
+    hint: () => SIM_HINT(pend),
+    parse: parseSim,
+    text: simText,
+    dataLine,
+    answers: (d) => simLines(d, pend, vert),
+    live: (d, st) => (st.ph !== undefined || st.pinned ? liveLine(d, pend, liveR(st), st.ph, st.fade, vert) : null),
+    periodMs: (d) => periodMs(d, pend, vert),
+    gap,
+    aiNote: ', oscillates (give its data)',
+  };
+}

@@ -5,6 +5,9 @@ import type { KidEnv } from './kids/common';
 import { hatch, label, path, zigzag } from './draw-util';
 import { PHYSICS } from './physics';
 import { t } from './i18n';
+import { oscDef } from './osc-sim';
+import type { SimDef } from './sim-def';
+import type { OptId } from './stamp-opts';
 
 type C = CanvasRenderingContext2D;
 
@@ -95,6 +98,12 @@ export interface StampDef {
   draw(c: C, w: number, h: number, st?: SpringState): void;
   /** Μόνο για ελατήρια: το σώμα μπορεί να τραβηχτεί και να ταλαντωθεί. */
   spring?(w: number, h: number): SpringGeom;
+  /** Σχήμα με τιμές: τα δεδομένα που δέχεται και οι απαντήσεις που γράφει στο πλαίσιο κάτω του (βλ. sim-def.ts). */
+  sim?: SimDef;
+  /** Τα κουμπιά του στη δεύτερη σειρά της μπάρας (βλ. stamp-opts.ts)· αν λείπει, από το είδος του (▶, ελατήριο, τιμές). */
+  opts?: OptId[];
+  /** Υπάρχει μόνο στη δοκιμαστική έκδοση: δεν φαίνεται στο μενού ούτε στον κατάλογο του AI της κανονικής (τα μαθήματα όμως ανοίγουν). */
+  beta?: boolean;
   /** Εργαλείο του Δημοτικού (βλ. kids.ts): ζωγραφίζεται από την κατάστασή του και αλλάζει με πάτημα. */
   kid?: boolean;
   /** Αρχική κατάσταση. */
@@ -213,7 +222,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   spring: {
-    label: t('Οριζόντιο ελατήριο', 'Horizontal spring'), cat: 'osc', w: 380, h: 100,
+    label: t('Οριζόντιο ελατήριο', 'Horizontal spring'), cat: 'osc', w: 380, h: 100, sim: oscDef('h', 0.8),
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const x = w * 0.45 + d;
@@ -240,7 +249,7 @@ export const STAMPS: Record<string, StampDef> = {
     spring: (w, h) => ({ cx: w * 0.56, cy: h * 0.6, ux: 1, uy: 0, max: w * 0.3, r: Math.max(w * 0.13, h * 0.45) }),
   },
   springV: {
-    label: t('Κατακόρυφο ελατήριο', 'Vertical spring'), cat: 'osc', w: 150, h: 360,
+    label: t('Κατακόρυφο ελατήριο', 'Vertical spring'), cat: 'osc', w: 150, h: 360, sim: oscDef('v'),
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const cx = w / 2, top = 2, y0 = h * 0.06, yi = h * 0.5, y = yi + d, amp = w * 0.16, n = 14;
@@ -267,7 +276,7 @@ export const STAMPS: Record<string, StampDef> = {
     spring: (w, h) => ({ cx: w / 2, cy: h * 0.6, ux: 0, uy: 1, max: h * 0.26, r: Math.max(w * 0.34, h * 0.12) }),
   },
   springIncline: {
-    label: t('Ελατήριο σε κεκλιμένο', 'Spring on incline'), cat: 'osc', w: 400, h: 250,
+    label: t('Ελατήριο σε κεκλιμένο', 'Spring on incline'), cat: 'osc', w: 400, h: 250, sim: oscDef('h'),
     draw(c, w, h, st) {
       const d = st?.d ?? 0;
       const rise = h * 0.72;
@@ -336,7 +345,7 @@ export const STAMPS: Record<string, StampDef> = {
     },
   },
   pendulum: {
-    label: t('Εκκρεμές', 'Pendulum'), cat: 'osc', w: 200, h: 280,
+    label: t('Εκκρεμές', 'Pendulum'), cat: 'osc', w: 200, h: 280, sim: oscDef('p'),
     draw(c, w, h, st) {
       path(c, [[w * 0.2, 0], [w * 0.8, 0]]);
       hatch(c, w * 0.25, 0, w * 0.75, 0, 5, 8, -8);

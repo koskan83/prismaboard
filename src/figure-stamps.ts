@@ -5,7 +5,8 @@
 
 import type { FigCmd } from './ai';
 import { StampItem, uid } from './model';
-import { parseSim } from './osc-sim';
+import { BETA } from './beta';
+import { stampSim } from './sim-def';
 import { STAMPS } from './stamps';
 
 /** Τα γράμματα που γράφει ένα σχήμα (φ, m, θ…), με τη σειρά που ζωγραφίζονται: όσα μπορεί να αλλάξει ο χρήστης (StampItem.txt). */
@@ -36,9 +37,9 @@ export function stampLetters(name: string): string[] {
   return out;
 }
 
-/** Τα σχήματα που μπορεί να βάλει το AI: της Φυσικής, όσα φαίνονται στο μενού. */
-export function figureStampNames(): string[] {
-  return Object.entries(STAMPS).filter(([, d]) => d.cat && !d.hidden && !d.kid).map(([n]) => n);
+/** Τα σχήματα που μπορεί να βάλει το AI: της Φυσικής, όσα φαίνονται στο μενού (τα σχήματα της beta μόνο στη beta). */
+export function figureStampNames(beta = BETA): string[] {
+  return Object.entries(STAMPS).filter(([, d]) => d.cat && !d.hidden && !d.kid && (!d.beta || beta)).map(([n]) => n);
 }
 
 /** Ο κατάλογος για την εντολή του AI, μία γραμμή ανά σχήμα: όνομα, τι είναι, αναλογίες και γράμματα. */
@@ -46,7 +47,8 @@ export function figureCatalog(): string {
   return figureStampNames().map((n) => {
     const d = STAMPS[n];
     const ls = stampLetters(n);
-    return `${n}: ${d.label}, ${d.w}×${d.h}${d.spring ? ', oscillates (give its data)' : ''}${ls.length ? `, letters ${ls.join(' ')}` : ''}`;
+    const sim = stampSim(n);
+    return `${n}: ${d.label}, ${d.w}×${d.h}${sim ? sim.aiNote ?? ', has values (give its data)' : ''}${ls.length ? `, letters ${ls.join(' ')}` : ''}`;
   }).join('\n');
 }
 
@@ -58,10 +60,11 @@ export function figureStamp(c: Extract<FigCmd, { k: 'stamp' }>, x: number, y: nu
   const d = STAMPS[c.name];
   if (!d || !figureStampNames().includes(c.name)) return null;
   const it: StampItem = { kind: 'stamp', id: uid(), name: c.name, x, y, w, h: (w * d.h) / d.w, color: ink, width: 3 };
-  // ταλάντωση: ό,τι διαβάζεται ως δεδομένο (m, k, A, L…) πάει στο sim και το γράμμα του μένει όπως είναι
-  const isData = (k: string, v: string): boolean => !!d.spring && Object.keys(parseSim(`${k} = ${v}`)).length > 0;
-  if (d.spring) {
-    const sim = parseSim(c.vals.map(([k, v]) => `${k} = ${v}`).join(', '));
+  // σχήμα με τιμές: ό,τι διαβάζεται ως δεδομένο (m, k, A, L…) πάει στο sim και το γράμμα του μένει όπως είναι
+  const def = stampSim(c.name);
+  const isData = (k: string, v: string): boolean => !!def && Object.keys(def.parse(`${k} = ${v}`)).length > 0;
+  if (def) {
+    const sim = def.parse(c.vals.map(([k, v]) => `${k} = ${v}`).join(', '));
     if (Object.keys(sim).length) it.sim = sim;
   }
   const letters = stampLetters(c.name);

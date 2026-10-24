@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dataLine, liveLine, omega, parseSim, periodMs, piNum, simLines, simText, solve } from '../src/osc-sim';
+import { dataLine, liveLine, num, omega, parseSim, periodMs, piNum, simLines, simText, solve } from '../src/osc-sim';
 
 describe('προσομοίωση ταλάντωσης', () => {
   it('διαβάζει τιμές με κόμμα ή τελεία και αγνοεί μονάδες', () => {
@@ -97,6 +97,15 @@ describe('προσομοίωση ταλάντωσης', () => {
     const l3 = simLines({ m: 1, k: 1 }, false).join(' | ');
     expect(l3).toContain('T = 2π s');
     expect(l3).toMatch(/f = 1\/\(2π\) ≈ 0[.,]159 Hz/);
+  });
+  it('πολύ μεγάλοι και πολύ μικροί αριθμοί με δυνάμεις του 10', () => {
+    expect(num(2e6)).toBe('2·10⁶');
+    expect(num(-60000)).toMatch(/^-?60[.,]?000$/);
+    expect(num(1e5)).toBe('10⁵');
+    expect(num(1.5e-4)).toMatch(/^1[.,]5·10⁻⁴$/);
+    expect(num(-9e9)).toBe('-9·10⁹');
+    expect(num(0)).toBe('0');
+    expect(num(0.0493)).toMatch(/^0[.,]0493$/);
   });
   it('χωρίς αρκετά δεδομένα δεν βγαίνουν τιμές', () => {
     expect(simLines({ m: 2 }, false)).toEqual([]);

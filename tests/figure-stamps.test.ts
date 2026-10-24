@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { parseFigureReply } from '../src/ai';
 import { figureCatalog, figureStamp, figureStampNames, stampLetters } from '../src/figure-stamps';
+import { betaStampNews } from '../src/news';
+import { STAMPS } from '../src/stamps';
 
 describe('σχήμα από εκφώνηση με τα έτοιμα σχήματα', () => {
   it('διαβάζει την εντολή S με θέση, πλάτος και τιμές', () => {
@@ -34,5 +36,23 @@ describe('σχήμα από εκφώνηση με τα έτοιμα σχήματ
     expect(sp.txt).toBeUndefined();
     expect(figureStamp({ k: 'stamp', name: 'nothing', x: 0, y: 0, w: 10, vals: [] }, 0, 0, 10, '#000')).toBeNull();
     expect(figureStamp({ k: 'stamp', name: 'resistor', x: 0, y: 0, w: 10, vals: [] }, 0, 0, 10, '#000')).toBeNull();
+  });
+  it('σχήματα της beta: μόνο στη beta, και στο «Τι νέο» της beta', () => {
+    // σήμερα: οι τιμές του ηλεκτρισμού, σε μία γραμμή
+    expect(betaStampNews()).toHaveLength(1);
+    expect(betaStampNews()[0]).toContain(STAMPS.circSeries2.label);
+    expect(betaStampNews()[0]).not.toContain(STAMPS.spring.label);
+    STAMPS.zzBeta = { ...STAMPS.incline, beta: true };
+    STAMPS.zzSimBeta = { ...STAMPS.spring, sim: { ...STAMPS.spring.sim!, beta: true } };
+    try {
+      expect(figureStampNames(false)).not.toContain('zzBeta');
+      expect(figureStampNames(true)).toContain('zzBeta');
+      // το σχήμα υπάρχει και στην κανονική· μόνο οι τιμές του είναι της beta
+      expect(figureStampNames(false)).toContain('zzSimBeta');
+      expect(betaStampNews()[0]).toContain(STAMPS.incline.label);
+    } finally {
+      delete STAMPS.zzBeta;
+      delete STAMPS.zzSimBeta;
+    }
   });
 });
