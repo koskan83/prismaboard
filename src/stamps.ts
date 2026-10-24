@@ -112,6 +112,8 @@ export interface StampDef {
   big?: boolean;
   /** Πόσο κρατά η κίνηση μετά από κάθε αλλαγή (ms)· αν λείπει, ενάμισι δευτερόλεπτο. */
   animMs?: number;
+  /** Σε όλη την οθόνη κινείται συνέχεια, όσο είναι ανοιχτό (πειράματα: ηλεκτρόνια, μόρια)· το env.anim.t μετρά από την τελευταία αλλαγή. */
+  live?: boolean;
   drawKid?(c: C, w: number, h: number, v: number[], env: KidEnv): void;
   /** Πάτημα στο σημείο (x, y) του κουτιού: η νέα κατάσταση, ή null αν δεν έπεσε πουθενά. */
   tap?(v: number[], x: number, y: number, w: number, h: number, env?: { names?: string[] }): number[] | null;

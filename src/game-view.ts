@@ -13,7 +13,7 @@ import { openReady } from './ready-ui';
 import { STAMPS } from './stamps';
 
 /** Τα παιχνίδια που παίζονται σε όλη την οθόνη. */
-const FULL = new Set(['syllables', 'spell', 'hangman']);
+const FULL = new Set(['syllables', 'spell', 'hangman', 'lab-circuit', 'lab-sound', 'lab-light', 'lab-optics', 'lab-heat', 'lab-magnet']);
 
 /**
  * Το παιχνίδι ανοίγει σε όλη την οθόνη. Όχι η Ορθογραφία «με το χέρι»: εκεί ο μαθητής γράφει με το μολύβι πάνω στον πίνακα.
@@ -49,7 +49,8 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
   words.textContent = t('📋 Λέξεις', '📋 Words');
   words.title = t('Οι έτοιμες λέξεις του παιχνιδιού: δες τες, πρόσθεσε ή βγάλε', 'The game\'s ready words: see them, add or remove');
   words.onclick = () => void openReady(name);
-  root.append(cv, words, door);
+  // τα πειράματα δεν έχουν λέξεις
+  root.append(cv, ...(d.live ? [] : [words]), door);
   document.body.append(root);
   document.body.classList.add('building');
   const c = cv.getContext('2d')!;
@@ -85,7 +86,8 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
     if (!idle) return;
     const tick = (): void => {
       if (!anim || !root.isConnected) return;
-      if (performance.now() - anim.t0 > d.animMs!) anim = null;
+      // τα πειράματα (live) κινούνται όσο είναι ανοιχτά
+      if (!d.live && performance.now() - anim.t0 > d.animMs!) anim = null;
       draw();
       if (anim) requestAnimationFrame(tick);
     };
@@ -209,4 +211,5 @@ export function openGameView(board: Board, id: string, onFx: (ev: string, at: Ga
   addEventListener('resize', layout);
   addEventListener('keydown', key, true);
   layout();
+  if (d.live) animate(v!);
 }

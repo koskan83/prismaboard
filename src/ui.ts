@@ -309,6 +309,7 @@ export function mountUi(app: HTMLElement): void {
       <button data-gtab="time">${t('Ώρα · Χρήματα', 'Time · Money')}</button>
       <button data-gtab="shape">${t('Σχήματα', 'Shapes')}</button>
       <button data-gtab="play">${t('Παιχνίδια', 'Games')}</button>
+      ${BETA ? `<button data-gtab="sci">${t('Πειράματα', 'Science')}</button>` : ''}
     </div>
     <div class="gHead" data-lv="pri" data-tab="num">${t('Αριθμοί και πράξεις', 'Numbers and operations')}</div>
     <div class="tiles" data-lv="pri" data-tab="num">
@@ -389,7 +390,16 @@ export function mountUi(app: HTMLElement): void {
       ${tile('data-kid="smile"', '<b class="em">🙂</b>', t('Φατσούλα', 'Smiley'))}
       ${tile('data-kid="bravo"', '<b class="em">👏</b>', t('Μπράβο!', 'Well done!'))}
     </div>
-    ${BETA ? `<div class="gHead" data-tab="play">${t('Τάξη', 'Classroom')}</div>
+    ${BETA ? `<div class="gHead" data-lv="pri" data-tab="sci">${t('Πειράματα Φυσικών', 'Science experiments')}</div>
+    <div class="tiles" data-lv="pri" data-tab="sci">
+      ${tile('data-kid="lab-circuit"', '<b class="em">💡</b>', t('Κύκλωμα', 'Circuit'), t('Κύκλωμα με λαμπάκια: τα ηλεκτρόνια τρέχουν, με μεγάλη τάση η λάμπα καίγεται, με μικρή φωτίζει λίγο', 'Circuit with bulbs: electrons flow; too much voltage burns the bulb, too little makes it dim'))}
+      ${tile('data-kid="lab-sound"', '<b class="em">🔊</b>', t('Ήχος', 'Sound'), t('Ήχος: ψιλός ή βαθύς, σιγανός ή δυνατός· τα μόρια του αέρα πάλλονται και ακούς τη διαφορά', 'Sound: high or low, soft or loud; the air vibrates and you hear the difference'))}
+      ${tile('data-kid="lab-light"', '<b class="em">🔦</b>', t('Σκιές', 'Shadows'), t('Φως και σκιές: σέρνεις τον φακό και η σκιά μεγαλώνει ή μικραίνει· αδιαφανή, ημιδιαφανή, διαφανή', 'Light and shadows: drag the torch and the shadow grows or shrinks; opaque, translucent, transparent'))}
+      ${tile('data-kid="lab-optics"', '<b class="em">🪞</b>', t('Ανάκλαση', 'Reflection'), t('Ανάκλαση σε καθρέφτη, διάθλαση στο νερό, ουράνιο τόξο από πρίσμα', 'Reflection in a mirror, refraction in water, a rainbow from a prism'))}
+      ${tile('data-kid="lab-heat"', '<b class="em">🌡️</b>', t('Θερμότητα', 'Heat'), t('Πάγος, νερό, ατμός: ζεσταίνεις ή κρυώνεις και βλέπεις το θερμόμετρο και τα μόρια', 'Ice, water, steam: heat or cool and watch the thermometer and the molecules'))}
+      ${tile('data-kid="lab-magnet"', '<b class="em">🧲</b>', t('Μαγνήτης', 'Magnet'), t('Μαγνήτης και πυξίδες, ρινίσματα σιδήρου και ηλεκτρομαγνήτης', 'Magnet and compasses, iron filings and an electromagnet'))}
+    </div>
+    <div class="gHead" data-tab="play">${t('Τάξη', 'Classroom')}</div>
     <div class="tiles" data-tab="play">
       ${tile('data-gadget="voice"', '<b class="em">🤫</b>', t('Επίπεδο φωνής', 'Voice level'), t('Επίπεδο φωνής: ησυχία, ψίθυροι ή κανονική φωνή', 'Voice level: silence, whisper or normal voice'))}
       ${tile('data-gadget="noise"', '<b class="em">🎤</b>', t('Μετρητής θορύβου', 'Noise meter'), t('Μετρητής θορύβου με το μικρόφωνο· ο ήχος δεν ηχογραφείται', 'Noise meter using the microphone; sound is not recorded'))}

@@ -119,6 +119,12 @@ export function playFx(ev: string, prefs: FxPrefs): void {
     if (now - lastTok < 45) return;
     lastTok = now;
   }
+  // πείραμα του ήχου: τόνος στο ύψος και την ένταση που διάλεξαν τα παιδιά
+  const tn = /^tone\|(\d+)\|([0-2])$/.exec(ev);
+  if (tn) {
+    tone(Number(tn[1]), 0.9, { gain: [0.12, 0.3, 0.6][Number(tn[2])] });
+    return;
+  }
   const frog = /^frog\|(\d+)\|([wsg])$/.exec(ev);
   if (frog) {
     // συγχρονισμένα με τα πηδήματα του βατράχου (SYL_HOP = 0,7 s): «μπουνγκ» σε κάθε νούφαρο, και στο τέλος

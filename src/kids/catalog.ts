@@ -28,4 +28,10 @@ export const KID_CATALOG: Record<string, KidMeta> = {
   spell: { label: t('Ορθογραφία', 'Spelling'), w: 900, h: 660, init: [0, 0], big: true, animMs: 16000, has: 'tap ask fx' },
   hangman: { label: t('Κρεμάλα', 'Hangman'), w: 800, h: 480, init: [0], has: 'tap ask fx' },
   syllables: { label: t('Συλλαβές', 'Syllables'), w: 960, h: 640, init: [0], big: true, animMs: 9000, has: 'tap ask paint drop fx' },
+  'lab-circuit': { label: t('Κύκλωμα με λαμπάκια', 'Circuit with bulbs'), w: 960, h: 640, init: [2, 1, 0, 0, 0], big: true, animMs: 2500, has: 'tap fx' },
+  'lab-sound': { label: t('Ήχος', 'Sound'), w: 960, h: 640, init: [2, 1, 0], big: true, animMs: 2500, has: 'tap fx' },
+  'lab-light': { label: t('Φως και σκιές', 'Light and shadows'), w: 960, h: 640, init: [30, 0, 1], big: true, animMs: 2500, has: 'tap paint fx' },
+  'lab-optics': { label: t('Ανάκλαση και διάθλαση', 'Reflection and refraction'), w: 960, h: 640, init: [0, 40], big: true, animMs: 2500, has: 'tap paint fx' },
+  'lab-heat': { label: t('Θερμότητα: πάγος, νερό, ατμός', 'Heat: ice, water, steam'), w: 960, h: 640, init: [20, 0], big: true, animMs: 2500, has: 'tap fx' },
+  'lab-magnet': { label: t('Μαγνήτης και πυξίδες', 'Magnet and compasses'), w: 960, h: 640, init: [50, 50, 0, 0, 0, 1], big: true, animMs: 2500, has: 'tap paint fx' },
 };

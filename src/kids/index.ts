@@ -14,10 +14,11 @@ import { NUMBER_KIDS } from './numbers';
 import { NUMCUBE_KIDS } from './numcubes';
 import { SPELL_KIDS } from './spell';
 import { SYLLABLE_KIDS } from './syllables';
+import { SCIENCE_KIDS } from './science';
 import { STICKER_KIDS } from './stickers';
 
 export const KIDS: Record<string, StampDef> = {
-  ...NUMBER_KIDS, ...FRACTION_KIDS, ...GAME_KIDS, ...BUILD_KIDS, ...NUMCUBE_KIDS, ...SPELL_KIDS, ...HANGMAN_KIDS, ...SYLLABLE_KIDS, ...STICKER_KIDS,
+  ...NUMBER_KIDS, ...FRACTION_KIDS, ...GAME_KIDS, ...BUILD_KIDS, ...NUMCUBE_KIDS, ...SPELL_KIDS, ...HANGMAN_KIDS, ...SYLLABLE_KIDS, ...SCIENCE_KIDS, ...STICKER_KIDS,
 };
 
 export type { KidEnv } from './common';

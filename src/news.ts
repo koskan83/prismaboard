@@ -12,7 +12,7 @@ export const VERSION: string = typeof __BUILD__ === 'string'
   : t('δοκιμαστική', 'test build');
 
 /** Αλλάζει κάθε φορά που αλλάζει η λίστα: τότε το «Τι νέο» εμφανίζεται μία φορά σε κάθε συσκευή. */
-export const NEWS_ID = BETA ? '2026-10-24-beta' : '2026-10-23';
+export const NEWS_ID = BETA ? '2026-10-24b-beta' : '2026-10-23';
 
 /** Συνοπτικά, ανά θέμα: λίγες γραμμές που διαβάζονται με μια ματιά, αντί για κάθε αλλαγή χωριστά. */
 /**
@@ -27,6 +27,7 @@ export function betaStampNews(): string[] {
 export const NEWS: string[] = [
   ...(BETA ? betaStampNews() : []),
   // μόνο στο beta: η κανονική έκδοση δεν έχει ακόμη αυτά τα εργαλεία
+  ...(BETA ? [t('Στη beta, νέα καρτέλα «Πειράματα» στα Όργανα του Δημοτικού, σε όλη την οθόνη: κύκλωμα με λαμπάκια (τα ηλεκτρόνια τρέχουν, με μεγάλη τάση η λάμπα καίγεται), ήχος, φως και σκιές, ανάκλαση και διάθλαση, θερμότητα (πάγος, νερό, ατμός), μαγνήτης με πυξίδες.', 'In the beta, a new “Science” tab in the primary Tools, in full screen: circuit with bulbs (electrons flow, too much voltage burns the bulb), sound, light and shadows, reflection and refraction, heat (ice, water, steam), magnet with compasses.')] : []),
   ...(BETA ? [t('Στη δοκιμαστική έκδοση (beta): «Επίπεδο φωνής», «Μετρητής θορύβου» (ο ήχος δεν ηχογραφείται) και χρονόμετρο με δίσκο-πίτα. Στις ταλαντώσεις οι απαντήσεις κρατούν το π (T = 2π s, f = 1/(2π) ≈ 0,159 Hz), και το πλαίσιο των τιμών σέρνεται όπου θέλεις ή σβήνεται με το ✕.', 'In the beta: “Voice level”, a “Noise meter” (sound is never recorded) and a timer with a pie disk. In oscillations the answers keep π (T = 2π s, f = 1/(2π) ≈ 0.159 Hz), and the values box can be dragged anywhere or removed with ✕.')] : []),
   t('Κυβάκια και αριθμοί (Όργανα → Παιχνίδια): αριθμοί ως το 1000, οι τέσσερις πράξεις (+ − × :) με το 3 × 4 ως ορθογώνιο και το 12 : 3 σε καλάθια, ασκήσεις μόνες τους με το 🎲, και ζυγαριά με δύο πιατέλες για συγκρίσεις.', 'Number Cubes (Tools → Games): numbers up to 1000, all four operations (+ − × :) with 3 × 4 as a rectangle and 12 : 3 in baskets, exercises by themselves with 🎲, and a two-pan scale for comparisons.'),
   t('Παιχνίδια του Δημοτικού σε όλη την οθόνη: 🐸 Συλλαβές, Ορθογραφία με το τερατάκι 👾 και Κρεμάλα. Έτοιμες λέξεις ανά τάξη ή δικές σου σε λίστες (📋 Λέξεις), 10 λέξεις στην τύχη με το 🎲, και χρωματιστές κουκκίδες για το πώς τα πήγε το παιδί.', 'Primary games in full screen: 🐸 Syllables, Spelling with the little monster 👾 and Hangman. Ready-made words per grade or your own lists (📋 Words), 10 random words with 🎲, and colored dots showing how the child did.'),
