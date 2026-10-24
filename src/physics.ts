@@ -7,6 +7,7 @@
 import { hatch, label, path, zigzag } from './draw-util';
 import type { SpringState, StampDef, STAMP_CATS } from './stamps';
 import { t } from './i18n';
+import { chargesDef, circDef, type Topo } from './elec-sim';
 
 type C = CanvasRenderingContext2D;
 type P2 = [number, number];
@@ -637,3 +638,8 @@ export const PHYSICS: Record<string, StampDef> = {
     k.text('ℓ', 288, 258, 20);
   }),
 };
+
+// τιμές και απαντήσεις (beta): κυκλώματα με μία πηγή ως 3 αντιστάτες, και δύο φορτία
+for (const [n, topo] of [['circMeters', '1'], ['circSeries2', 's2'], ['circPar2', 'p2'], ['circSeries3', 's3'], ['circPar3', 'p3'], ['circSeriesPar3', 'sp'], ['circParSeries3', 'ps']] as [string, Topo][]) PHYSICS[n].sim = circDef(topo);
+PHYSICS.dipole.sim = chargesDef(true);
+PHYSICS.likeCharges.sim = chargesDef(false);
