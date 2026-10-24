@@ -28,8 +28,9 @@ describe('σχήμα από εκφώνηση με τα έτοιμα σχήματ
     expect(cat).toMatch(/spring: .*oscillates/);
   });
   it('οι τιμές πάνε στη θέση των γραμμάτων, και στις ταλαντώσεις γίνονται δεδομένα', () => {
-    const inc = figureStamp({ k: 'stamp', name: 'incline', x: 0, y: 0, w: 75, vals: [['φ', '30°'], ['F', '10 N']] }, 100, 50, 300, '#000')!;
-    expect(inc).toMatchObject({ kind: 'stamp', name: 'incline', x: 100, y: 50, w: 300, h: 300 * 180 / 320, txt: { φ: '30°' } });
+    // σχήμα χωρίς τιμές (σε καμία έκδοση): η τιμή γράφεται στη θέση του γράμματος
+    const pul = figureStamp({ k: 'stamp', name: 'pulley', x: 0, y: 0, w: 75, vals: [['m₁', '2 kg'], ['F', '10 N']] }, 100, 50, 200, '#000')!;
+    expect(pul).toMatchObject({ kind: 'stamp', name: 'pulley', x: 100, y: 50, w: 200, h: 300, txt: { 'm₁': '2 kg' } });
     const sp = figureStamp({ k: 'stamp', name: 'spring', x: 0, y: 0, w: 70, vals: [['m', '0,2 kg'], ['k', '80 N/m'], ['A', '5 cm']] }, 0, 0, 380, '#000')!;
     expect(sp.sim).toEqual({ m: 0.2, k: 80, A: 0.05 });
     // το m του ελατηρίου μένει γράμμα: η τιμή φαίνεται στο πλαίσιο των τιμών

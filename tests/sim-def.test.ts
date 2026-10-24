@@ -33,8 +33,10 @@ describe('σχήματα με τιμές: οι ταλαντώσεις ως ορ�
     expect(stampSim('pendulum')!.gap).toBe(1.4);
   });
   it('σχήματα χωρίς τιμές, άγνωστα ονόματα και ονόματα του Object δεν έχουν ορισμό', () => {
-    expect(stampSim('incline')).toBeNull();
-    expect(stampSim('waveT')).toBeNull();
+    expect(stampSim('pulley')).toBeNull();
+    // στην κανονική έκδοση το κεκλιμένο και τα κύματα δεν έχουν ακόμα τιμές (στη beta έχουν)
+    expect(stampSim('incline', false)).toBeNull();
+    expect(stampSim('waveT', false)).toBeNull();
     expect(stampSim('δεν-υπάρχει')).toBeNull();
     expect(stampSim('constructor')).toBeNull();
   });
@@ -73,6 +75,6 @@ describe('σχήματα με τιμές: οι ταλαντώσεις ως ορ�
     expect(simRows(still, { ...sp, simOff: true })).toBeNull();
     expect(simRows(still, { ...sp, sim: undefined })).toBeNull();
     // σχήμα χωρίς τιμές δεν έχει πλαίσιο, ακόμα κι αν έχει δεδομένα
-    expect(simRows(still, { ...sp, name: 'waveT' })).toBeNull();
+    expect(simRows(still, { ...sp, name: 'pulley' })).toBeNull();
   });
 });
